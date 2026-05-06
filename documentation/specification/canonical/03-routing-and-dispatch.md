@@ -1,0 +1,737 @@
+# Routing and Dispatch
+
+## Status
+
+Canonical.
+
+## Scope
+
+This file defines:
+
+- the routing layer
+- dispatch timing
+- router inputs
+- `RunIntent` as a concrete routing output
+- continuity attachment
+- fast path
+- route visibility and override
+- retry and edit rerouting rules
+
+This file does not define:
+
+- run schema
+- task schema
+- execution graph schema
+- approval mechanics
+- tool contract schema
+- storage schema
+
+## Source Resolution
+
+This file is a resolved design, not a summary.
+
+Primary source families reviewed:
+
+- `documentation/sources/atlas3-project-knowledge/atlas3-core/*`
+- `documentation/sources/atlas3-project-knowledge/unit-specs/unit04-routing-agents-prompt.md`
+- `documentation/sources/atlas3-project-knowledge/unit-specs/unit03-conversation-engine.md`
+- `documentation/sources/atlas3-project-knowledge/unit-specs/unit05-providers.md`
+- `documentation/sources/atlas3-project-knowledge/unit-specs/unit06-tools.md`
+- `documentation/sources/atlas3-project-knowledge/unit-specs/unit07-context.md`
+- `documentation/sources/atlas3-project-knowledge/unit-specs/unit13-ui.md`
+- `documentation/sources/atlas3-project-knowledge/unit-specs/unit14-systems.md`
+- `documentation/sources/atlas3-specbase/references/routing/router.md`
+- `documentation/sources/atlas3-specbase/references/agents/*`
+- `documentation/sources/atlas3-specbase/references/context/*`
+- `documentation/sources/atlas3-specbase/references/providers/*`
+- `documentation/sources/atlas3-specbase/references/ui/*`
+- `documentation/sources/codex_recommendations.md`
+- `documentation/sources/existing_ecosystems/*`
+- `documentation/sources/atlas3-project-knowledge/compressed-repos/*`
+- `documentation/sources/atlas3-project-knowledge/addendums/*`
+
+Resolved tensions:
+
+- keep routing as a first-class runtime step, but do not tie canonical semantics to an old one-domain router-node shape
+- keep model-driven routing, but do not force every subdecision through a separate heavy pass
+- keep route visibility, but do not let routing own frontend presentation truth
+- keep fast path, but define it as router-owned trivial or preparatory execution, not routing bypass
+- keep continuity attachment, but make it cheap, concrete, and routing-owned
+
+## 1. Purpose
+
+Routing decides how a new request should enter the runtime.
+
+It does not produce the final answer. It decides:
+
+- what the request belongs to
+- what kind of execution should happen
+- which capabilities are relevant
+- which work surface is primary, if any
+- which model strategy to use
+- whether trivial or preparatory work can be done immediately
+
+The canonical output of routing is `RunIntent`.
+
+## 2. Routing Is a First-Class Dispatch Step
+
+Routing is a first-class dispatch step in request handling.
+
+It is not:
+
+- hidden preprocessing
+- optional metadata generation
+- only a frontend concern
+
+It must be:
+
+- durably recorded
+- linked to its trigger
+- inspectable
+- replayable
+- overrideable by the user
+
+Implementation may realize routing as a dedicated runtime node, a dispatch-layer phase, or an equivalent execution step. That is not the canonical concern of this file.
+
+The canonical concern is that every new run passes through routing before downstream execution begins, regardless of trigger kind, unless the trigger is a pure local UI action that does not ask the system to perform work.
+
+### 2.1 Trigger Kinds and Routing
+
+Routing applies to every trigger kind enumerated in the run spec: user request, retry, edit reroute, continuation, child run, automation, external event, and user-invoked action. The pipeline shape is the same for all trigger kinds; trigger-kind-specific rules govern which fields the trigger pre-fills and which the router still decides.
+
+- automation triggers may pin primary surface, capability families, model route, or the full `RunIntent` at save time; the routing pass respects pinned fields and fills only the unpinned ones
+- child-run triggers inherit policy and capability snapshots from the parent run; the child receives its own `RunIntent` that may narrow, pivot, or fully replace the inherited surface and capability selection
+- external-event triggers route with the event payload as the routing-frame trigger context
+- user-invoked actions (capability palette, shortcut, voice-mapped action) may skip the router model when the action id deterministically resolves the route; the routing record is still created
+- retry, edit reroute, and continuation triggers follow §11 and §12
+
+Pre-filling and inheritance constrain routing the same way an explicit user override does (§3.2); they do not bypass it. Per-trigger-kind enablement, pin-through behavior, and inheritance scope are user-configurable through settings (§13).
+
+## 3. Dispatch Pipeline
+
+For each new user request, dispatch proceeds in this order:
+
+1. Build the routing frame.
+2. Apply deterministic prechecks.
+3. Run the router.
+4. Materialize `RunIntent`.
+5. Optionally execute router-owned fast-path work.
+6. Persist the route result and attach it to the request.
+7. Hand off to downstream execution.
+
+The seven-step pipeline is the canonical logical contract. Implementations may compose additional steps — extension prechecks, validators, observers, gates — through the actions and events hook architecture (per File 04 §23.3) without changing the canonical step order or the routing decision contract.
+
+### 3.1 Routing Frame
+
+The routing frame is the compact structured input the routing layer reasons over. It must contain enough state for the router to produce a valid `RunIntent`. Downstream context such as full conversation history, instruction files, loaded skills, and individual approval leases is assembled at execution time and is not part of the routing frame.
+
+The frame inputs are organized into four categories.
+
+**Trigger context**
+
+- the triggering input (user message, automation event payload, external event, child-run request, retry/edit reference, or user-invoked action)
+- `trigger_kind` discriminator (per §2.1)
+- the active conversation id
+- current route override state, if any
+- explicit user-specified attachments or inputs
+
+**Work-state context**
+
+- current active intent thread, if any
+- current active task, if any
+- compact prior routing summaries, when the active router context policy uses them (per §6)
+- active world model snapshot (active surface, focused element, mounted panels, selection, available actions, current ui_mode)
+
+**Capability-and-policy context**
+
+- currently available capabilities and capability families
+- enabled work surfaces
+- active approval posture (the equivalent of a `GooseMode` / `AskForApproval` / active approval policy template)
+
+**Model-and-provider context**
+
+- model-routing settings and available model profiles
+- relevant provider capability metadata (modality, tool-call format, streaming support, reasoning support, context window)
+- relevant provider rate-limit state and provider health state
+- active per-scope budget state (token budgets primarily; cost-ceiling overlay is provider-dependent and may be absent)
+- active model fallback policy
+
+The frame should not require raw replay of the full conversation.
+
+The frame is constructed by the active router context policy. The policy is configurable through settings, profiles, and per-chat overrides. Whatever the policy, the frame must include enough from each of the four categories above for the router to produce a valid `RunIntent`.
+
+The canonical default is the `compact` policy: optimized for cheap, cache-friendly routing. It includes the trigger content plus the minimum from each of the four required categories, leaning on the stable system-prompt prefix (capability, model, and surface catalogues) cached by the provider where supported. The compact policy may include a brief active-intent-thread or active-task summary when one is already maintained as part of work-state context; it does not require dedicated routing summaries (§6), and its target is effectively flat token cost regardless of conversation length.
+
+Richer policies may be selected through settings, profiles, or per-chat overrides. Representative policies:
+
+- `compact_with_summaries`: adds compact prior routing summaries (per §6) for stronger work-line continuity
+- `recent_blocks`: adds a small selected set of recent transcript blocks
+- `pinned_and_referenced`: adds blocks the user has pinned, referenced, or attached
+- `expanded_for_ambiguity`: increases the included context when deterministic prechecks (§3.2) signal ambiguity
+- custom policies registered by domains, plugins, or users
+
+Changing router context policy changes what the router sees. It must not change the meaning of `RunIntent`, bypass durable route recording, omit a category required for a valid `RunIntent`, or make full raw conversation replay the fixed default.
+
+The trigger content consumed by the routing frame may be the result of deterministic pre-routing transformations — duplicate detection, attachment expansion, mention or slash-command macro expansion, or other content normalizations. These transformations are not deterministic prechecks (§3.2): they shape what the router sees, not whether or where the request is dispatched. Each transformation that altered the trigger content must be recorded as part of the route record, including what was detected and what the user override (if any) decided.
+
+### 3.2 Deterministic Prechecks
+
+Deterministic prechecks run before the router model. A precheck is any deterministic function over the routing frame that may resolve, constrain, or no-op the routing decision. They exist to avoid wasting model effort on cases that are already clear from runtime state.
+
+When a precheck fully resolves the route, the router model step is skipped. When a precheck constrains or prefills routing (for example, "the request must use the coder primary surface" or "force the explicit-model-override to model X"), the router model receives the constraints and decides only the unconstrained fields. When a precheck no-ops, dispatch continues to the router model unchanged.
+
+Representative precheck patterns:
+
+- explicit user override of route, model, surface, or capability strategy
+- retry of an unchanged routed request that preserves the prior route
+- explicit "back to X" or equivalent continuity reference
+- edit of a prior user message
+- exact capability invocation exposed by the UI or palette (the action id deterministically resolves the route)
+- active request that is clearly continuing the same work line
+- slash commands or other namespace-scoped invocations that map directly to actions or capabilities
+- deterministic state-flag routing (e.g., a highlighted code selection unambiguously routes to a code-edit capability)
+- cached prior routing decision under identical inputs when the cache key is still valid
+
+Prechecks are ordered. Order and per-precheck enablement are settings; a precheck that resolves the route short-circuits later prechecks in the chain. The mechanism by which capabilities, plugins, domains, or user configuration contribute additional prechecks is owned by the capability, settings, and hooks specs, not this file.
+
+### 3.3 Router
+
+The router is typically a model-driven component.
+
+Its job is not to infer the deep true intent of the user. Its job is narrower:
+
+- attach the request to the correct ongoing work line
+- choose the appropriate execution entry shape
+- select relevant capability and surface targets
+- select model strategy
+- determine whether fast path is appropriate
+
+Routing must be cheap enough to run on every relevant trigger. Cheapness is a cost ceiling, not a prescribed mechanism: implementations may achieve it through prompt caching of the stable system prompt (capability, model, and surface catalogues), native tool-call emission of the routing decision, substitution of the model-driven router with a local classifier, or any equivalent technique. Any implementation that achieves cheap, durable, replayable routing on every relevant trigger is valid.
+
+### 3.4 Route Application
+
+After the router returns, the runtime:
+
+- creates or updates the primary work-line attachment
+- records the route result
+- prepares any router-owned fast-path outputs
+- initializes downstream execution with the resolved `RunIntent`
+
+### 3.5 Route Record
+
+The route result is recorded durably as part of the run record. The record must preserve enough information to:
+
+- reconstruct the routing decision (the resolved `RunIntent` plus `routing_metadata`)
+- replay the routing pass against the same inputs
+- inspect the decision in the UI
+- audit the decision against routing-eval suites
+
+The record references the policy snapshot, capability snapshot, and world snapshot in effect at routing time; snapshot identities live in the storage and version specs. Every precheck that fired (with its verdict) and every pre-routing transformation that altered trigger content (§3.1) must be present in the record.
+
+## 4. `RunIntent`
+
+### 4.1 Definition
+
+`RunIntent` is the concrete routing result for one request.
+
+It is short-lived as a dispatch object, but its result is durably recorded.
+
+### 4.2 Required Fields
+
+`RunIntent` must include:
+
+- `conversation_id`
+- `trigger_kind`
+- `trigger_id`
+- `parent_run_id`
+- `trace_context`
+- `primary_intent_thread_id`
+- `attachment_kind`
+- `primary_surface`
+- `supporting_surfaces`
+- `capability_families`
+- `execution_entry`
+- `model_route`
+- `tool_surface_strategy`
+- `fast_path`
+- `precheck_results`
+- `routing_metadata`
+- `reasoning_summary`
+
+### 4.3 Field Meanings
+
+`trigger_kind`
+
+The class of trigger that produced this `RunIntent`. One of: `user_request`, `retry`, `edit_reroute`, `continuation`, `child_run`, `automation`, `external_event`, `user_invoked_action`. Per §2.1.
+
+`trigger_id`
+
+Polymorphic identity of the trigger. Resolves to a `message_id` for user requests, an `event_id` for external events, an `automation_id` for automations, a `parent_run_id` for child runs, an `action_invocation_id` for user-invoked actions, and equivalent identifiers for the other kinds.
+
+`parent_run_id`
+
+The id of the parent run, if any. Set for child runs spawned from another run and for retry, edit-reroute, and reroute branches that descend from a prior run. Null for top-level runs that have no parent.
+
+`trace_context`
+
+Optional propagation envelope for cross-run observability. Carries a stable trace identifier across spawn, retry, and reroute boundaries so descendant runs remain correlatable with their origin. The wire format is implementation-defined; later observability specs may standardize on a particular convention.
+
+`attachment_kind`
+
+- `continue_existing`
+- `start_new`
+- `start_parallel`
+
+`start_parallel` covers both independent parallel work lines and decomposed sub-work lines that share parent context. The decomposition-vs-independence distinction is task-layer state and is not a routing-layer attachment kind.
+
+`primary_surface`
+
+The main work surface most relevant to the request.
+
+Examples:
+
+- `conversation`
+- `coder`
+- `web`
+- `teacher`
+- `data_processor`
+- `gui_control`
+- `system_agent`
+
+`supporting_surfaces`
+
+Additional surfaces likely to matter.
+
+This exists because real requests are often not single-surface.
+
+`capability_families`
+
+The main capability groups the runtime should treat as relevant. Family names come from the live capability registry; the list below is illustrative, not canonical, and the runtime set varies with installed capabilities, plugins, and extensions.
+
+Examples:
+
+- `conversation_response`
+- `web_fetch`
+- `web_search`
+- `file_read`
+- `file_edit`
+- `browser_control`
+- `memory_recall`
+- `document_edit`
+- `planning`
+- `subagent_orchestration`
+
+`execution_entry`
+
+The initial execution path.
+
+Allowed values:
+
+- `respond_inline`
+- `respond_with_tools`
+- `domain_runtime`
+- `multi_step_agent`
+
+`model_route`
+
+The chosen model strategy for the request.
+
+It must include:
+
+- `profile_id`
+- `resolved_model_id`
+- `fallback_policy_id`
+
+`tool_surface_strategy`
+
+The tool surface strategy chosen for the request. One of: `use_current_surface_tools`, `borrow_foreign_capabilities`, `load_deferred_capabilities`. Enumeration mirrored in §8.3.
+
+`fast_path`
+
+Describes whether router-owned fast path was used.
+
+It must include:
+
+- `enabled`
+- `performed_capabilities`
+- `result_state`
+
+`precheck_results`
+
+The ordered record of deterministic prechecks (§3.2) that fired during dispatch and the effect each had on the route: `resolved`, `constrained`, or `no_op`. Empty when no prechecks fired.
+
+`routing_metadata`
+
+Observability fields for the routing decision: the source of the decision (one of: `precheck_chain_resolved`, `model_router_emitted`, `classifier_emitted`, `inherited_from_parent_run`), routing latency, and any error if a recovery path was used.
+
+### 4.4 What `RunIntent` Does Not Contain
+
+`RunIntent` does not define:
+
+- frontend posture
+- visible layout
+- whether a workspace panel must open
+- whether the user is in a chat-first or workspace-first experience
+
+Those are presentation concerns.
+
+Routing may inform them, but it does not own them as backend truth.
+
+## 5. Continuity Attachment
+
+### 5.1 Rule
+
+Each new request attaches to exactly one primary intent thread.
+
+That attachment is decided in routing.
+
+### 5.2 Decision Order
+
+Continuity attachment is decided in this order:
+
+1. explicit user reference or override
+2. deterministic attachment from active state
+3. router model decision
+
+### 5.3 Intent Thread Creation
+
+Routing creates a new intent thread only when needed.
+
+Common cases:
+
+- the request starts a distinct new line of work
+- the request is parallel to current work
+- no prior work line cleanly owns the request
+- downstream work needs durable ownership
+
+Routing must not create intent threads mechanically for every message.
+
+## 6. Routing Summaries
+
+### 6.1 Purpose
+
+Router context policies that need work-line continuity beyond what active task and intent-thread state already carry — and beyond what the cached system-prompt prefix supplies — need a compact mechanism that does not require replaying raw conversation history. Routing summaries are that mechanism. The `compact` default policy does not require routing summaries; richer policies may use them as a load-bearing continuity aid.
+
+### 6.2 Chosen Mechanism
+
+After each routed request, the system may persist a compact routing summary linked to its trigger.
+
+That summary is for future routing, not for transcript display.
+
+### 6.3 Requirements
+
+A routing summary must be:
+
+- short
+- source-linked to its trigger
+- specific to routing-relevant continuity
+- replaceable by later summaries
+
+It should capture only what future routing needs, such as:
+
+- active work line identity
+- short restatement of the current work line
+- route-relevant attachments or constraints
+- important explicit user preferences affecting future routing
+
+### 6.4 Limits
+
+Routing summaries are not:
+
+- user-visible plan objects
+- memory entries by default
+- substitutes for task state
+- required under the `compact` default router context policy
+
+They are compact router-side continuity aids used by richer router context policies. Whether summaries are produced, and which policies consume them, are settings (§13).
+
+## 7. Model Routing
+
+### 7.1 Principle
+
+Model routing is part of dispatch, but it is not the whole router.
+
+The router chooses a model strategy in the context of the request, not just the cheapest or strongest model in isolation.
+
+### 7.2 Inputs
+
+Model routing must consider:
+
+- user overrides
+- model profiles from settings
+- provider capabilities
+- modality requirements
+- tool-calling support
+- streaming behavior
+- rate-limit state
+- provider health state
+- fallback policy
+- task complexity
+- active approval posture (the equivalent of a `GooseMode` / `AskForApproval` / active approval policy template)
+- active per-scope budget state (token budgets; cost-ceiling overlay is provider-dependent and may be absent)
+
+### 7.3 Required Shape
+
+Model routing must support:
+
+- explicit user-selected model
+- explicit user-selected profile
+- router-selected profile
+- router-selected concrete model within that profile
+
+This is required because model lists are dynamic and user-customizable.
+
+Model routing may be implemented as a single decision or as an ordered chain of strategies in which each strategy may resolve, constrain, or pass to the next. Common strategies include explicit user-override resolution, fallback-after-failure resolution, approval-posture-driven resolution, classifier-based complexity resolution, and a terminal default strategy. Strategy composition is an implementation pattern; this file does not require it. The canonical contract is that the four shapes above must remain supported and the inputs of §7.2 must be considered.
+
+### 7.4 Capability Awareness
+
+Model routing must be capability-aware.
+
+Examples:
+
+- visual requests require a visual-capable model route
+- math-heavy requests may prefer a reasoning-oriented route
+- trivial search or fetch preparation may use the low-cost router profile
+- non-streaming models must not break the runtime because they are non-streaming
+
+## 8. Surface and Capability Selection
+
+### 8.1 Domains Are Not Hard Fences
+
+Routing must not treat domains as isolated silos.
+
+A request may:
+
+- stay in conversation while using web capabilities
+- use coder capabilities without opening a coder workspace
+- use memory recall without entering a memory management surface
+- combine web, coder, teacher, and document capabilities in one line of work
+
+### 8.2 Required Selection Shape
+
+Routing must choose:
+
+- one primary surface
+- zero or more supporting surfaces
+- relevant capability families
+
+This is stronger than one-domain routing and simpler than full execution planning.
+
+### 8.3 Tool Surface Strategy
+
+Routing chooses a tool-surface strategy for the request and records it in the `tool_surface_strategy` field of `RunIntent` (§4.2, §4.3).
+
+Allowed strategies:
+
+- `use_current_surface_tools`
+- `borrow_foreign_capabilities`
+- `load_deferred_capabilities`
+
+The full mechanics of borrowing and deferred loading belong in later capability and tool specs.
+
+## 9. Fast Path
+
+### 9.1 Definition
+
+Fast path is a router outcome where the router-owned phase performs trivial or preparatory work immediately.
+
+Typical cases:
+
+- a direct weather lookup
+- fetching a requested page before the main responder runs
+- a simple search classification followed by one search call
+- resolving a simple resource lookup
+
+The router phase is itself a model call. When a request needs only a trivial preparatory tool call, the router emits that tool call during routing and attaches the result to the request, so downstream execution proceeds with the result already in context — no extra round-trip. Fast path is distinct from cheap routing as an implementation property: a router that emits its decision through a single native tool call with a prompt-cached system prompt is a cheap router (§3.3), but cheapness alone does not put a request "on the fast path." Fast path requires the router phase to perform actual capability work whose results are handed into downstream execution.
+
+### 9.2 What Fast Path Is Not
+
+Fast path is not:
+
+- skipping routing
+- skipping continuity attachment
+- skipping durable recording
+- skipping downstream execution when downstream work is still needed
+
+### 9.3 Allowed Behavior
+
+When fast path is selected, the router-owned phase may:
+
+- call one or more trivial capabilities
+- attach the results to the request
+- hand the prepared results into the downstream response path
+
+The downstream model must not need to repeat work already completed by fast path.
+
+Capabilities invoked during fast-path execution go through the same capability contract, capability policy, and approval router as any other capability call. Fast path is not a policy bypass: a capability whose normal execution would require approval still requires approval when invoked from the fast-path phase, and capability-policy interceptors (destructive-action detection, sensitive-resource elevation, denied-action lists) still apply.
+
+### 9.4 Failure Rule
+
+If fast-path execution fails:
+
+- the failure is recorded
+- the failure is attached to the routed request
+- downstream execution may continue with the failure context
+
+Fast-path failure must not silently discard the route or request.
+
+## 10. User Visibility and Override
+
+### 10.1 Visibility
+
+Each routing decision must be linked to the triggering user message and be inspectable in the UI.
+
+It does not need to be rendered as a normal transcript message.
+
+### 10.2 Minimum Visible Information
+
+The UI must be able to show:
+
+- what the request was routed to
+- whether fast path was used
+- which model route was chosen
+- the short routing explanation
+- whether the user has overridden the route
+- the routing-frame inputs that informed the decision (which prechecks fired, which router context policy was active, which world-model snapshot was used)
+
+### 10.3 Override
+
+Any field in `RunIntent` may be overridden by the user, subject to validity: the override must produce a valid `RunIntent` (for example, the user cannot select a model the active provider cannot serve, and cannot select an `attachment_kind` that conflicts with the active intent-thread state).
+
+Overrides take two shapes:
+
+- value override: the user sets a field directly (for example, selecting a specific model)
+- constraint: the user restricts the router's decision space (for example, "only use providers in this list" or "only use approval posture X"); the router still routes, choosing within the constraint
+
+Common overridable parts include the primary surface, supporting surfaces, model route, capability families and `tool_surface_strategy`, the active approval posture, fast-path enablement, intent-thread attachment (including reattaching to a different thread), router enablement itself, and the active router context policy.
+
+The UI exposes overrides progressively — common overrides surface as primary controls; the full field set is available on demand. An override affects downstream execution for that request, is recorded as part of the route record (§3.5), and may inform later learned preferences.
+
+## 11. Retry and Edit Rules
+
+### 11.1 Retry
+
+Retry of the same request preserves the prior route by default.
+
+It does not automatically rerun route selection unless:
+
+- the user explicitly asks to reroute
+- the prior route is now invalid
+- the runtime detects that route inputs materially changed
+
+### 11.2 Edit
+
+Editing a prior user message invalidates the prior route for that message.
+
+The edited request must be rerouted.
+
+### 11.3 Invalid Route Inputs
+
+A prior route is invalid if any of the following changed materially:
+
+- the triggering message content
+- explicit user override state
+- required capability availability
+- required model capability availability
+- provider or rate-limit state such that the prior route can no longer execute
+
+When the conditions above arise mid-flight on a run that is already executing, invalidation is handled through the reroute mechanisms in §12. Whether such conditions automatically trigger reroute or surface to the user is governed by settings (§13).
+
+### 11.4 Partial-Failure Retry
+
+When a prior run produced partial failure (some execution units succeeded, others failed), retry of failed units only preserves the prior route by default. Retry of the whole structure follows §11.1.
+
+### 11.5 Intent-Thread Reattachment
+
+If the user moves the triggering message to a different intent thread, the prior route is invalid. The reattached request must be rerouted with the new intent thread as the routing-frame attachment.
+
+## 12. Mid-Execution Reroute
+
+### 12.1 Definition
+
+A mid-execution reroute changes the route of an in-flight run to a different surface, model, capability family, or execution entry before the original route's work is complete. Reroute may be triggered by:
+
+- the executing model, when it determines it lacks the right surface, model, capability family, policy scope, or domain runtime for the current work, and emits a reroute request with reasoning
+- the runtime environment, when a watchdog, validator, monitor, stuck or loop detector, capability-availability change, provider-health change, rate-limit event, or other typed runtime signal triggers a reroute
+- the user, through explicit intervention (interject, takeover, override) during execution
+
+Each trigger source produces the same shape of reroute request: a target description (reasoning, suggested route fields if any) plus a trigger-source discriminator. Resolution paths are described in §12.2.
+
+### 12.2 Resolution Paths
+
+A mid-execution reroute request resolves through one of three paths, regardless of trigger source:
+
+- router-resolved (default): the request goes through the router, which evaluates the reasoning and decides whether and where to reroute
+- self-routed: the trigger source supplies the new route directly through the router model, which validates and emits a `RunIntent`
+- direct hand-back: the trigger source supplies a complete valid `RunIntent` and the runtime reroutes without invoking the router; permitted only when the supplying source is deterministic (a user-issued override, a watchdog with a registered direct-resolution profile, or equivalent), and the route record (§3.5) is still produced
+
+Direct hand-back never operates on an unbounded-trust model output. A reroute request originating from the executing model always resolves through router-resolved or self-routed.
+
+### 12.3 Configuration
+
+Mid-execution rerouting is controlled by settings (§13):
+
+- whether mid-execution rerouting is enabled, per trigger source (model, environment, user)
+- whether the executing model may self-route or must go through the router
+- which environment signals are eligible to trigger reroute, and which may use direct hand-back
+- if self-routing is enabled, the model may choose per-request which resolution path to use via an extra parameter on the reroute request
+
+### 12.4 Boundary
+
+This section defines the routing interface for mid-execution reroute requests. Full execution mechanics, including how the current run is suspended, handed off, or merged, belong in the execution spec.
+
+## 13. Settings
+
+Every routing mechanism described in this file must be configurable through settings. Settings are scoped global, workspace, and chat (per the settings system); user profiles compose them.
+
+At minimum, settings must support:
+
+- router enablement, including per-trigger-kind enablement (§2.1)
+- router profile and router-model selection, including collapsing the router into the main model's prompt
+- router context policy selection, with per-profile, per-chat, and per-workspace overrides
+- per-precheck enablement and ordering (§3.2)
+- model-routing strategy chain composition, profile preferences, and per-surface model preferences
+- fallback policy selection per scope
+- active approval posture
+- active per-scope budget state (token budgets; cost ceiling where the provider exposes it or the user has supplied estimates)
+- fast-path enablement, per surface and per capability family
+- route visibility verbosity
+- whether routing summaries are enabled (only meaningful under richer router context policies; §6.4)
+- mid-execution reroute enablement per trigger source (§12.3) and self-routing enablement
+- routing telemetry and routing-eval enablement
+
+Settings whose mechanism depends on optional provider capability — accurate token counting, cost reporting, native tool-call streaming, and similar — must degrade gracefully when the capability is absent and must surface the degraded state to the user. They must not silently disable themselves, fail closed without notice, or block routing on a missing capability whose absence is recoverable.
+
+Users must be able to customize routing without changing the core runtime shape. Settings define intended product variation; they must not become hidden hardcoded branches (per File 01 §7.6).
+
+## 14. Explicit Rejections
+
+The following shapes are wrong for this layer:
+
+- one-domain routing as the only route output
+- treating frontend presentation as router-owned backend truth
+- requiring a separate heavy continuity-analysis pass on top of normal routing
+- making intent-thread creation a mandatory tool call
+- defining fast path as routing bypass
+- making full raw conversation replay the default router context
+- hardcoding one router context policy with no user override
+- forcing user-visible workspace opening as part of route truth
+- treating model routing as only "pick the cheapest model" or only "pick the strongest model"
+- confidence-threshold-driven routing as a canonical mechanism (strategies may use confidence internally to pick between paths or fall back; routing's external decision is one route, not a probability distribution)
+- treating fast path as a capability-policy bypass
+- bypassing routing for automation, child-run, external-event, or user-invoked-action triggers
+
+## 15. Consequences for Later Specs
+
+Later specs must follow these rules:
+
+- run schema must consume `RunIntent` cleanly
+- execution schema must treat route outputs as the execution entry contract
+- capability specs must support route-directed borrowing and deferred loading
+- UI specs must expose route inspection and override
+- storage specs must record routing summaries, route decisions, and invalidation cleanly
+- model/provider specs must expose enough capability metadata for model routing to remain dynamic
+- automation, scheduling, and external-event specs must accept the routing-pipeline contract for their trigger kinds and use the `trigger_kind`/`trigger_id` discriminator (§2.1, §4.3)
+- capability and plugin specs must support precheck registration through the same hook system the approval router uses (§3.2)
+- storage and ledger specs must record route record content per §3.5: resolved `RunIntent`, `routing_metadata`, applied prechecks, applied pre-routing transformations, and snapshot references
+- evaluation specs must include routing-evals as a first-class evaluation family, with the route record as the eval artefact
