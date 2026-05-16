@@ -25,7 +25,7 @@ This file defines:
 
 This file does not define:
 
-- the policy engine, lease evaluation, approval UI, or runtime tier resolution mechanics — the future Capability Policy, Approvals, and Leases spec owns those
+- the policy engine, lease evaluation, approval UI, or runtime tier resolution mechanics — File 06 owns those
 - tool-surface zones, prompt visibility, deferred loading, or capability-borrowing UX — the future Tool Surfaces and Capability Loading spec owns those
 - run lifecycle, execution graph, hook execution mechanics, or runtime input coercion mechanics — File 04 owns those
 - routing or `RunIntent` selection — File 03 owns those
@@ -168,6 +168,7 @@ Every `CapabilityDeclaration` must have:
 - a typed error vocabulary (§4.3)
 - a touched-resource declaration as machine-parseable expressions (§6)
 - a permission-tier declaration (§5)
+- a capability class declaration (§3.5)
 - the execution-semantic metadata declared in File 04 §8.2 plus the per-field `classification_mode` directive (§3.6, §7)
 - a `replay_class` declaration (§3.6, §7.3)
 - a validation path (§8)
@@ -226,7 +227,8 @@ Display fields are declarative only. Surface presentation is owned by the future
 
 - `permission_tier`: `TierResolver::Static(Tier)` or `TierResolver::Dynamic(resolver_id)` (§5)
 - `permission_floor`: optional minimum tier that global settings cannot lower (§5.4)
-- `approval_template_id`: optional identifier for the default approval-policy template used when policy escalates (template definitions live in the future Capability Policy, Approvals, and Leases spec)
+- `capability_class`: `InternalAnalysis`, `ActionExternal`, `UserArtifact`, or `Unknown`; policy-critical class consumed by File 06 for default template selection and trust escalation. Tags may mirror this value for discovery, but tags are not the source of truth.
+- `approval_template_id`: optional identifier for the default approval-policy template used when policy escalates (template definitions live in File 06)
 - `data_sensitivity`: default sensitivity class for events and outputs the capability emits (`Public`, `Sensitive`, `Secret`); per File 04 §23.2
 
 ### 3.6 Execution-Semantic Fields
@@ -266,7 +268,7 @@ Trust state and registration timestamp are not declaration fields; they live on 
 - `platforms`: optional platform constraint list (`windows`, `macos`, `linux`, `mobile`, etc.); a capability whose platforms list omits the current platform is catalogued as `availability_status: unavailable_platform` on the registered entry rather than absent (§9.4, §10)
 - `prerequisite_capabilities`: optional list of scoped prerequisites that must have been invoked previously before this capability becomes invocable (§15.3)
 
-The `enabled` flag is registry state, not a declaration field; it lives on the registered entry (§10). The settings system scopes enable state per workspace, chat, or globally without mutating the declaration.
+The `enabled` flag is registry state, not a declaration field; it lives on the registered entry (§10). The settings system scopes enable state per workspace, conversation, or globally without mutating the declaration.
 
 ### 3.10 Composition Fields
 
@@ -357,7 +359,7 @@ The dynamic case exists because some capabilities are inherently argument-sensit
 
 Argument-aware resolvers are themselves registered, named, and inspectable. A capability declares the resolver by id; the resolver's behavior must be deterministic given the same arguments and world-model snapshot. Resolvers are not capabilities (they do not execute work) but they are registry-managed declarations; the resolver registry is colocated with the Capability Registry.
 
-The resolver declaration belongs to the declaration. The resolved tier for a given call belongs to the invocation record (§11). The policy layer (the future Capability Policy spec) computes the final effective tier and approval path.
+The resolver declaration belongs to the declaration. The resolved tier for a given call belongs to the invocation record (§11). File 06 computes the final effective tier and approval path.
 
 ### 5.3 Tier Composition With Leases
 
@@ -371,7 +373,7 @@ A capability may declare a `permission_floor` — a minimum tier that global set
 
 ### 5.5 Boundary
 
-The declaration carries tiers, floors, and resolvers. The policy layer evaluates them against active leases, scope-level overrides, source trust, and approval templates, and returns the runtime decision. File 05 owns the declaration and the registered trust state; the future Capability Policy spec owns the evaluation.
+The declaration carries tiers, floors, and resolvers. The policy layer evaluates them against active leases, scope-level overrides, source trust, and approval templates, and returns the runtime decision. File 05 owns the declaration and the registered trust state; File 06 owns the evaluation.
 
 ## 6. `touched_resources`
 
@@ -420,7 +422,7 @@ Expressions are structured terms over the input schema and registered ambient va
 - external account: `connector.account(args.account_id).mailbox(args.mailbox_id)`
 - process group: `process.group(run_id)`
 
-The exact expression grammar lives in the future Capability Policy spec or a capability-schema appendix; this file requires only that expressions are machine-parseable, that argument-bound expressions reference `args.*` field paths by name, and that the expression resolves to the concrete resources policy must check.
+The exact expression grammar lives in File 06 or a capability-schema appendix; this file requires only that expressions are machine-parseable, that argument-bound expressions reference `args.*` field paths by name, and that the expression resolves to the concrete resources policy must check.
 
 ### 6.5 Purpose
 
@@ -528,7 +530,7 @@ Every declaration names its source. The source is one of:
 - `Plugin { plugin_id, plugin_version }` — bundled in a plugin (per File 01 §6.14 extension planes; see the future Extension and Plugin System spec); registered when the plugin loads; unregistered when the plugin unloads
 - `McpServer { server_id, server_uuid, server_version }` — sourced from an external Model Context Protocol server; registered when the server connects; unregistered when the server disconnects
 - `Api { api_name, api_definition_path }` — sourced from a user-authored external-API TOML or equivalent declarative definition; registered when the definition file is loaded
-- `UserDefined { backend, scope }` — registered at runtime by the user or, with explicit user approval, by the agent through a capability-registration capability; backend is `Wasm` or `Shell` (per File 04 §17 self-modification); scope is `chat`, `workspace`, or `global`
+- `UserDefined { backend, scope }` — registered at runtime by the user or, with explicit user approval, by the agent through a capability-registration capability; backend is `Wasm` or `Shell` (per File 04 §17 self-modification); scope is `conversation`, `workspace`, or `global`
 
 A capability has exactly one source. A capability cannot be both built-in and plugin-bundled; a plugin that wishes to override a built-in capability must register a distinct id and the user must explicitly select the override (§14).
 
@@ -542,7 +544,7 @@ Trust is registry state, not a declaration field. The declared source carries so
 
 Trust does not rewrite declared fields. A capability declaring `permission_tier: WorkspaceWrite` from a `Community`-trust MCP server retains the declared `WorkspaceWrite` in the registered entry. The policy layer reads declaration plus trust and resolves an effective tier of at least `UserApproval` by default for `Community` and `Unverified` sources; the user may explicitly upgrade trust per source. This keeps declarations honest and lets policy change when trust settings change without mutating capability versions.
 
-When a source registers (plugin install, MCP server connect, external-API definition load, user-defined capability registration) the runtime surfaces the declared permission tiers, declared touched resources, declared replay class, declared trust hint, and source provenance to the user before activation. The user accepts the declared defaults, configures different policy (per-capability tier ceiling, deny outright, or auto-approve up to a chosen tier), or skips and falls through to the configured default behavior. The surface is required only when at least one capability from the source declares a tier above a configurable threshold (default: above `ReadOnly`); low-tier sources pass through silently. The whole flow is configurable: users can require it for every source, suppress it for trusted sources, or ratchet the threshold tighter.
+When a source registers (plugin install, MCP server connect, external-API definition load, user-defined capability registration) the runtime surfaces the declared permission tiers, declared touched resources, declared replay class, declared trust hint, source provenance, and computed source-risk summary before activation when policy requires review. The user accepts declared defaults, configures policy, denies the source, explicitly defers source-level policy to per-call fallback, or cancels registration. Review triggering is risk-summary based; declared tier is one input, not the whole rule. The exact trigger and fallback behavior are owned by File 06 and user settings.
 
 ### 9.3 Sourcing Equivalence
 
@@ -566,7 +568,7 @@ A `RegisteredCapability` is the live registry entry produced when a `CapabilityD
 
 - `declaration`: the registered `CapabilityDeclaration` (immutable for the version)
 - `registered_at`: timestamp of registration
-- `enabled`: runtime enable flag distinct from existence; settings-scoped per workspace, chat, or globally (§16.3)
+- `enabled`: runtime enable flag distinct from existence; settings-scoped per workspace, conversation, or globally (§16.3)
 - `availability_status`: `Available` | `UnavailablePlatform` | `UnavailableHandler` | `UnavailablePrerequisite` | `Disabled` | `Shadowed`
 - `resolved_backend_binding`: the live resolved handler reference (service-method handle, loaded Wasm module instance, MCP client adapter, HTTP client, in-process closure); never serialized into the declaration
 - `source_instance`: the registered source-instance reference (which loaded plugin, which connected MCP server, which loaded API definition file)
@@ -611,7 +613,7 @@ Per-call resolved facts that are not declaration fields:
 - resolved touched resources (the concrete resources produced by evaluating typed expressions against the arguments per §6)
 - resolved model-mediated classifications (per-field values produced by `ModelMediated { policy_prompt_id }` classifiers per §7.2)
 - selected backend binding instance (which MCP server connection, which Wasm module instance) at the moment of dispatch
-- policy decision (lease consulted, approval mode chosen, contradiction-checks performed) — per the future Capability Policy spec
+- policy decision (lease consulted, approval mode chosen, contradiction-checks performed) — per File 06
 - proposal id, ledger entry id, event sequence
 - call outcome (typed result, typed error, blocks produced, events emitted)
 
@@ -668,7 +670,7 @@ A capability id is a stable, namespaced, lowercase, dotted string. The first seg
 - Plugin-bundled capabilities: `plugin.<plugin_id>.<operation>` (or the plugin's declared namespace if it ships with one — `<plugin_namespace>:<operation>` is also accepted; the registry stores both forms and resolves equivalently)
 - MCP-sourced capabilities: `mcp.<server_id>.<remote_tool_name>` (the server_id is the user-visible server name, not the server UUID; the UUID is in the registered source instance)
 - Registry-bridged external API capabilities: `api.<service_name>.<endpoint_id>`
-- User-defined capabilities: `custom.<scope>.<tool_id>` where scope is `chat`, `workspace`, or `global`
+- User-defined capabilities: `custom.<scope>.<tool_id>` where scope is `conversation`, `workspace`, or `global`
 
 Ids are case-insensitive at lookup (registered case is preserved for display) and may not contain whitespace, slashes, or characters that conflict with the namespace separators (`.`, `:`, `__`). The registry rejects ids that do not conform.
 
@@ -814,7 +816,7 @@ Capabilities may register, update, and unregister at runtime:
 
 - a plugin install adds capabilities mid-session; the user approves the plugin's permission manifest at install time; the capabilities become available immediately to subsequent agent iterations
 - an MCP server connection adds capabilities mid-session; the connection itself is approved by the user at server-add time; reconnection after a crash retains the prior approvals
-- a user invocation of `tools.register_custom` adds a user-defined capability; the call requires `UserApproval` regardless of other approvals; registration scope (`chat`, `workspace`, `global`) is declared in the call
+- a user invocation of `tools.register_custom` adds a user-defined capability; the call requires `UserApproval` regardless of other approvals; registration scope (`conversation`, `workspace`, `global`) is declared in the call
 - a subsystem extension capability registers a new subsystem (or removes one), by the same proposal-first approval rules
 
 Registration is a capability call. Capability registration, plugin installation, MCP connection, external-API definition import, user-script registration, and subsystem registration are themselves capabilities. They flow through the File 04 §8.2 execution pipeline and the policy layer like any other call. Runtime registration APIs are not privileged side doors; the agent cannot self-promote registration without user approval.
@@ -831,7 +833,7 @@ Use cases for disable rather than unregister:
 - a plugin is suspected of misbehaving; disabling its capabilities is reversible while diagnosis proceeds
 - the plugin is being upgraded; old capabilities are disabled while new ones register, then the disabled capabilities are unregistered atomically
 
-`enabled` may be scoped: a capability may be globally enabled but disabled within a specific workspace or chat. The settings system (per File 01 §6.8) holds the scoped enable state.
+`enabled` may be scoped: a capability may be globally enabled but disabled within a specific workspace or conversation. The settings system (per File 01 §6.8) holds the scoped enable state.
 
 ### 16.4 Update Mechanics
 
@@ -907,19 +909,19 @@ Every capability mechanism in this file must be configurable through settings (p
 
 Dimensions and ownership:
 
-- per-capability `enabled` state, scoped global, workspace, and chat — owned by registry and the settings system
-- per-capability default `permission_tier` overrides (capped by `permission_floor`), scoped through the same hierarchy — declaration carries the dimension; resolution lives in the future Capability Policy spec
+- per-capability `enabled` state, scoped global, workspace, and conversation — owned by registry and the settings system
+- per-capability default `permission_tier` overrides (capped by `permission_floor`), scoped through the same hierarchy — declaration carries the dimension; resolution lives in File 06
 - per-capability `classification_mode` overrides (deterministic vs model-mediated) for fields that support per-call classification — declaration carries the dimension; the policy/runtime layer resolves
 - per-capability cost-model overrides and budget caps — declaration carries the dimension; budget enforcement lives in the runtime/budget layer
 - per-capability telemetry enablement and verbosity — declaration carries the dimension; resolution lives in the future Telemetry spec
-- per-source trust-level overrides (upgrade `Community` MCP server to `Verified` with explicit user action; downgrade a `Verified` source for paranoia) — registered entry carries the override; effective trust resolved by the future Capability Policy spec
+- per-source user trust overrides — registered entry carries the override separately from source-authored trust; effective trust is resolved by File 06
 - registry-wide collision behavior (warn vs reject vs prompt-on-override) — registry-owned
 - discovery-capability enablement (`tool.search`, `mcp.search`, `extensions.search_registry`) — registry-owned
 - alias deprecation enforcement (warn vs refuse on use of deprecated aliases) — registry-owned
-- runtime-registration enablement: whether the agent is permitted to invoke `tools.register_custom`, `extensions.install`, `subsystems.register`, and equivalent registration capabilities at all (off, prompt-each-time, allowlist of trusted sources, allow) — declaration carries the dimension; resolution lives in the future Capability Policy and Extension/Plugin specs
+- runtime-registration enablement: whether the agent is permitted to invoke `tools.register_custom`, `extensions.install`, `subsystems.register`, and equivalent registration capabilities at all (off, prompt-each-time, allowlist of trusted sources, allow) — declaration carries the dimension; resolution lives in File 06 and the future Extension/Plugin specs
 - per-capability availability-predicate overrides for users who want to expose normally-hidden capabilities at their own risk — declaration carries the dimension; resolution lives in the future world-state spec
 - platform-availability surface visibility (whether `unavailable_platform` entries appear in the default discovery view or only in advanced settings) — registry/surface-owned
-- source-approval thresholds (the tier above which the registration proposal surface is required; per-source-class overrides; default behavior when the user skips) — registered entry carries the override; resolution lives in the future Capability Policy spec
+- source-approval risk thresholds and defer/cancel fallback behavior — registered entry carries the relevant source state; resolution lives in File 06
 
 ### 18.2 Settings-Key Convention
 
@@ -960,7 +962,7 @@ The following shapes are wrong for this layer:
 
 Every later spec that touches capabilities consumes the `CapabilityDeclaration` and the `RegisteredCapability` defined here as their operation primitive. Later specs covering capability policy and approvals, tool surfaces and capability loading, blocks and the block graph, artifacts and evidence, the execution ledger and event stream, version graph and projections, retrieval and indexing, context assembly and compaction, memory, model strategy and provider integration, world model and state awareness, settings and profiles, storage and persistence, sync and portability, security and credentials, sandboxes and isolation, workspaces and materialization, the per-surface specs (work surface contract, control rails, coder, web, data processor, teacher, GUI control, system agent), automation and triggers, workflows and templates, the extension and plugin system, MCP and external integrations, the UI shell and customization, quality control and validation, evaluation and benchmarking, telemetry and observability, runtime infrastructure and lifecycle, and packaging and distribution must:
 
-- read declared metadata from `CapabilityDeclaration` (identity, schemas, touched-resource expressions, permission tier and floor, execution-semantic metadata including replay class, validation paths, postconditions, source attribution, display, availability predicate, prerequisites, composition declarations, cost model, telemetry schema, backend descriptor)
+- read declared metadata from `CapabilityDeclaration` (identity, schemas, touched-resource expressions, permission tier and floor, capability class, execution-semantic metadata including replay class, validation paths, postconditions, source attribution, display, availability predicate, prerequisites, composition declarations, cost model, telemetry schema, backend descriptor)
 - read live state from `RegisteredCapability` (enable state, availability status, resolved backend binding, source instance, trust state, lifecycle state, active aliases, collision state, diagnostics)
 - record per-call resolved facts on `CapabilityInvocation` (resolved tier, resolved touched resources, resolved model-mediated classifications, selected backend binding instance, policy decision, ledger linkage, call outcome) — never on the declaration
 - treat the registry as the resolution surface and File 04 as the execution surface — never embed parallel execution pipelines

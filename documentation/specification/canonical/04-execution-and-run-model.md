@@ -472,7 +472,7 @@ At minimum, users must be able to configure:
 - whether broad capability families are primary, borrowable, or deferred by default
 - whether individual tools are primary, borrowable, deferred, or disabled from prompt exposure
 - whether all tools are always loaded, selectively loaded, or loaded only on demand
-- per-surface, per-profile, per-workspace, per-chat, and per-run overrides where meaningful
+- per-surface, per-profile, per-workspace, per-conversation, and per-run overrides where meaningful
 - whether routing may expand or preload tools automatically
 - whether the model may borrow foreign tools automatically or only from explicitly allowed sets
 
@@ -490,7 +490,7 @@ Approval behavior must support:
 - immediate deny
 - ask user
 - typed-confirmation: a variant of "ask user" that requires the user to type a specific confirmation string (the action's identifier, the exact path, the branch name) before the call proceeds. Used for irreversible high-blast-radius operations (force push to a protected branch, account deletion, bulk filesystem delete). Typed-confirmation is not lifted by global trust toggles; it always asks.
-- persisted approval as a `Lease`. A lease has scope, duration, revocation conditions, inherited constraints, and a recorded grant reason. A trivial persisted approval is a degenerate lease with full-capability scope, indefinite duration, and no constraints. A lease's scope is one of: `single-proposal` (no lease created — one-shot decision recorded as a policy event), `run`, `task`, `workspace`, `chat`, `global`, or `reusable-policy-rule` (a user-authored approval template applied as policy). Inherited constraints may narrow a lease to a path subtree, host set, or session set; revocation conditions may include manual revoke, workspace switch, policy change, or grant-context loss.
+- persisted approval as a `Lease`. A lease has scope, duration, revocation conditions, inherited constraints, and a recorded grant reason. A trivial persisted approval is a degenerate lease with full-capability scope, indefinite duration, and no constraints. A lease's scope is one of: `single-proposal` (no lease created — one-shot decision recorded as a policy event), `run`, `intent-thread`, `task`, `conversation`, `workspace`, `global`, or `reusable-policy-rule` (a user-authored approval template applied as policy). `conversation` is the canonical persisted scope name; "chat" is UI wording, not a separate stored scope. Inherited constraints may narrow a lease to a path subtree, host set, or session set; revocation conditions may include manual revoke, workspace switch, policy change, or grant evidence becoming unavailable.
 - model-mediated policy evaluation, including the named `auto-decide` mode, where a designated model classifies each proposed call against a configured policy prompt and returns allow, deny, ask user, or escalate.
 - policy-driven escalation
 - batched approval for multiple pending calls
@@ -501,7 +501,7 @@ Persisted decisions are policy records, not hidden execution state.
 
 Model-mediated policy evaluation means the policy layer may use a designated model to interpret a configured approval policy template and classify a proposed action as allow, deny, ask user, or escalate. This is still part of the shared capability policy system: the model evaluates against policy, audit rules, and configured constraints rather than inventing approval behavior ad hoc.
 
-The system must support built-in approval policy templates as well as user-provided custom templates. A template may define how the policy evaluator reasons about risk classes, touched resources, reversibility, scope, prior approvals, workspace boundaries, or other approval-relevant context. Tier overrides, lease grants, modes, and templates compose across the scope hierarchy (single-proposal, run, task, workspace, chat, global, reusable-policy-rule). Policy validation must reject contradictory combinations across scope levels rather than resolving them silently — for example, a chat-level deny under a global-level lease must surface as a contradiction, not as a silent denial of the lease.
+The system must support built-in approval policy templates as well as user-provided custom templates. A template may define how the policy evaluator reasons about risk classes, touched resources, reversibility, scope, prior approvals, workspace boundaries, or other approval-relevant context. Tier overrides, lease grants, modes, and templates compose across the scope hierarchy (single-proposal, run, intent-thread, task, conversation, workspace, global, reusable-policy-rule). Policy validation must reject contradictory combinations across scope levels rather than resolving them silently — for example, a conversation-level deny under a global-level lease must surface as a contradiction, not as a silent denial of the lease.
 
 Model-mediated policy evaluation must not silently replace explicit user approval where policy still requires a human decision. It decides how the policy should classify the proposal; it does not erase the distinction between system-approved and user-approved actions.
 
@@ -1138,7 +1138,7 @@ At minimum, settings must support:
 - custom approval policy templates and per-scope overrides
 - prior-run resolution policy for retry, reroute, and branch, with a general default and per-action overrides
 - permission tier resolution and `Denied`-tier override paths, including `typed-confirmation` selection per capability or capability family
-- lease scope hierarchy enablement (single-proposal, run, task, workspace, chat, global, reusable-policy-rule) and the policy-validation rules that reject contradictory combinations across scope levels
+- lease scope hierarchy enablement (single-proposal, run, intent-thread, task, conversation, workspace, global, reusable-policy-rule) and the policy-validation rules that reject contradictory combinations across scope levels
 - approval-policy mode selection, including model-mediated `auto-decide` and per-template prompts
 - coalescing policy (off, recommended, auto-mode model-mediated) per capability or globally, including per-call cache-vs-fresh control
 - sibling-abort and `depends_on` dispatch behavior per capability and per batch
