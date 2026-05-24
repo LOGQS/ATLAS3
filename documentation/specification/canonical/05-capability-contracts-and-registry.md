@@ -112,8 +112,6 @@ Resolved tensions:
 - keep source-trust influence on policy strict, but never let trust mutate declared fields — the declared tier survives unchanged into the registry; effective tier is computed by policy at call time using declaration, trust state, settings, leases, and context
 - keep the registry catalog complete across platforms — platform-incompatible capabilities are catalogued as `availability_status: unavailable_platform` with no callable backend binding rather than silently absent
 
-The exhaustive source review is documented in `documentation/specification/logs/05-review-log.md`. Inventory: 269 source files; partitioned into 20 character-balanced batches; sub-agent scouting reports under `_review_workdir/05/reports/batch-NN.md`; the orchestrator performed all synthesis and writing. The post-generation review applied 25 recommendations (R1–R25) tracked in the same log.
-
 ## 1. Chosen Model
 
 ATLAS3 has one Capability Registry. Every operation the system can perform — file read, shell exec, web fetch, browser click, memory recall, image generation, MCP-server tool, plugin tool, user-authored Wasm tool, external-API endpoint, automation invocation, sub-agent spawn, capability-discovery call — is declared as a `Capability` and registered in that registry.

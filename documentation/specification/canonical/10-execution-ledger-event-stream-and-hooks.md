@@ -157,8 +157,6 @@ Resolved tensions:
 - keep replay precise without promising impossible byte-identical reruns: the ledger records the references and identifiers needed to inspect, simulate deterministic work, or start a full rerun. Byte-identical replay requires deterministic operations with captured inputs or stored provider responses.
 - keep the canonical envelope rich enough to demultiplex everything without making it bloat: every event carries the full envelope, but contextual references live in `context_refs` and are optional or explicitly not applicable. `conversation_id` is the canonical conversation field; legacy `chat_id` wording from older sources is normalized here. The closed sensitivity tag is mandatory.
 
-The exhaustive source review is documented in `documentation/specification/logs/10-review-log.md`. Inventory: 272 source files, ~5.63M chars; partitioned into 20 character-balanced batches of ~281K chars each; sub-agent scouting reports under `_review_workdir/10/reports/batch-NN.md`. The orchestrator performed all synthesis and writing. This is generation mode — no recommendations file was produced.
-
 ## 1. Chosen Model
 
 ATLAS3 has three primitives in this layer: `ExecutionLedger`, `EventStream`, and `Hook`. They share one `EventEnvelope`, one closed cross-cutting `AppEvent` catalogue with `Custom` extension, one hook decision vocabulary, and one cross-cutting bus through which every consequential execution fact, every live coordination signal, and every extensibility decision flows.

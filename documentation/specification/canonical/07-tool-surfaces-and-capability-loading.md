@@ -123,8 +123,6 @@ Resolved tensions:
 - keep mid-run surface-relevant changes as ordinary events, not as a separate lifecycle — borrow grants, policy lease changes, MCP server reconnections, plugin installs, settings changes, and capability registrations all emit typed surface events through the canonical bus
 - keep model-request surface content stable for cache reuse — surface content occupies a deterministic position in the assembled model request, and the surface is composed in a canonical order so unchanged surfaces produce byte-identical prefixes where the provider supports caching
 
-The exhaustive source review is documented in `documentation/specification/logs/07-review-log.md`. Inventory: 272 source files; partitioned into 20 character-balanced batches of ~280K chars each; sub-agent scouting reports under `_review_workdir/07/reports/batch-NN.md`; the orchestrator performed all synthesis and writing. This is generation mode (no prior canonical to review against); no recommendations file was produced.
-
 ## 1. Chosen Model
 
 ATLAS3 has one Capability Registry (per File 05). The set of capabilities that a particular invoker — a `Run`'s executing model, a programmatic execution unit, the command palette, a voice command resolver, a keyboard-shortcut dispatcher, an automation trigger, or an external client speaking the MCP server protocol — sees at a given moment is a `ToolSurface`.
@@ -312,7 +310,7 @@ The default grant scope for `tool.borrow` is `run`. When a `Run` ends, run-scope
 
 ### 4.6 Late Schema Loading for MCP-Sourced Capabilities
 
-Capabilities sourced from MCP servers (per File 05 §9.1) may carry larger schemas than registry-native capabilities. For large MCP registries (per CLAUDE.md unit12 D12.9 and observed across multiple sources), the registered entry carries a compact metadata cache and the full schema is fetched on-demand:
+Capabilities sourced from MCP servers (per File 05 §9.1) may carry larger schemas than registry-native capabilities. For large external registries, the registered entry carries a compact metadata cache and the full schema is fetched on-demand:
 
 - The compact metadata (name, family, short_description, tags, declared tier) is fetched at MCP connect and cached in the registered entry
 - The full schema is fetched on first `tool.borrow` or first invocation through the standard call pipeline
@@ -568,7 +566,7 @@ Auto-shrink is a tool-surface concern. It does not compact the conversation hist
 
 ### 9.1 Algorithm
 
-The visibility composition resolution algorithm is the canonical deterministic function that produces a `ResolvedToolSurface` from inputs. It is the implementation of CLAUDE.md's R20 "surface visibility / loading composition" requirement deferred from File 05 to File 07.
+The visibility composition resolution algorithm is the canonical deterministic function that produces a `ResolvedToolSurface` from inputs.
 
 ```
 compose_surface(invoker_kind, invocation_lens, scope_context) -> ResolvedToolSurface

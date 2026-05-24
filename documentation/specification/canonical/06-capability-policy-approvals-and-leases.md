@@ -120,8 +120,6 @@ Resolved tensions:
 - keep model-mediated classification as a real option for capabilities whose risk genuinely depends on call shape (`shell.exec` cannot declare a single `reversibility_class` for all bash commands), but cost-control by making it opt-in and confidence-bounded; the deterministic floor is always available
 - keep the approval UI surface as a data contract, not a UI specification; multiple presentation surfaces (chat-inline approval, modal dialog, voice confirmation, command-palette confirmation, automation pre-flight) consume the same typed request and respond through the same typed channel
 
-The exhaustive source review is documented in `documentation/specification/logs/06-review-log.md`.
-
 ## 1. Chosen Model
 
 ATLAS3 has one Capability Policy layer. Every consequential capability invocation passes through it — `Run`-internal model-emitted tool calls, user-invoked actions through the command palette or shortcuts, automation triggers, scheduled tasks, MCP-exposed external invocations, and capability registrations themselves.

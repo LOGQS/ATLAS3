@@ -57,8 +57,6 @@ Resolution rules:
 - reject heavy always-on formalization of every request
 - allow richer structure only when it materially improves continuity, execution, inspection, or reuse
 
-This file's source review was completed under the post-failure exhaustive process. Inventory: 263 source files under `documentation/sources/`. Sub-agent batched scouting covered every file with per-file relevance reasoning; the orchestrator synthesized recommendations and applied them. Detailed coverage and per-recommendation source attribution are in `documentation/specification/logs/02-review-log.md`.
-
 ## 1. Chosen Model
 
 ATLAS should use five distinct interaction objects:

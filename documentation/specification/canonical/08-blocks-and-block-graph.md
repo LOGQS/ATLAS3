@@ -95,8 +95,6 @@ Resolved tensions:
 - keep cross-surface reach (the same artifact viewable in Coder, Web, Inspector) without per-surface duplication: blocks live in one pool, each surface projects its filtered view; modifications to a block produce a sibling in the same pool
 - keep sensitivity correctly propagated through composition: a `Composed` block inherits the maximum effective sensitivity of its children; redaction projects through children when a block is rendered
 
-The exhaustive source review is documented in `documentation/specification/logs/08-review-log.md`. Inventory: 272 source files, ~5.62M chars; partitioned into 20 character-balanced batches scouted by parallel sub-agents whose per-file reports live under `_review_workdir/08/reports/batch-NN.md`. The orchestrator performed all synthesis and writing. Multiple scout-prompt-discipline violations occurred during scouting (matching the File 06 and File 07 incident pattern); all unauthorized writes were detected, deleted, and `CLAUDE.md` was restored from the prior known-good state before synthesis. Legitimate batch reports were retained. This is generation mode — no recommendations file was produced.
-
 ## 1. Chosen Model
 
 ATLAS3 has one `Block` model and one `BlockGraph` over it. Every durable structured content the system produces — a user message, an accepted assistant turn, a tool call proposal, a tool result, a reasoning trace, a file attachment, a citation, a memory entry, a validation report, an artifact handle, a plan, an execution trace, a workflow step record, a structured observation, an evidence chain — is carried as a `Block`. The relations between blocks form the `BlockGraph`.

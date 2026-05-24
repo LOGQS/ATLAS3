@@ -134,8 +134,6 @@ Resolved tensions:
 - keep artifact lifecycle expressive (Draft / Active / Validated / Superseded / Archived / Discarded) without giving it independent storage: lifecycle is per-artifact-version derived state, computed from the version-graph action log and validation edges
 - keep claim status expressive (per codex §14.8: candidate / supported / contradicted / unresolved / superseded) plus `withdrawn` for explicit retraction: status is derived from the evidence-link set when not explicitly overridden, with overrides, withdrawal, and supersession recorded as projection/action-log facts rather than mutable claim-block fields
 
-The exhaustive source review is documented in `documentation/specification/logs/09-review-log.md`. Inventory: 272 source files, ~5.79M chars; partitioned into 20 character-balanced batches of ~289K chars each; sub-agent scouting reports under `_review_workdir/09/reports/batch-NN.md`. The orchestrator performed all synthesis and writing. This is generation mode — no recommendations file was produced.
-
 ## 1. Chosen Model
 
 ATLAS3 has one entity layer for produced outputs (`Artifact`), one entity layer for first-class factual assertions (`Claim`), one substrate for support records (`Evidence` + `Citation` + `Observation` + `Validation` + `Critique`, all of which are blocks per File 08), and one derived query surface for provenance.
