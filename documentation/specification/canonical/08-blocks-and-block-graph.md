@@ -193,6 +193,8 @@ Every block declares its `kind` at creation. The canonical closed catalogue:
 
 **Persistence-related kinds:**
 
+- `KnowledgeEntry` - a curated knowledge-base content block. The block carries content, source references, sensitivity, scope, and description; mutable curation state such as tags, featured status, validation status, lifecycle, and last-reference statistics belongs to the knowledge-base entity layer.
+
 - `Memory` — a memory entry promoted into durable cross-conversation knowledge; carries the salience and decay metadata (full memory mechanics belong to the future memory spec)
 - `Artifact` — a block whose content is a durable user-visible output (a file, a document, a chart, a notebook, a lesson, a code patch). May be `Inline` for small artifacts or `External` referencing artifact storage. Artifact identity, lifecycle, versioning, materialization, and export mechanics belong to the future artifacts, claims, evidence, and provenance spec; this kind is the block-level handle.
 - `FileAttachment` — a block referring to a file in the workspace; carries the path, mtime, size, content hash, and content-type; resolved against workspace state on read

@@ -621,6 +621,8 @@ Customization spans settings, profiles, layouts, themes, workflows, tools, model
 
 Extensions must be inspectable, reversible, toggleable, and policy-bound. AI-assisted customization must use the same system paths as manual customization. Plugins are cohesive contribution bundles, not synonymous with domains and not a separate execution architecture.
 
+Specific engines, libraries, adapters, providers, parsers, rankers, vector stores, and search backends are replaceable implementations behind typed contracts. A built-in implementation may be recommended, but no canonical subsystem may make that implementation the semantic boundary.
+
 ### 7.11 User Control and Killability
 
 Atlas-managed long-running work must remain under user control.
