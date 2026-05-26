@@ -123,7 +123,7 @@ The seven-step pipeline is the canonical logical contract. Implementations may c
 
 ### 3.1 Routing Frame
 
-The routing frame is the compact structured input the routing layer reasons over. It must contain enough state for the router to produce a valid `RunIntent`. Downstream context such as full conversation history, instruction files, loaded skills, and individual approval leases is assembled at execution time and is not part of the routing frame.
+The routing frame is the structured input the routing layer reasons over. It must contain enough state for the router to produce a valid `RunIntent` while staying cheap enough for the active router context policy. File 13 owns assembly of the router's model request; this file owns the meaning of the routing frame and routing result.
 
 The frame inputs are organized into four categories.
 
@@ -139,7 +139,7 @@ The frame inputs are organized into four categories.
 
 - current active intent thread, if any
 - current active task, if any
-- compact prior routing summaries, when the active router context policy uses them (per §6)
+- compact prior routing summaries, previous route records, or selected history when the active router context policy uses them (per §6 and File 13)
 - active world model snapshot (active surface, focused element, mounted panels, selection, available actions, current ui_mode)
 
 **Capability-and-policy context**
@@ -156,13 +156,13 @@ The frame inputs are organized into four categories.
 - active per-scope budget state (token budgets primarily; cost-ceiling overlay is provider-dependent and may be absent)
 - active model fallback policy
 
-The frame should not require raw replay of the full conversation.
+The frame should not require raw replay of the full conversation as the fixed default.
 
-The frame is constructed by the active router context policy. The policy is configurable through settings, profiles, and per-chat overrides. Whatever the policy, the frame must include enough from each of the four categories above for the router to produce a valid `RunIntent`.
+The frame is constructed by the active router context policy. The policy is configurable through settings, profiles, and conversation overrides. Whatever the policy, the frame must include enough from each of the four categories above for the router to produce a valid `RunIntent`. For user-request routing, the full current triggering input must be present directly or as a referenced externalized source per File 13.
 
-The canonical default is the `compact` policy: optimized for cheap, cache-friendly routing. It includes the trigger content plus the minimum from each of the four required categories, leaning on the stable system-prompt prefix (capability, model, and surface catalogues) cached by the provider where supported. The compact policy may include a brief active-intent-thread or active-task summary when one is already maintained as part of work-state context; it does not require dedicated routing summaries (§6), and its target is effectively flat token cost regardless of conversation length.
+The canonical default is the `compact` policy: optimized for cheap, cache-friendly routing. It includes the trigger content plus the minimum from each of the four required categories, leaning on stable model-request parts such as capability, model, and surface catalogues where provider caching supports them. The compact policy may include a brief active-intent-thread or active-task summary when one is already maintained as part of work-state context; it does not require dedicated routing summaries (§6). It aims for bounded cost through summaries and policy selection, not by ignoring relevant conversation length.
 
-Richer policies may be selected through settings, profiles, or per-chat overrides. Representative policies:
+Richer policies may be selected through settings, profiles, or conversation overrides. Representative policies:
 
 - `compact_with_summaries`: adds compact prior routing summaries (per §6) for stronger work-line continuity
 - `recent_blocks`: adds a small selected set of recent transcript blocks
@@ -206,7 +206,7 @@ Its job is not to infer the deep true intent of the user. Its job is narrower:
 - select model strategy
 - determine whether fast path is appropriate
 
-Routing must be cheap enough to run on every relevant trigger. Cheapness is a cost ceiling, not a prescribed mechanism: implementations may achieve it through prompt caching of the stable system prompt (capability, model, and surface catalogues), native tool-call emission of the routing decision, substitution of the model-driven router with a local classifier, or any equivalent technique. Any implementation that achieves cheap, durable, replayable routing on every relevant trigger is valid.
+Routing must be cheap enough to run on every relevant trigger. Cheapness is a cost ceiling, not a prescribed mechanism: implementations may achieve it through caching stable model-request parts such as capability, model, and surface catalogues, native tool-call emission of the routing decision, substitution of the model-driven router with a local classifier, or any equivalent technique. Any implementation that achieves cheap, durable, replayable routing on every relevant trigger is valid.
 
 ### 3.4 Route Application
 
@@ -410,7 +410,7 @@ Routing must not create intent threads mechanically for every message.
 
 ### 6.1 Purpose
 
-Router context policies that need work-line continuity beyond what active task and intent-thread state already carry — and beyond what the cached system-prompt prefix supplies — need a compact mechanism that does not require replaying raw conversation history. Routing summaries are that mechanism. The `compact` default policy does not require routing summaries; richer policies may use them as a load-bearing continuity aid.
+Router context policies that need work-line continuity beyond what active task and intent-thread state already carry need a compact mechanism that does not require replaying raw conversation history. Routing summaries are that mechanism. The `compact` default policy does not require routing summaries; richer policies may use them as a load-bearing continuity aid.
 
 ### 6.2 Chosen Mechanism
 
@@ -542,7 +542,7 @@ Typical cases:
 - a simple search classification followed by one search call
 - resolving a simple resource lookup
 
-The router phase is itself a model call. When a request needs only a trivial preparatory tool call, the router emits that tool call during routing and attaches the result to the request, so downstream execution proceeds with the result already in context — no extra round-trip. Fast path is distinct from cheap routing as an implementation property: a router that emits its decision through a single native tool call with a prompt-cached system prompt is a cheap router (§3.3), but cheapness alone does not put a request "on the fast path." Fast path requires the router phase to perform actual capability work whose results are handed into downstream execution.
+The router phase is itself a model call. When a request needs only a trivial preparatory tool call, the router emits that tool call during routing and attaches the result to the request, so downstream execution proceeds with the result already in context — no extra round-trip. Fast path is distinct from cheap routing as an implementation property: a router that emits its decision through a single native tool call over cached stable model-request parts is a cheap router (§3.3), but cheapness alone does not put a request "on the fast path." Fast path requires the router phase to perform actual capability work whose results are handed into downstream execution.
 
 ### 9.2 What Fast Path Is Not
 
@@ -682,13 +682,13 @@ This section defines the routing interface for mid-execution reroute requests. F
 
 ## 13. Settings
 
-Every routing mechanism described in this file must be configurable through settings. Settings are scoped global, workspace, and chat (per the settings system); user profiles compose them.
+Every routing mechanism described in this file must be configurable through settings. Settings are scoped through the canonical settings system; user profiles compose them.
 
 At minimum, settings must support:
 
 - router enablement, including per-trigger-kind enablement (§2.1)
-- router profile and router-model selection, including collapsing the router into the main model's prompt
-- router context policy selection, with per-profile, per-chat, and per-workspace overrides
+- router profile and router-model selection, including collapsing router work into the downstream model request when policy allows it
+- router context policy selection, with per-profile, per-conversation, and per-workspace overrides
 - per-precheck enablement and ordering (§3.2)
 - model-routing strategy chain composition, profile preferences, and per-surface model preferences
 - fallback policy selection per scope

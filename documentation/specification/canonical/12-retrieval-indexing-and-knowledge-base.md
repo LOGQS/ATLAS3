@@ -610,17 +610,13 @@ Plugins may contribute knowledge through registered capability and package metad
 
 Plugin updates must preserve user-forked or user-edited entries unless the user explicitly chooses replacement.
 
-## 15. ATLAS.md Knowledge
+## 15. Workspace Instruction Files and ATLAS.md
 
-Workspace-local knowledge files such as `ATLAS.md` are ingested as workspace-scoped knowledge entries.
+Workspace-local instruction files such as `ATLAS.md` are portable user-authored sources. `ATLAS.md` is the default lookup name; the name, lookup order, enablement, and inclusion behavior are configurable.
 
-Resolution order:
+File 12 owns indexing these files as source records and workspace-scoped knowledge entries when configured. Indexing makes them retrievable, inspectable, citeable, and provenance-preserving.
 
-1. workspace-local file
-2. user override
-3. plugin-bundled fallback
-
-The resolved entry participates in the knowledge namespace for that workspace. It is not special hidden prompt text; it is retrievable, inspectable, scoped knowledge.
+File 13 owns whether a resolved workspace instruction file is included in the model request as an instruction source. Knowledge indexing alone does not grant instruction authority, and instruction inclusion must still carry source attribution, authority, sensitivity, and budget metadata.
 
 ## 16. Events, Ledger, and Telemetry
 
