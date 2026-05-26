@@ -49,113 +49,16 @@ This file does not define:
 
 ## Source Resolution
 
-This file is a resolved design, not a summary.
+This file resolves events, ledger entries, hooks, runtime observability, streaming, audit, attribution, and replay material into one boundary: live coordination plus durable execution history.
 
-Source families reviewed:
+Resolved design:
 
-- `documentation/specification/canonical/01-core-thesis-invariants-and-primitives.md`
-- `documentation/specification/canonical/02-conversation-intent-and-task.md`
-- `documentation/specification/canonical/03-routing-and-dispatch.md`
-- `documentation/specification/canonical/04-execution-and-run-model.md`
-- `documentation/specification/canonical/05-capability-contracts-and-registry.md`
-- `documentation/specification/canonical/06-capability-policy-approvals-and-leases.md`
-- `documentation/specification/canonical/07-tool-surfaces-and-capability-loading.md`
-- `documentation/specification/canonical/08-blocks-and-block-graph.md`
-- `documentation/specification/canonical/09-artifacts-claims-evidence-and-provenance.md`
-- `documentation/sources/atlas3-specbase/references/cross-cutting/events.md`
-- `documentation/sources/atlas3-specbase/references/cross-cutting/logging.md`
-- `documentation/sources/atlas3-specbase/references/cross-cutting/errors.md`
-- `documentation/sources/atlas3-specbase/references/cross-cutting/actions.md`
-- `documentation/sources/atlas3-specbase/references/cross-cutting/service-layer.md`
-- `documentation/sources/atlas3-specbase/references/cross-cutting/security.md`
-- `documentation/sources/atlas3-specbase/references/cross-cutting/state-awareness.md`
-- `documentation/sources/atlas3-specbase/references/cross-cutting/settings.md`
-- `documentation/sources/atlas3-specbase/references/context/token-counting-and-tracking.md`
-- `documentation/sources/atlas3-specbase/references/context/context-assembly.md`
-- `documentation/sources/atlas3-specbase/references/conversation/01-core-chat.md`
-- `documentation/sources/atlas3-specbase/references/conversation/02-message-operations.md`
-- `documentation/sources/atlas3-specbase/references/conversation/03-versioning-and-branching.md`
-- `documentation/sources/atlas3-specbase/references/conversation/06-chat-dag.md`
-- `documentation/sources/atlas3-specbase/references/infrastructure/lifecycle.md`
-- `documentation/sources/atlas3-specbase/references/infrastructure/database.md`
-- `documentation/sources/atlas3-specbase/references/infrastructure/errors-and-retry.md`
-- `documentation/sources/atlas3-specbase/references/infrastructure/sync.md`
-- `documentation/sources/atlas3-specbase/references/providers/multi-provider.md`
-- `documentation/sources/atlas3-specbase/references/providers/rate-limiting.md`
-- `documentation/sources/atlas3-specbase/references/systems/18-quality-control.md`
-- `documentation/sources/atlas3-specbase/references/systems/19-scheduling-pipeline.md`
-- `documentation/sources/atlas3-specbase/references/ui/14-3-streaming-ui.md`
-- `documentation/sources/atlas3-specbase/references/ui/14-5-debug-and-performance.md`
-- `documentation/sources/atlas3-specbase/references/ui/context-management.md`
-- `documentation/sources/atlas3-specbase/references/domains/coder/agent-execution.md`
-- `documentation/sources/atlas3-specbase/references/domains/coder/session-logging.md`
-- `documentation/sources/atlas3-specbase/references/domains/coder/checkpoints-undo.md`
-- `documentation/sources/atlas3-specbase/references/domains/coder/git-integration.md`
-- `documentation/sources/atlas3-specbase/references/domains/coder/terminal.md`
-- `documentation/sources/atlas3-specbase/references/domains/coder/workspace-management.md`
-- `documentation/sources/atlas3-specbase/references/domains/web/01-browser-session.md`
-- `documentation/sources/atlas3-specbase/references/domains/web/02-browser-commands.md`
-- `documentation/sources/atlas3-specbase/references/domains/web/03-researcher-mode.md`
-- `documentation/sources/atlas3-specbase/references/domains/web/05-advanced-features.md`
-- `documentation/sources/atlas3-specbase/references/domains/gui-control/03-action-execution.md`
-- `documentation/sources/atlas3-specbase/references/domains/gui-control/05-action-recording.md`
-- `documentation/sources/atlas3-specbase/references/domains/gui-control/07-error-handling.md`
-- `documentation/sources/atlas3-specbase/references/domains/data-processor/overview.md`
-- `documentation/sources/atlas3-specbase/references/domains/memory/overview.md`
-- `documentation/sources/atlas3-specbase/references/domains/system-agent/overview.md`
-- `documentation/sources/atlas3-specbase/references/files/file-management.md`
-- `documentation/sources/atlas3-specbase/references/tools/file-operations.md`
-- `documentation/sources/atlas3-specbase/references/tools/shell-operations.md`
-- `documentation/sources/atlas3-specbase/references/tools/image-generation.md`
-- `documentation/sources/atlas3-specbase/references/routing/router.md`
-- `documentation/sources/atlas3-project-knowledge/atlas3-core/CONSTRAINTS.md`
-- `documentation/sources/atlas3-project-knowledge/atlas3-core/TODO.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit01-foundations-and-cross-cutting-core.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit02-cross-cutting-infra-and-presentation.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit03-conversation-engine.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit04-routing-agents-prompt.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit05-providers.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit06-tools.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit07-context.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit08-coder.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit09-web.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit10-gui-control.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit11a-memory.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit11b-data-processor.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit11c-system-agent.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit11d-teacher.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit12-infrastructure.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit14-systems.md`
-- `documentation/sources/atlas3-project-knowledge/compressed-repos/*`
-- `documentation/sources/atlas3-project-knowledge/addendums/*`
-- `documentation/sources/existing_ecosystems/*`
-- `documentation/sources/codex_recommendations.md`
-
-Resolution rule:
-
-- preserve the durable-history-versus-live-coordination separation from File 01 §7.3 and File 04 §23 — `ExecutionLedger` is durable history; `EventStream` is live coordination; consequential events flow through both, with the ledger as the source of truth
-- preserve the unified-bus invariant — there is one `EventStream`, one event envelope, one closed `AppEvent` vocabulary with `Custom` extension; subsystems do not invent parallel event buses, parallel ledgers, or parallel hook systems
-- preserve the typed-hook-decision vocabulary from File 04 §23.3 — `Continue` / `Substitute` / `Block` / `RedirectSuggestion` is the closed set of hook outcomes; nothing else is a valid hook decision
-- preserve the per-call-attribution-keyed-by-model invariant from File 01 §8 — token counts, costs, cache statistics, and any model-dependent scalar lives keyed by `(provider_id, model_id, tokenizer_id)`, never as an unkeyed value on a ledger row
-- preserve the sensitivity-aware-persistence rule from File 04 §23.2 — raw `Secret` payloads do not persist to the durable ledger under any circumstance; `Sensitive` payload retention and export eligibility are policy-controlled; `Public` is the default
-- preserve File 04 §22's run-completion contract — the ledger enforces a forgery guard at status transition from `running` to `completed`, rejecting runs whose contract required action but produced no recorded capability execution, no committed artifact revision, and no model-step output beyond plain text
-- preserve File 04 §23.3's hook priority convention — `i16`, lower runs first, with audit and logging at `-100`, validators and transformers at `0`, and the approval router at `+100`; user-registered hooks may insert at any priority within the same authority envelope
-- preserve File 04 §23.3's hook-decision rule with the refinement from this file — substitutions compose as proposal transformations before terminal decisions, while `Block` and `RedirectSuggestion` terminate the intercepted boundary
-- preserve File 04 §23.3's fail-direction rule with category-aware defaults — security-category hooks fail closed, non-security observers/enrichers fail open with warning, and non-security hooks that can allow or substitute a consequential pre-action proposal fail closed unless explicitly overridden within policy limits
-- treat the canonical event envelope's identifiers (`conversation_id`, `run_id`, `step_id`, `node_id`, `worktree_id`, `backend_id`, `parent_event_id`, `trace_context`, `sequence_scope`, `sequence`, `timestamp`, `sensitivity`) as load-bearing for demultiplexing, ordering, replay, and audit; no event omits the envelope, no subsystem invents a parallel envelope
-- treat the ledger and event stream as cross-cutting infrastructure consumed by later specs; other specs declare their domain-specific event variants and ledger-entry kinds through the canonical mechanism rather than inventing parallel mechanisms
-- keep the hash-chained audit log (security-sensitive operations, per-device, never sync) as a local integrity overlay over selected ledger facts, not a parallel history mechanism
-
-Resolved tensions:
-
-- keep an ephemeral fast event stream for UI responsiveness without losing audit/replay/evaluation power: split into `AppEventBus` (transient, real-time, fan-out, bounded buffer) and `ExecutionLedger` (durable, append-only, queryable). Consequential events fan out to both; pure UI-coordination events fan out only to the bus. The split is canonical, not optional.
-- keep the canonical event vocabulary closed (closed `AppEvent` enum, plus closed `LedgerEntryKind` enum) without preventing domain extensions: the `Custom { namespace, name, payload }` extension variant lets domains, plugins, MCP servers, and user-defined sources contribute new event kinds and ledger-entry kinds through the same registration mechanism that registers capabilities (per File 05 §16.2 proposal-first), with the same source-approval gate (per File 06 §9).
-- keep hooks as a typed extensibility surface without inventing parallel pipelines: hooks share one registration model. Blocking hooks run through interceptable boundary dispatch before the action completes; non-blocking hooks observe through the live bus after facts are emitted. The approval router, quality-control validators, completion-verification hooks, user-authored hooks, plugin hooks, and MCP hooks all register through the same path.
-- keep the streaming UI fast while preserving ledger integrity: event kinds declare delivery class (`lossless_consequential`, `coalescible`, `latest_only`, or `sampled_diagnostic`). High-frequency transient events aggregate before bus emission; consequential events commit to the ledger and flow through immediately. Aggregation policies are settings-driven and produce typed summaries, not silent dropping.
-- keep cross-device sync working without leaking per-device integrity guarantees: the hash-chained audit overlay is explicitly per-device and never syncs (per unit12 D12.13); ordinary ledger entries sync through the future Sync spec with sensitivity filtering. The two tiers coexist; the audit overlay references selected ledger facts without replacing them.
-- keep user-authored hooks (shell scripts and runtime closures) capable without trust violations: shell-script hooks operate over a typed wire protocol (stdin JSON with the typed event payload, stdout JSON with a typed hook decision), with per-hook timeout, per-event-category fail-direction, and authority class gated through the source-approval flow (per File 06 §9). User-authored runtime closures (in-process functions registered through user-defined capability) inherit the same authority-class gating.
-- keep replay precise without promising impossible byte-identical reruns: the ledger records the references and identifiers needed to inspect, simulate deterministic work, or start a full rerun. Byte-identical replay requires deterministic operations with captured inputs or stored provider responses.
-- keep the canonical envelope rich enough to demultiplex everything without making it bloat: every event carries the full envelope, but contextual references live in `context_refs` and are optional or explicitly not applicable. `conversation_id` is the canonical conversation field; legacy `chat_id` wording from older sources is normalized here. The closed sensitivity tag is mandatory.
+- Events are transient coordination signals; ledger entries are durable facts. The ledger is the source of truth for what happened.
+- One envelope and dispatch mechanism covers execution progress, capability proposals, policy decisions, hooks, registry changes, version commits, errors, and cancellations.
+- Domain-specific events are `Custom` extensions registered by owning specs rather than predeclared global kinds.
+- Hooks are typed integration points with declared authority, ordering, fail-direction, and audit behavior.
+- Secret or high-sensitivity payloads are redacted or referenced by key; observability must not become a data leak.
+- Replay and inspection reconstruct durable behavior from ledgered facts without pretending nondeterministic provider calls are byte-identical.
 
 ## 1. Chosen Model
 

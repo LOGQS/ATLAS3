@@ -33,17 +33,15 @@ This file does not define:
 
 ## Source Resolution
 
-This file resolves prior context, model-request, compaction, routing-context, token-counting, cache, and retrieval-adjacent source material into one boundary: assembly reads; compaction writes. Source material that described request construction, router request construction, context windows, token counting, cache placement, virtual memory, retrieval-augmented request construction, duplicate-paste handling, summary maintenance, and context-pressure recovery is consumed here only when it governs what a model-bound invocation receives or how active context is reduced.
+This file resolves prompt construction, context windows, compaction, memory/context retrieval, authority separation, and model-request rendering material into one boundary: how runtime state becomes a model request.
 
-Resolved tensions:
+Resolved design:
 
-- assembly is one shared service, but policies differ per invocation type
-- the model request is structured, not a flat prompt string
-- authority is attached to each assembly part, not only to broad regions
-- routing context is assembled by this file while routing semantics remain in File 03
-- compaction is non-destructive and versioned, not an assembly side effect
-- token counting and cache markers are capability-driven, not vendor-hardcoded
-- duplicate detection and oversize handling preserve user intent instead of silently dropping content
+- Context assembly is a per-iteration read operation over canonical state; it does not mutate blocks, tasks, memory, or routing state.
+- Assembly is region-based and part-based: regions provide ordering and budgets, while each included part carries its own source, authority, scope, sensitivity, and lifecycle facts.
+- Compaction creates explicit durable outputs or lifecycle actions through existing block/version systems; it is not hidden prompt loss.
+- Retrieval, virtual paging, and recall use canonical indexes and lifecycle filters rather than separate archive stores.
+- The rendered model request must preserve instruction boundaries, source attribution, and provider-native callable declarations without collapsing all content into one system prompt.
 
 ## 1. Chosen Model
 

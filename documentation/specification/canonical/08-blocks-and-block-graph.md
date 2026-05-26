@@ -41,59 +41,16 @@ This file does not define:
 
 ## Source Resolution
 
-This file is a resolved design, not a summary.
+This file resolves messages, artifacts, tool results, notices, attachments, summaries, groups, and committed model output into one boundary: the durable block model and composition graph.
 
-Primary source families reviewed:
+Resolved design:
 
-- `documentation/specification/canonical/01-core-thesis-invariants-and-primitives.md`
-- `documentation/specification/canonical/02-conversation-intent-and-task.md`
-- `documentation/specification/canonical/03-routing-and-dispatch.md`
-- `documentation/specification/canonical/04-execution-and-run-model.md`
-- `documentation/specification/canonical/05-capability-contracts-and-registry.md`
-- `documentation/specification/canonical/06-capability-policy-approvals-and-leases.md`
-- `documentation/specification/canonical/07-tool-surfaces-and-capability-loading.md`
-- `documentation/sources/atlas3-specbase/references/cross-cutting/blocks.md`
-- `documentation/sources/atlas3-specbase/references/cross-cutting/artifacts.md`
-- `documentation/sources/atlas3-specbase/references/cross-cutting/composition.md`
-- `documentation/sources/atlas3-specbase/references/cross-cutting/events.md`
-- `documentation/sources/atlas3-specbase/references/cross-cutting/response-parser.md`
-- `documentation/sources/atlas3-specbase/references/conversation/06-chat-dag.md`
-- `documentation/sources/atlas3-specbase/references/conversation/03-versioning-and-branching.md`
-- `documentation/sources/atlas3-specbase/references/context/context-assembly.md`
-- `documentation/sources/atlas3-project-knowledge/atlas3-core/CONSTRAINTS.md`
-- `documentation/sources/atlas3-project-knowledge/atlas3-core/TODO.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit01-foundations-and-cross-cutting-core.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit03-conversation-engine.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit07-context.md`
-- `documentation/sources/atlas3-project-knowledge/compressed-repos/*`
-- `documentation/sources/atlas3-project-knowledge/addendums/*`
-- `documentation/sources/existing_ecosystems/*`
-- `documentation/sources/codex_recommendations.md`
-
-Resolution rule:
-
-- preserve `Block` as the canonical shared substrate from File 01 §4.6 and §6.6 — every durable structured content the system reasons about flows through this primitive, and there is exactly one block model across surfaces, runs, conversations, workspaces, automations, and external integrations
-- preserve the immutability invariant — `Block` content, kind, identity, parentage, and content hash are fixed at creation; observable mutation through edits creates a sibling block linked by `supersedes`, never an in-place change
-- preserve the non-destructive-by-default invariant from File 01 §7.13 — drops are masks on the current version's view, not destruction of the underlying block; only explicit user-initiated hard deletion physically destroys block storage
-- preserve the durable-history-vs-live-coordination separation from File 01 §7.3 — `Block` is durable history, `Event` is live coordination; tool-input streaming, model text deltas, and partial outputs flow as `Event` until the executor's commit point converts them into a `Block`
-- preserve the context-interoperability invariant from File 01 §7.4 — no subsystem may introduce a private incompatible context model; every surface projects the same block pool through surface-specific filters
-- separate block identity (immutable, addressable) from block lifecycle state (derived per version), so the same registered block can appear `Active` in one version and `Masked` in another without registry mutation
-- treat composition as flat reference (a `Composed` block carries an ordered `children_block_ids` list) rather than nested storage, so block storage stays append-only and recomposition is cheap
-- treat the block-kind catalogue as a closed canonical enum with a registered-extension mechanism, so policy, surfaces, ledger, and storage can reason about every block without inspection but plugins/subsystems can still introduce domain-specific kinds
-- treat the block-graph edge set as closed canonical typed edges with the same registered-extension mechanism for domain-specific edges
-- consume File 05 §17.2's promise — `output_block_kinds` declarations draw from the canonical catalogue defined here; capabilities declare what they produce, this file declares the closed set of producible kinds
-- consume File 04 §12 streaming semantics and File 04 §23.4 commit boundaries — the commit point is where event partials become durable blocks; this file does not redefine the streaming model, only the durability contract at the boundary
-- consume File 04 §23.2 event envelope and sensitivity tagging — block sensitivity is the durable counterpart to event sensitivity; capability declarations seed default sensitivity per produced block kind
-- reject any per-surface or per-capability private block schema — the unified registry invariant from File 05 §1 extends here: there is one block model, projected through surface-specific lenses
-
-Resolved tensions:
-
-- keep cheap composition without sacrificing append-only storage: composed blocks store flat children lists, not nested structures; reordering is a version-graph operation, not a block mutation
-- keep lifecycle expressive (mask, drop, recover, pin) without breaking immutability: lifecycle and pin live on the version's materialized view, not on the block row; switching versions surfaces different lifecycle/pin states over the same blocks
-- keep block kinds extensible without losing schema discipline: the canonical closed enum covers the cross-cutting kinds; `Custom { namespace, name }` extends the enum under a registered extension; policy, storage, and the ledger reason about both the same way
-- keep streaming live without making live events durable truth: events flow during streaming, blocks commit at the capability's declared commit boundary; orphaned partials are discarded or staged per the capability's `partial_output_meaningful` declaration (File 04 §17.3)
-- keep cross-surface reach (the same artifact viewable in Coder, Web, Inspector) without per-surface duplication: blocks live in one pool, each surface projects its filtered view; modifications to a block produce a sibling in the same pool
-- keep sensitivity correctly propagated through composition: a `Composed` block inherits the maximum effective sensitivity of its children; redaction projects through children when a block is rendered
+- Blocks are immutable durable content units; lifecycle, ordering, pinning, and visibility are versioned projection state around them.
+- Messages, artifacts, evidence handles, memory content, tool calls, tool results, failures, summaries, and groups are block kinds or later entity layers over blocks.
+- Events carry live/transient activity; blocks are created only when content is deliberately committed for audit, replay, context, or user inspection.
+- The canonical kind catalogue is closed with a `Custom` extension path; domain specs add specialized kinds through registration.
+- Composition is explicit through parent/child/reference edges, not nested mutable message structures.
+- Scope, sensitivity, provenance, and lifecycle metadata determine safe visibility and retrieval behavior.
 
 ## 1. Chosen Model
 

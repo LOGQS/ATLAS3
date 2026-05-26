@@ -54,96 +54,16 @@ This file does not define:
 
 ## Source Resolution
 
-This file is a resolved design, not a summary.
+This file resolves undo/redo, branches, commits, snapshots, forks, compaction, tombstoning, sync, and materialized views into one boundary: the version graph and derived state projections.
 
-Source families reviewed:
+Resolved design:
 
-- `documentation/specification/canonical/01-core-thesis-invariants-and-primitives.md`
-- `documentation/specification/canonical/02-conversation-intent-and-task.md`
-- `documentation/specification/canonical/03-routing-and-dispatch.md`
-- `documentation/specification/canonical/04-execution-and-run-model.md`
-- `documentation/specification/canonical/05-capability-contracts-and-registry.md`
-- `documentation/specification/canonical/06-capability-policy-approvals-and-leases.md`
-- `documentation/specification/canonical/07-tool-surfaces-and-capability-loading.md`
-- `documentation/specification/canonical/08-blocks-and-block-graph.md`
-- `documentation/specification/canonical/09-artifacts-claims-evidence-and-provenance.md`
-- `documentation/specification/canonical/10-execution-ledger-event-stream-and-hooks.md`
-- `documentation/sources/atlas3-specbase/references/conversation/03-versioning-and-branching.md`
-- `documentation/sources/atlas3-specbase/references/conversation/01-core-chat.md`
-- `documentation/sources/atlas3-specbase/references/conversation/02-message-operations.md`
-- `documentation/sources/atlas3-specbase/references/conversation/06-chat-dag.md`
-- `documentation/sources/atlas3-specbase/references/conversation/INDEX.md`
-- `documentation/sources/atlas3-specbase/references/cross-cutting/blocks.md`
-- `documentation/sources/atlas3-specbase/references/cross-cutting/composition.md`
-- `documentation/sources/atlas3-specbase/references/cross-cutting/artifacts.md`
-- `documentation/sources/atlas3-specbase/references/cross-cutting/events.md`
-- `documentation/sources/atlas3-specbase/references/cross-cutting/actions.md`
-- `documentation/sources/atlas3-specbase/references/cross-cutting/settings.md`
-- `documentation/sources/atlas3-specbase/references/cross-cutting/state-awareness.md`
-- `documentation/sources/atlas3-specbase/references/context/context-assembly.md`
-- `documentation/sources/atlas3-specbase/references/context/token-counting-and-tracking.md`
-- `documentation/sources/atlas3-specbase/references/infrastructure/database.md`
-- `documentation/sources/atlas3-specbase/references/infrastructure/sync.md`
-- `documentation/sources/atlas3-specbase/references/infrastructure/lifecycle.md`
-- `documentation/sources/atlas3-specbase/references/infrastructure/configuration.md`
-- `documentation/sources/atlas3-specbase/references/files/file-management.md`
-- `documentation/sources/atlas3-specbase/references/tools/file-operations.md`
-- `documentation/sources/atlas3-specbase/references/domains/coder/checkpoints-undo.md`
-- `documentation/sources/atlas3-specbase/references/domains/coder/README.md`
-- `documentation/sources/atlas3-specbase/references/domains/coder/workspace-management.md`
-- `documentation/sources/atlas3-specbase/references/domains/coder/ide-interface.md`
-- `documentation/sources/atlas3-specbase/references/domains/coder/git-integration.md`
-- `documentation/sources/atlas3-specbase/references/domains/coder/session-logging.md`
-- `documentation/sources/atlas3-specbase/references/domains/coder/agent-execution.md`
-- `documentation/sources/atlas3-specbase/references/domains/coder/terminal.md`
-- `documentation/sources/atlas3-specbase/references/domains/coder/INDEX.md`
-- `documentation/sources/atlas3-specbase/references/ui/context-management.md`
-- `documentation/sources/atlas3-specbase/references/ui/14-2-chat-list-and-history.md`
-- `documentation/sources/atlas3-specbase/references/ui/14-3-streaming-ui.md`
-- `documentation/sources/atlas3-specbase/references/agents/agent-execution.md`
-- `documentation/sources/atlas3-specbase/references/GLOSSARY.md`
-- `documentation/sources/atlas3-specbase/references/foundations/architecture.md`
-- `documentation/sources/atlas3-project-knowledge/atlas3-core/CONSTRAINTS.md`
-- `documentation/sources/atlas3-project-knowledge/atlas3-core/TODO.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit01-foundations-and-cross-cutting-core.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit02-cross-cutting-infra-and-presentation.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit03-conversation-engine.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit04-routing-agents-prompt.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit08-coder.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit11c-system-agent.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit14-systems.md`
-- `documentation/sources/atlas3-project-knowledge/compressed-repos/*`
-- `documentation/sources/atlas3-project-knowledge/addendums/*`
-- `documentation/sources/existing_ecosystems/*`
-- `documentation/sources/codex_recommendations.md`
-
-Resolution rule:
-
-- preserve the unified-version-graph invariant — every conversation has one tree of `ContextVersion` nodes; every artifact / file / knowledge entry / claim version is a sibling block in the unified pool addressed by that tree; there is no parallel checkpoint table, no parallel snapshot store, no per-surface history substrate, no `MessageVersion` row type, no `file_checkpoints` table, no shadow-directory checkpoint mechanism, and no per-tool-call atomic-version path.
-- preserve the non-destructive-by-default invariant from File 01 §7.13 — branches are permanent; switching to an earlier version does not destroy the abandoned branch; orphaned branches remain reachable through the version-graph view; physical destruction is explicit, typed, policy-governed, and separated from topology-preserving tombstoning and compaction
-- preserve the durable-history-versus-live-coordination separation from File 01 §7.3 — the version graph is durable history; the event bus is live coordination; consequential version-graph operations commit to both (a `LedgerEntry` plus an `AppEvent`), but the version graph itself is the source of truth for "what state existed when"
-- preserve the immutability-versus-derived-state separation from File 08 §6 — block content is immutable; per-version view-state (lifecycle, pin, sequence, review, validation, claim status) is derived per `ContextVersion` from the action log over the block pool, never stored on the block row
-- preserve File 04 §23.4's pending-operations-buffer and version-commit-boundary contract — fine-grained operations accumulate in `pending_ops`; the boundary fires one version with the net diff; tool-level checkpoints inside a boundary do not become separate version commits; rejecting a checkpoint updates the pending buffer before commit
-- preserve File 04 §19's retry / reroute / branch semantics — these run-level operations produce new run records linked to prior ones and may produce a new version branch when they commit accepted output; the version graph records the branch
-- preserve File 09 §6's artifact-version contract — `ArtifactVersion` is an `Artifact`-kind `Block` per File 08 §3.1 linked by `supersedes`; the entity record's `current_version_block_id` is a default/latest pointer for non-branch-specific reads; branch-aware surfaces resolve via the active `ContextVersion`
-- preserve File 10 §4.1's typed ledger entry kinds for version operations — `VersionCommitted`, `VersionSwitched`, `PendingOpApplied`, `BranchCreated` — and File 10 §5.3's distinction between transient bus-only events and consequential bus-and-ledger events
-- preserve File 10 §11's three replay modes (`Inspect`, `SimulateDeterministic`, `FullRerun`) and consume them as the canonical interface to the version-graph data
-- preserve File 06 §11.6's pattern of lease state as a projection over policy events, applying the same pattern to the materialised view, derived state maps, and downstream projections — the durable substrate is the action log; everything else rebuilds from it
-- preserve the storage-cost discipline — per-version diffs are compact net boundary changes, not full snapshots; the materialised view is a hot projection sized by current view, not by history
-- preserve the unkeyed-scalar rejection from File 01 §8 — token counts, costs, and other model-dependent scalars are never stored on `ContextVersion` rows; they are computed per `(block_id, tokenizer_id)` per File 08 §13.2
-- preserve cross-device sync without last-write-wins — version-tree-aware merge keeps both concurrent children as siblings; no `if remote.updated_at > local.updated_at` logic; the version graph itself is the conflict-resolution substrate
-- treat snapshots as references to durable state at a point in time, not as inline copies — `registry_snapshot_id`, `settings_snapshot_id`, `world_snapshot_id`, `policy_snapshot_id`, `pricing_snapshot_id`, `routing_snapshot_id` are typed cross-references the ledger and execution invocations carry; the snapshot resolves to durable substrate state through replay machinery, not through a parallel snapshot table that duplicates content
-
-Resolved tensions:
-
-- keep the per-conversation version tree (the load-bearing primary mechanism) without forcing per-surface version trees: artifacts, files, knowledge entries, validators, and tool registrations are all blocks; their versioning is sibling-block versioning per File 08 §6.2 over the unified pool, and the conversation's `ContextVersion` tree records when those siblings became active in the view. The unified tree is the only branching topology; sibling-block chains are a derived shape inside the unified pool.
-- keep the version graph fast and compact without sacrificing semantic richness: per-version diffs carry typed change sets (`added`, `removed`, `lifecycle_changes`, `pin_changes`, `position_changes`, `hard_deletes`, `metadata_changes`), not action-by-action replay; the diff is the net effect of a commit boundary. Aggregate state at any version is reconstructable by walking the path from root.
-- keep snapshot identity addressable without duplicating substrate state: snapshots are typed references with a `kind` and a per-kind addressing scheme. A `registry_snapshot_id` resolves to the per-capability `(capability_id, registered_at_or_before)` state visible to the run; a `settings_snapshot_id` resolves to the cascade-resolved settings tree at the named version; etc. Snapshot resolution is a query against durable substrate, not a stored copy.
-- keep cross-conversation forks first-class without creating divergent block pools: `fork_conversation(source_conversation_id, source_version_id)` creates a new conversation whose root version inherits allowed source material by reference; restricted source material is omitted with provenance-preserving placeholders unless explicitly copied, redacted, or scope-promoted through policy. This composes with cross-conversation reference (File 08 §11.3) — forking is the explicit-copy variant; reference is the share-without-copy variant.
-- keep the version graph addressable in work-surface UIs (coder history panel, conversation transcript, system-agent rollback DAG, context inspector, comparison board) without per-surface history substrates: each surface is a projection lens over the unified version graph plus the unified block pool. Surface-specific events render the same canonical version operations with surface-specific labels.
-- keep replay semantically correct without promising byte-identical reruns for non-deterministic operations: replay class declarations from File 05 §7.3 govern what each capability supports (`deterministic_replayable`, `snapshot_replayable`, `effect_replayable_with_policy`, `not_replayable`); the version graph plus typed snapshots plus observation `staleness_fingerprint` per File 09 §13 are the inputs; replay machinery composes them per the mode chosen.
-- keep undo affordances at every meaningful granularity (last operation, last version, last branch, file-level revert, chunk-level revert) without inventing parallel undo stacks: every undo affordance is either a `pending_ops` pop (pre-commit) or a version switch / new `ContextEdit` (post-commit). The coder surface's chunk-level revert is a `ContextEdit` that swaps the active file block back to a historical sibling.
-- keep garbage collection user-controlled, not time-based: retention policies are explicit storage-management choices, not correctness mechanisms. No implicit time-based pruning fires without explicit user or profile opt-in; bookmarked, labelled, current, and provenance-required versions are exempt unless separately confirmed; tombstones preserve identity for provenance closure per File 09 §8 even after content is reclaimed.
+- A ContextVersion tree records accepted state transitions over a shared block pool; versions do not copy conversations wholesale.
+- Commits capture turn or operation-boundary net diffs after pending operations are accepted.
+- Active view state, ordering, lifecycle, pins, scopes, and materializations are derived from versioned actions, not mutable block edits.
+- Branching and forking are non-destructive; merging and conflict handling are explicit operations.
+- Tombstoning, compaction, and deletion preserve reconstructability unless the user explicitly accepts a typed provenance gap.
+- Sync keeps divergent branches visible rather than resolving conflicts through silent last-write-wins.
 
 ## 1. Chosen Model
 

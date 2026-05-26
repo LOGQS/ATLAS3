@@ -24,38 +24,15 @@ This file does not define:
 
 ## Source Resolution
 
-This file is a resolved design, not a summary.
+This file resolves conversation, message, intent-thread, task, branch, and transcript material into one boundary: conversation is a control rail and continuity surface, while intent threads and promoted tasks carry ongoing work structure.
 
-Primary source families reviewed:
+Resolved design:
 
-- `documentation/sources/atlas3-project-knowledge/atlas3-core/*`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit03-conversation-engine.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit04-routing-agents-prompt.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit07-context.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit13-ui.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit15-ux-distribution-files-glossary.md`
-- `documentation/sources/atlas3-specbase/references/conversation/*`
-- `documentation/sources/atlas3-specbase/references/routing/router.md`
-- `documentation/sources/atlas3-specbase/references/agents/*`
-- `documentation/sources/atlas3-specbase/references/context/context-assembly.md`
-- `documentation/sources/atlas3-specbase/references/ui/14-1-application-shell.md`
-- `documentation/sources/atlas3-specbase/references/ui/14-2-chat-list-and-history.md`
-- `documentation/sources/atlas3-specbase/references/ui/14-3-streaming-ui.md`
-- `documentation/sources/atlas3-specbase/references/ui/15-1-layout-customizability.md`
-- `documentation/sources/atlas3-specbase/references/ui/15-2-domain-based-workspace-morphing.md`
-- `documentation/sources/atlas3-specbase/references/ui/15-3-and-15-4-participation-levels-personas.md`
-- `documentation/sources/atlas3-specbase/references/ui/context-management.md`
-- `documentation/sources/atlas3-project-knowledge/compressed-repos/*`
-- `documentation/sources/atlas3-project-knowledge/addendums/*`
-- `documentation/sources/existing_ecosystems/*`
-- `documentation/sources/codex_recommendations.md`
-
-Resolution rules:
-
-- keep Atlas's strong chat, block, versioning, and DAG mechanics
-- keep chat-first use as a first-class experience
-- reject heavy always-on formalization of every request
-- allow richer structure only when it materially improves continuity, execution, inspection, or reuse
+- Chat-first use remains first-class without making chat chronology the root durable model.
+- Messages, events, blocks, intent threads, tasks, runs, and versions stay separate primitives.
+- Intent threads preserve continuity without requiring immediate task formalization.
+- Tasks are promoted only when explicit structure improves execution, inspection, automation, or reuse.
+- Pre-dispatch processing is non-destructive and recorded; it does not bypass routing or ledgering.
 
 ## 1. Chosen Model
 

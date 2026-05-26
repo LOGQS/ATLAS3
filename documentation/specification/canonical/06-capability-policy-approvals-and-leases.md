@@ -39,86 +39,15 @@ This file does not define:
 
 ## Source Resolution
 
-This file is a resolved design, not a summary.
+This file resolves permissions, approvals, leases, trust gates, confirmation, policy hooks, and user override material into one boundary: the shared capability policy system.
 
-Source families reviewed:
+Resolved design:
 
-- `documentation/specification/canonical/01-core-thesis-invariants-and-primitives.md`
-- `documentation/specification/canonical/02-conversation-intent-and-task.md`
-- `documentation/specification/canonical/03-routing-and-dispatch.md`
-- `documentation/specification/canonical/04-execution-and-run-model.md`
-- `documentation/specification/canonical/05-capability-contracts-and-registry.md`
-- `documentation/sources/atlas3-project-knowledge/atlas3-core/*`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit01-foundations-and-cross-cutting-core.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit02-cross-cutting-infra-and-presentation.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit04-routing-agents-prompt.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit05-providers.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit06-tools.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit08-coder.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit09-web.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit10-gui-control.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit11-cross-tool-learning.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit11a-memory.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit11b-data-processor.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit11c-system-agent.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit11d-teacher.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit12-infrastructure.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit13-ui.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit14-systems.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit15-ux-distribution-files-glossary.md`
-- `documentation/sources/atlas3-specbase/references/agents/agent-execution.md`
-- `documentation/sources/atlas3-specbase/references/agents/domain-architecture.md`
-- `documentation/sources/atlas3-specbase/references/cross-cutting/actions.md`
-- `documentation/sources/atlas3-specbase/references/cross-cutting/errors.md`
-- `documentation/sources/atlas3-specbase/references/cross-cutting/events.md`
-- `documentation/sources/atlas3-specbase/references/cross-cutting/security.md`
-- `documentation/sources/atlas3-specbase/references/cross-cutting/settings.md`
-- `documentation/sources/atlas3-specbase/references/cross-cutting/state-awareness.md`
-- `documentation/sources/atlas3-specbase/references/conversation/06-chat-dag.md`
-- `documentation/sources/atlas3-specbase/references/domains/coder/*`
-- `documentation/sources/atlas3-specbase/references/domains/gui-control/*`
-- `documentation/sources/atlas3-specbase/references/domains/web/*`
-- `documentation/sources/atlas3-specbase/references/domains/system-agent/overview.md`
-- `documentation/sources/atlas3-specbase/references/domains/memory/overview.md`
-- `documentation/sources/atlas3-specbase/references/infrastructure/configuration.md`
-- `documentation/sources/atlas3-specbase/references/infrastructure/external-apis.md`
-- `documentation/sources/atlas3-specbase/references/infrastructure/git.md`
-- `documentation/sources/atlas3-specbase/references/infrastructure/mcp.md`
-- `documentation/sources/atlas3-specbase/references/providers/multi-provider.md`
-- `documentation/sources/atlas3-specbase/references/providers/rate-limiting.md`
-- `documentation/sources/atlas3-specbase/references/systems/17-agent-self-modification.md`
-- `documentation/sources/atlas3-specbase/references/systems/18-quality-control.md`
-- `documentation/sources/atlas3-specbase/references/tools/*`
-- `documentation/sources/atlas3-specbase/references/ui/14-1-application-shell.md`
-- `documentation/sources/atlas3-specbase/references/ui/14-3-streaming-ui.md`
-- `documentation/sources/atlas3-specbase/references/ui/14-5-debug-and-performance.md`
-- `documentation/sources/atlas3-specbase/references/ui/15-3-and-15-4-participation-levels-personas.md`
-- `documentation/sources/atlas3-specbase/references/ui/accessibility.md`
-- `documentation/sources/atlas3-project-knowledge/compressed-repos/*`
-- `documentation/sources/atlas3-project-knowledge/addendums/*`
-- `documentation/sources/existing_ecosystems/*`
-- `documentation/sources/codex_recommendations.md`
-
-Resolution rule:
-
-- preserve the three-layer split File 05 established (declaration / registered entry / invocation): File 06 reads from declaration and registered state, never mutates either, and produces per-call resolved facts that live on the invocation record
-- the approval router is one blocking hook subscriber on `ToolCallProposed`, not a parallel pipeline; it composes named policy inspectors internally but presents one decision to the executor
-- effective tier resolution is layered and deterministic: declared tier, narrowed by `permission_floor`, narrowed by trust state, narrowed by scope-level overrides, then matched against active leases — the order is the same regardless of which capability is invoked
-- `Lease` is a single primitive across the shared scope hierarchy; the only difference between scopes is the scope label and the revocation conditions
-- approval-policy templates are composable validator chains, not monolithic rules; built-in templates seed common patterns; user-authored templates extend them through the same registry the registered capabilities use
-- contradictions across scope levels surface as typed events for user resolution; the runtime never silently picks a winner that weakens an outer deny or pierces a `permission_floor`
-- model-mediated approval (`auto-decide`) is opt-in per capability or per family with configurable confidence and fallback policy; never the default
-- typed-confirmation is the only path through `Denied` and is never lifted by leases, settings, trust upgrades, or `agent.unrestricted_mode`
-- source-trust influence is policy-side and reversible; declared fields stay honest in the registered entry per File 05 §9.2
-
-Resolved tensions:
-
-- keep one approval router rather than per-capability custom approval logic, but allow composition through named policy inspectors so the router does not become a monolith
-- keep direct-execution paths for `ReadOnly`, contained `WorkspaceWrite`, `Unrestricted` with the global toggle, and active matching `AlwaysAllow` leases; record every direct-execution decision in the ledger so the audit trail does not lose silent approvals
-- keep cross-scope flexibility (conversation-level overrides, workspace defaults, global settings, reusable policy rules) but require typed contradiction surfacing rather than silent precedence rules that bury intent
-- keep argument-aware tier resolution (a `file.edit` whose path is outside the workspace escalates) but localize the dynamic check inside the registered `TierResolver`, not by splitting capability ids — File 05 §5.2's pattern composes here without modification
-- keep model-mediated classification as a real option for capabilities whose risk genuinely depends on call shape (`shell.exec` cannot declare a single `reversibility_class` for all bash commands), but cost-control by making it opt-in and confidence-bounded; the deterministic floor is always available
-- keep the approval UI surface as a data contract, not a UI specification; multiple presentation surfaces (chat-inline approval, modal dialog, voice confirmation, command-palette confirmation, automation pre-flight) consume the same typed request and respond through the same typed channel
+- Every capability invocation passes through one policy layer; there is no agent-specific, domain-specific, or UI-specific approval system.
+- Policy evaluates declarations, invocation arguments, touched resources, caller/source trust, active leases, settings, previews, validators, and user decisions.
+- Leases are the durable primitive for persisted allow/deny decisions, scoped authorization, and revocation history.
+- User approval, typed confirmation, policy-driven escalation, and LLM-mediated approval judgment are policy behaviors, not execution-loop special cases.
+- Denials and approvals are recorded as policy decisions and surfaced back in-band so execution can continue safely when possible.
 
 ## 1. Chosen Model
 

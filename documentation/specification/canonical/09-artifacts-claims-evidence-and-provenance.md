@@ -50,89 +50,15 @@ This file does not define:
 
 ## Source Resolution
 
-This file is a resolved design, not a summary.
+This file resolves artifact, claim, evidence, citation, observation, validation, critique, export, and provenance material into one boundary: durable semantic entities layered over blocks, versions, runs, and ledger facts.
 
-Primary source families reviewed:
+Resolved design:
 
-- `documentation/specification/canonical/01-core-thesis-invariants-and-primitives.md`
-- `documentation/specification/canonical/02-conversation-intent-and-task.md`
-- `documentation/specification/canonical/03-routing-and-dispatch.md`
-- `documentation/specification/canonical/04-execution-and-run-model.md`
-- `documentation/specification/canonical/05-capability-contracts-and-registry.md`
-- `documentation/specification/canonical/06-capability-policy-approvals-and-leases.md`
-- `documentation/specification/canonical/07-tool-surfaces-and-capability-loading.md`
-- `documentation/specification/canonical/08-blocks-and-block-graph.md`
-- `documentation/sources/atlas3-specbase/references/cross-cutting/artifacts.md`
-- `documentation/sources/atlas3-specbase/references/cross-cutting/blocks.md`
-- `documentation/sources/atlas3-specbase/references/cross-cutting/composition.md`
-- `documentation/sources/atlas3-specbase/references/cross-cutting/events.md`
-- `documentation/sources/atlas3-specbase/references/cross-cutting/state-awareness.md`
-- `documentation/sources/atlas3-specbase/references/cross-cutting/response-parser.md`
-- `documentation/sources/atlas3-specbase/references/conversation/03-versioning-and-branching.md`
-- `documentation/sources/atlas3-specbase/references/conversation/02-message-operations.md`
-- `documentation/sources/atlas3-specbase/references/context/context-assembly.md`
-- `documentation/sources/atlas3-specbase/references/context/token-counting-and-tracking.md`
-- `documentation/sources/atlas3-specbase/references/files/file-management.md`
-- `documentation/sources/atlas3-specbase/references/systems/16-knowledge-base.md`
-- `documentation/sources/atlas3-specbase/references/systems/17-agent-self-modification.md`
-- `documentation/sources/atlas3-specbase/references/systems/18-quality-control.md`
-- `documentation/sources/atlas3-specbase/references/domains/coder/*`
-- `documentation/sources/atlas3-specbase/references/domains/web/*`
-- `documentation/sources/atlas3-specbase/references/domains/data-processor/overview.md`
-- `documentation/sources/atlas3-specbase/references/domains/teacher/overview.md`
-- `documentation/sources/atlas3-specbase/references/domains/gui-control/*`
-- `documentation/sources/atlas3-specbase/references/domains/system-agent/overview.md`
-- `documentation/sources/atlas3-specbase/references/domains/memory/overview.md`
-- `documentation/sources/atlas3-specbase/references/infrastructure/database.md`
-- `documentation/sources/atlas3-specbase/references/infrastructure/sync.md`
-- `documentation/sources/atlas3-specbase/references/infrastructure/lifecycle.md`
-- `documentation/sources/atlas3-specbase/references/infrastructure/screen-share.md`
-- `documentation/sources/atlas3-specbase/references/tools/*`
-- `documentation/sources/atlas3-specbase/references/ui/14-3-streaming-ui.md`
-- `documentation/sources/atlas3-specbase/references/ui/14-4-source-management.md`
-- `documentation/sources/atlas3-specbase/references/ui/context-management.md`
-- `documentation/sources/atlas3-project-knowledge/atlas3-core/CONSTRAINTS.md`
-- `documentation/sources/atlas3-project-knowledge/atlas3-core/TODO.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit01-foundations-and-cross-cutting-core.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit06-tools.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit07-context.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit08-coder.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit09-web.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit10-gui-control.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit11-cross-tool-learning.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit11a-memory.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit11b-data-processor.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit11c-system-agent.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit11d-teacher.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit12-infrastructure.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit14-systems.md`
-- `documentation/sources/atlas3-project-knowledge/compressed-repos/*`
-- `documentation/sources/atlas3-project-knowledge/addendums/*`
-- `documentation/sources/existing_ecosystems/*`
-- `documentation/sources/codex_recommendations.md`
-
-Resolution rule:
-
-- preserve File 08's `Block` model unchanged: artifacts, evidence records, citations, observations, validations, and critiques live as blocks of the kinds File 08 already declares (`Artifact`, `Evidence`, `Citation`, `Observation`, `Validation`, `Critique`); the entity layer this file adds sits over those blocks without competing for content carriage
-- declare `Claim` as a canonical extension to File 08 §3.1's closed canonical `BlockKind` catalogue, because claim identity is load-bearing across retrieval, evidence linking, policy escalation, and replay (per File 08 §15's explicit clause that the canonical catalogue evolves through canonical-spec updates when the design space warrants)
-- preserve File 08's lifecycle-as-derived invariant: artifact lifecycle, review state, and validation state are per-`ArtifactVersion` / per-`ContextVersion` derived view-state, not mutable fields on the entity record; the version graph (per the future Version Graph spec) holds the action log
-- preserve File 04's commit-boundary invariant: artifact versions commit at the canonical block-commit boundary set declared in File 08 §7.6; new artifact versions create new `Artifact`-kind blocks linked by `supersedes` per File 08 §5.2; observations commit at capability completion; evidence-link edges commit at the boundary their producing capability declares
-- preserve File 06's authority boundary: artifact mutation, claim publication, evidence linking, and validation runs pass through the canonical approval router; entity capabilities declared in §16 carry the appropriate permission tiers
-- preserve File 05's unified-registry invariant: every entity-level operation is declared as a capability in the Capability Registry; no parallel entity-operation pipeline
-- treat provenance as a derived projection — provenance is not a stored entity, it is what the closure of block, edge, version, run, and ledger relations resolves to when queried; the canonical query surface in §15 specifies the supported closure shapes
-- treat evidence chains as the load-bearing factuality substrate — a `Claim` without at least one matching `EvidenceLink` is `unsupported` by default; the system never silently treats unsupported claims as factual
-- treat artifact materialization as a separate concern from artifact identity — materialized paths are state, not identity; an artifact's identity is its `artifact_id` plus the version selected by the active projection
-
-Resolved tensions:
-
-- keep `cross-cutting/artifacts.md`'s simplicity for trivial artifacts (a single file produced via `file.create` with a runtime hint, displayed through the shared sandbox or a type-specific renderer) without sacrificing the codex-recommendations entity model for multi-version, multi-materialization, validated artifacts: the entity layer is thin, the simple case pays minimal cost, the complex case gets the explicit record it requires
-- keep `Claim` as a first-class primitive with stable identity (codex `Claim`/`EvidenceLink` model) without forcing every assistant utterance through claim ceremony: explicit claim publication is opt-in via the `claim.publish` capability; automatic extraction is opt-in via settings; ordinary chat answers do not become `Claim` entities by default
-- keep `Evidence` as the cohesive substrate File 08 already declared without losing the typed relation semantics (`Supports`, `Refutes`, `Contextualizes` from codex_recommendations and the discrete confidence classes from graphify and cosight): the relation kind and the confidence both live on the `EvidenceLink` edge-metadata declared in §11.2
-- keep `Observation` as a generic snapshot kind (File 08) while supporting the staleness-fingerprint pattern (File 04 §8.2 stale-state revalidation, graphify content hash, file-management mtime+sha tracking, GUI Control accessibility-tree-hash): the `Observation` block carries a typed staleness fingerprint that the runtime checks before any mutation declaring it as a precondition
-- keep `Validation` distinct from `Critique` (File 08 §3.1 already established this) and let the `validation_state` of an artifact derive deterministically from `validated_by` edges — no stored validation_state field that can drift from the validation evidence
-- keep the provenance query surface lean: a closed canonical set of lineage, evidence-set, replay-trace, and contradiction-check queries; new queries register through the canonical capability mechanism, not by inventing parallel provenance APIs
-- keep artifact lifecycle expressive (Draft / Active / Validated / Superseded / Archived / Discarded) without giving it independent storage: lifecycle is per-artifact-version derived state, computed from the version-graph action log and validation edges
-- keep claim status expressive (per codex §14.8: candidate / supported / contradicted / unresolved / superseded) plus `withdrawn` for explicit retraction: status is derived from the evidence-link set when not explicitly overridden, with overrides, withdrawal, and supersession recorded as projection/action-log facts rather than mutable claim-block fields
+- Artifact, evidence, claim, observation, validation, and critique content is carried by blocks; this file defines their higher-level identity and lifecycle where needed.
+- Claim tracking is opt-in structured semantics, not an obligation to turn every sentence into a claim.
+- Evidence links carry relation, confidence, provenance, and applicability; balanced or conflicting evidence remains unresolved unless one side is stronger.
+- Provenance is derived from the canonical graph of blocks, versions, runs, capability calls, and ledger entries, not from a parallel provenance store.
+- Artifact materialization, export, and external representation are projections of durable artifact identity, not the identity itself.
 
 ## 1. Chosen Model
 

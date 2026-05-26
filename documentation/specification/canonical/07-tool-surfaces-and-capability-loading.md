@@ -37,91 +37,16 @@ This file does not define:
 
 ## Source Resolution
 
-This file is a resolved design, not a summary.
+This file resolves tool loading, tool search, borrowing, MCP discovery, subsystem surfaces, and prompt exposure material into one boundary: the runtime capability surface visible to a model or user.
 
-Source families reviewed:
+Resolved design:
 
-- `documentation/specification/canonical/01-core-thesis-invariants-and-primitives.md`
-- `documentation/specification/canonical/02-conversation-intent-and-task.md`
-- `documentation/specification/canonical/03-routing-and-dispatch.md`
-- `documentation/specification/canonical/04-execution-and-run-model.md`
-- `documentation/specification/canonical/05-capability-contracts-and-registry.md`
-- `documentation/specification/canonical/06-capability-policy-approvals-and-leases.md`
-- `documentation/sources/atlas3-project-knowledge/atlas3-core/*`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit01-foundations-and-cross-cutting-core.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit02-cross-cutting-infra-and-presentation.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit03-conversation-engine.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit04-routing-agents-prompt.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit05-providers.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit06-tools.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit07-context.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit08-coder.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit09-web.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit10-gui-control.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit11-cross-tool-learning.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit11a-memory.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit11b-data-processor.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit11c-system-agent.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit11d-teacher.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit12-infrastructure.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit13-ui.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit14-systems.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit15-ux-distribution-files-glossary.md`
-- `documentation/sources/atlas3-specbase/references/agents/*`
-- `documentation/sources/atlas3-specbase/references/cross-cutting/actions.md`
-- `documentation/sources/atlas3-specbase/references/cross-cutting/blocks.md`
-- `documentation/sources/atlas3-specbase/references/cross-cutting/composition.md`
-- `documentation/sources/atlas3-specbase/references/cross-cutting/errors.md`
-- `documentation/sources/atlas3-specbase/references/cross-cutting/events.md`
-- `documentation/sources/atlas3-specbase/references/cross-cutting/response-parser.md`
-- `documentation/sources/atlas3-specbase/references/cross-cutting/service-layer.md`
-- `documentation/sources/atlas3-specbase/references/cross-cutting/settings.md`
-- `documentation/sources/atlas3-specbase/references/cross-cutting/state-awareness.md`
-- `documentation/sources/atlas3-specbase/references/conversation/*`
-- `documentation/sources/atlas3-specbase/references/context/*`
-- `documentation/sources/atlas3-specbase/references/domains/coder/*`
-- `documentation/sources/atlas3-specbase/references/domains/web/*`
-- `documentation/sources/atlas3-specbase/references/domains/gui-control/*`
-- `documentation/sources/atlas3-specbase/references/domains/teacher/overview.md`
-- `documentation/sources/atlas3-specbase/references/domains/memory/overview.md`
-- `documentation/sources/atlas3-specbase/references/domains/system-agent/overview.md`
-- `documentation/sources/atlas3-specbase/references/domains/data-processor/overview.md`
-- `documentation/sources/atlas3-specbase/references/foundations/*`
-- `documentation/sources/atlas3-specbase/references/files/*`
-- `documentation/sources/atlas3-specbase/references/infrastructure/*`
-- `documentation/sources/atlas3-specbase/references/providers/*`
-- `documentation/sources/atlas3-specbase/references/routing/router.md`
-- `documentation/sources/atlas3-specbase/references/systems/*`
-- `documentation/sources/atlas3-specbase/references/tools/*`
-- `documentation/sources/atlas3-specbase/references/ui/*`
-- `documentation/sources/atlas3-specbase/references/ux-input/*`
-- `documentation/sources/atlas3-specbase/references/GLOSSARY.md`
-- `documentation/sources/atlas3-specbase/SKILL.md`
-- `documentation/sources/atlas3-project-knowledge/compressed-repos/*`
-- `documentation/sources/atlas3-project-knowledge/addendums/*`
-- `documentation/sources/existing_ecosystems/*`
-- `documentation/sources/codex_recommendations.md`
-
-Resolution rule:
-
-- preserve the unified-registry invariant from File 05 — a `ToolSurface` is a projection of the one Capability Registry; it never holds capability declarations of its own and never invents capability identity
-- preserve the surface-as-presentation invariant — loading a capability into a surface confers visibility and model-request presence; it does not confer execution authority. File 06 owns approval; File 07 owns presence
-- treat zone membership as derived state, not declared state — a capability declaration carries display fields, family, tags, availability predicate, and source attribution; the zone it occupies in any given surface is a function of those values, current settings, active `BorrowGrant`s, policy-visible facts, routing strategy, world-model state, and context budget
-- treat the per-subsystem default surface as a contract — every capability-owning work surface or substrate service declares a `SubsystemSurfaceSpec`; File 07 names the contract shape; later per-surface and substrate-service specs fill it
-- treat late-loading as a capability-mediated operation, not a hidden runtime mechanism — `tool.borrow`, `tool.search`, `mcp.search`, and `tool.inspect` are first-class `Capability` declarations registered in the Capability Registry and invoked through the File 04 §8.2 pipeline; the ledger records every borrow and every search the way it records every other call
-- preserve the canonical-event-bus invariant from File 04 §23 — every surface-relevant input change or consumed composition emits a typed event through the canonical bus with the standard envelope; there is no parallel surface-update channel
-
-Resolved tensions:
-
-- keep the three-zone model from File 04 §10.2 as the canonical structure, but specify that zone assignment is a derived runtime decision and not a property of the capability declaration, so the same registered capability can sit in different zones for different runs without registry mutation
-- keep `tool.borrow` as the agent-driven cross-surface capability acquisition path, but make `tool.search` and `mcp.search` first-class peer capabilities so the agent can locate capabilities by name, family, description, or registered source before borrowing them
-- keep per-subsystem default surfaces as the dominant pattern, but never silently autoload capabilities outside a primary surface's declared set — cross-surface reach is always explicit through search and borrow
-- keep auto-shrink under context pressure as a deterministic, in-band, no-approval mechanic, but make every shrink decision a typed event the user can inspect and the agent can see; never compress the surface without leaving a trace
-- keep one set of presentation channels (model request, palette, voice, shortcut, automation trigger, external protocol) sourced from one `CapabilityDeclaration` per File 01 §6.14; reject every shape that would split a capability across channel-specific identities
-- keep tool-surface persistence durable across restart, retry, edit, reroute, branch, and child-run spawn by recording consumed surface snapshots in the execution ledger and re-deriving active surfaces from settings + registry + active `BorrowGrant`s on reload — never persist surface state as an independent mutable record that could drift from the registry
-- keep the surface ↔ policy boundary sharp — loaded ≠ permitted; denied calls produce in-band denials per File 04 §8.3 even when the capability is visible in the surface
-- keep mid-run surface-relevant changes as ordinary events, not as a separate lifecycle — borrow grants, policy lease changes, MCP server reconnections, plugin installs, settings changes, and capability registrations all emit typed surface events through the canonical bus
-- keep model-request surface content stable for cache reuse — surface content occupies a deterministic position in the assembled model request, and the surface is composed in a canonical order so unchanged surfaces produce byte-identical prefixes where the provider supports caching
+- A tool surface is a projection of the Capability Registry, not a second registry.
+- Loaded, visible, callable, and permitted are separate states; permission remains owned by File 06.
+- Primary, borrowable, and deferred zones control request size and discoverability without hiding the underlying registry.
+- Search, borrow, inspect, revoke, and surface-change behavior are first-class capability interactions with events and snapshots.
+- External tool descriptions are untrusted data rendered behind architectural instruction boundaries, not sanitized into trusted instructions.
+- Subsystem defaults and user settings shape surfaces, but every loaded tool still follows the same capability and policy contracts.
 
 ## 1. Chosen Model
 

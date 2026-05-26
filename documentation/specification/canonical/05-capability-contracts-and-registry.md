@@ -35,82 +35,15 @@ This file does not define:
 
 ## Source Resolution
 
-This file is a resolved design, not a summary.
+This file resolves action, tool, MCP, plugin, command, workflow-step, and subsystem-operation material into one boundary: the canonical Capability contract and registry.
 
-Source families reviewed:
+Resolved design:
 
-- `documentation/specification/canonical/01-core-thesis-invariants-and-primitives.md`
-- `documentation/specification/canonical/02-conversation-intent-and-task.md`
-- `documentation/specification/canonical/03-routing-and-dispatch.md`
-- `documentation/specification/canonical/04-execution-and-run-model.md`
-- `documentation/sources/atlas3-project-knowledge/atlas3-core/*`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit01-foundations-and-cross-cutting-core.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit02-cross-cutting-infra-and-presentation.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit04-routing-agents-prompt.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit05-providers.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit06-tools.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit09-web.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit10-gui-control.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit11-cross-tool-learning.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit11a-memory.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit11b-data-processor.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit11c-system-agent.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit11d-teacher.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit12-infrastructure.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit13-ui.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit14-systems.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit15-ux-distribution-files-glossary.md`
-- `documentation/sources/atlas3-specbase/references/agents/*`
-- `documentation/sources/atlas3-specbase/references/cross-cutting/actions.md`
-- `documentation/sources/atlas3-specbase/references/cross-cutting/errors.md`
-- `documentation/sources/atlas3-specbase/references/cross-cutting/security.md`
-- `documentation/sources/atlas3-specbase/references/cross-cutting/service-layer.md`
-- `documentation/sources/atlas3-specbase/references/cross-cutting/settings.md`
-- `documentation/sources/atlas3-specbase/references/cross-cutting/state-awareness.md`
-- `documentation/sources/atlas3-specbase/references/cross-cutting/response-parser.md`
-- `documentation/sources/atlas3-specbase/references/foundations/architecture.md`
-- `documentation/sources/atlas3-specbase/references/foundations/stack.md`
-- `documentation/sources/atlas3-specbase/references/infrastructure/configuration.md`
-- `documentation/sources/atlas3-specbase/references/infrastructure/external-apis.md`
-- `documentation/sources/atlas3-specbase/references/infrastructure/git.md`
-- `documentation/sources/atlas3-specbase/references/infrastructure/mcp.md`
-- `documentation/sources/atlas3-specbase/references/providers/multi-provider.md`
-- `documentation/sources/atlas3-specbase/references/systems/17-agent-self-modification.md`
-- `documentation/sources/atlas3-specbase/references/systems/18-quality-control.md`
-- `documentation/sources/atlas3-specbase/references/tools/*`
-- `documentation/sources/atlas3-specbase/references/files/file-management.md`
-- `documentation/sources/atlas3-specbase/references/domains/coder/*`
-- `documentation/sources/atlas3-specbase/references/domains/web/*`
-- `documentation/sources/atlas3-specbase/references/domains/gui-control/*`
-- `documentation/sources/atlas3-specbase/references/domains/teacher/overview.md`
-- `documentation/sources/atlas3-specbase/references/domains/memory/overview.md`
-- `documentation/sources/atlas3-specbase/references/domains/system-agent/overview.md`
-- `documentation/sources/atlas3-specbase/references/domains/data-processor/overview.md`
-- `documentation/sources/atlas3-project-knowledge/compressed-repos/*`
-- `documentation/sources/atlas3-project-knowledge/addendums/*`
-- `documentation/sources/existing_ecosystems/*`
-- `documentation/sources/codex_recommendations.md`
-
-Resolution rule:
-
-- preserve the unified-registry invariant (one `CapabilityDeclaration` is the source for every invocation path — agent, command palette, shortcut, voice, automation, MCP exposure, scheduled trigger)
-- separate three layered views: the declaration is durable and source-authored; the registered entry is live registry state; the per-call invocation record is owned by the executor and ledger
-- promote `Capability` from "registered action with a permission tier" to a full typed declaration carrying touched-resource expressions, declared execution-semantic metadata, declared replay class, validation paths, postcondition declarations, and source attribution
-- treat capabilities sourced from MCP servers, plugins, subsystem extensions, user-authored code, and external API definitions as first-class contributors to the same registry through the same contract
-- separate the contract layer (declared) from the policy layer (evaluated) and the surfacing layer (loaded into a run's prompt)
-- keep capability identity stable across versions through an alias and deprecation discipline rather than ad-hoc renames
-
-Resolved tensions:
-
-- keep the registry's discoverability and unified-invocation invariants, but reject the "actions as labels with tiers" framing — the declaration must be richer
-- keep MCP as the external extension protocol, but require MCP-sourced capabilities to enter the Capability Registry through the same contract path as built-in capabilities; no parallel "MCP tools" data model
-- keep plugin extensibility, but require plugin-bundled capabilities to declare typed metadata that policy and surface layers consume the same way as built-in metadata
-- keep argument-aware permission tiers (a single capability with path-dependent tier) as `TierResolver::Static | TierResolver::Dynamic` declared in the declaration, with the resolved tier living on the invocation record, rather than splitting one capability into many id variants
-- keep the internal-sub-handling principle from File 04 §9 (one capability with sub-modes is one registry entry, not several) and align identity rules with it
-- keep model-mediated classification as an opt-in mode for fields that cannot be statically declared (`reversibility_class` for `shell.exec`-style capabilities), but require a configured policy prompt rather than ad-hoc inference; the declaration names the mode, the invocation record holds the resolved per-call value
-- keep capability versioning, but anchor it to declaration content with semver and deprecation aliases rather than implicit-mutation-in-place
-- keep source-trust influence on policy strict, but never let trust mutate declared fields — the declared tier survives unchanged into the registry; effective tier is computed by policy at call time using declaration, trust state, settings, leases, and context
-- keep the registry catalog complete across platforms — platform-incompatible capabilities are catalogued as `availability_status: unavailable_platform` with no callable backend binding rather than silently absent
+- Capability is the single operation primitive; earlier Action-style interfaces are superseded by the full Capability contract.
+- The registry stores immutable, versioned declarations with identity, schema, touched resources, effects, risk, preview, postcondition, and presentation metadata.
+- Work surfaces, substrate services, plugins, MCP servers, workflows, scripts, and user-defined operations all register capabilities through the same contract.
+- Capability declarations are metadata, not approval decisions, prompt surfaces, execution records, or UI widgets.
+- Later policy, tool-surface, execution, automation, and plugin specs consume this contract instead of inventing parallel operation metadata.
 
 ## 1. Chosen Model
 

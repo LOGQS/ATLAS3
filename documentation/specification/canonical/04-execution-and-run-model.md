@@ -38,52 +38,16 @@ This file does not define:
 
 ## Source Resolution
 
-This file is a resolved design, not a summary.
+This file resolves agent loops, workflows, tool execution, child runs, automation, interruption, and recovery material into one boundary: how a RunIntent becomes durable execution.
 
-Primary source families reviewed:
+Resolved design:
 
-- `documentation/specification/canonical/01-core-thesis-invariants-and-primitives.md`
-- `documentation/specification/canonical/02-conversation-intent-and-task.md`
-- `documentation/specification/canonical/03-routing-and-dispatch.md`
-- `documentation/sources/atlas3-project-knowledge/atlas3-core/*`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit01-foundations-and-cross-cutting-core.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit03-conversation-engine.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit04-routing-agents-prompt.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit05-providers.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit06-tools.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit07-context.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit11c-system-agent.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit12-infrastructure.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit14-systems.md`
-- `documentation/sources/atlas3-specbase/references/agents/*`
-- `documentation/sources/atlas3-specbase/references/conversation/*`
-- `documentation/sources/atlas3-specbase/references/cross-cutting/*`
-- `documentation/sources/atlas3-specbase/references/context/*`
-- `documentation/sources/atlas3-specbase/references/tools/*`
-- `documentation/sources/atlas3-specbase/references/providers/*`
-- `documentation/sources/atlas3-specbase/references/systems/*`
-- `documentation/sources/atlas3-specbase/references/domains/*`
-- `documentation/sources/atlas3-project-knowledge/compressed-repos/*`
-- `documentation/sources/atlas3-project-knowledge/addendums/*`
-- `documentation/sources/existing_ecosystems/*`
-- `documentation/sources/codex_recommendations.md`
-
-Resolution rule:
-
-- preserve the durable run envelope
-- preserve concrete execution mechanics where they are load-bearing
-- reject any wording that collapses execution into one linear loop, one chat transcript, one task graph, or one frontend presentation
-
-Resolved tensions:
-
-- keep the old chat DAG insight, but do not make chat chronology the execution root
-- keep the agent loop, but define it as one execution shape, not the whole architecture
-- keep hierarchical task-graph power, but specify behavior before exact storage shape
-- keep programmatic agents, but do not split them into a separate backend architecture
-- keep parallelism, but require explicit ownership, isolation, and merge rules
-- keep fast path, but record router-owned work as execution, not invisible preprocessing
-- keep approval hooks, but place policy mechanics in the capability and policy specs
-- keep task promotion, but require explicit capability invocation rather than router heuristics
+- A run is the durable execution attempt that owns status, ledger linkage, budgets, cancellation, and completion semantics.
+- The model/tool loop is the default shape for ordinary agentic work, not the universal core architecture.
+- Programmatic execution, workflows, multi-agent work, and automation reuse the same run, ledger, capability, policy, and versioning substrate.
+- Parallel execution requires explicit ownership, isolation, merge semantics, and conflict handling; silent shared mutation is forbidden.
+- Planning, validation, reroute, and task promotion are tool-visible execution behavior, not mandatory global phases.
+- Every run and connected process must be cancellable as a group and killable individually at safe runtime boundaries.
 
 ## 1. Chosen Model
 

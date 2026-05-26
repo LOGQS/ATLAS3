@@ -28,35 +28,16 @@ This file does not define:
 
 ## Source Resolution
 
-This file is a resolved design, not a summary.
+This file resolves routing, model selection, fast-path, workspace selection, and dispatch material into one boundary: incoming user or system input becomes a RunIntent.
 
-Primary source families reviewed:
+Resolved design:
 
-- `documentation/sources/atlas3-project-knowledge/atlas3-core/*`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit04-routing-agents-prompt.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit03-conversation-engine.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit05-providers.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit06-tools.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit07-context.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit13-ui.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit14-systems.md`
-- `documentation/sources/atlas3-specbase/references/routing/router.md`
-- `documentation/sources/atlas3-specbase/references/agents/*`
-- `documentation/sources/atlas3-specbase/references/context/*`
-- `documentation/sources/atlas3-specbase/references/providers/*`
-- `documentation/sources/atlas3-specbase/references/ui/*`
-- `documentation/sources/codex_recommendations.md`
-- `documentation/sources/existing_ecosystems/*`
-- `documentation/sources/atlas3-project-knowledge/compressed-repos/*`
-- `documentation/sources/atlas3-project-knowledge/addendums/*`
-
-Resolved tensions:
-
-- keep routing as a first-class runtime step, but do not tie canonical semantics to an old one-domain router-node shape
-- keep model-driven routing, but do not force every subdecision through a separate heavy pass
-- keep route visibility, but do not let routing own frontend presentation truth
-- keep fast path, but define it as router-owned trivial or preparatory execution, not routing bypass
-- keep continuity attachment, but make it cheap, concrete, and routing-owned
+- Routing is a first-class runtime step, not hidden prompt logic.
+- A RunIntent describes the selected work line, execution entry, model route, context policy, and capability surface; it is not merely a domain label.
+- Router output may include fast-path results or failures, but that work is visible to execution and ledgering.
+- Router context is compact, policy-governed, and independently configurable from main-model context.
+- Presentation is a user-controllable projection; routing may inform it but does not own frontend participation mode.
+- Edits, retries, and mid-execution reroutes create explicit routing transitions rather than silently mutating prior decisions.
 
 ## 1. Purpose
 

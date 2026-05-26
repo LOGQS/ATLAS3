@@ -25,30 +25,15 @@ This file does not define:
 
 ## Source Resolution
 
-This file is a resolved design, not a summary.
+This file resolves foundational product, architecture, primitive, and invariant material into one boundary: the canonical thesis and substrate vocabulary that later specs must consume.
 
-Source families reviewed:
+Resolved design:
 
-- `documentation/sources/atlas3-project-knowledge/atlas3-core/*`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit01*`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit02*`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit11a-memory.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit11d-teacher.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit12-infrastructure.md`
-- `documentation/sources/atlas3-project-knowledge/unit-specs/unit13-ui.md`
-- `documentation/sources/atlas3-specbase/references/foundations/*`
-- `documentation/sources/atlas3-specbase/references/cross-cutting/*`
-- `documentation/sources/atlas3-specbase/references/domains/memory/overview.md`
-- `documentation/sources/atlas3-specbase/references/domains/teacher/overview.md`
-- `documentation/sources/atlas3-project-knowledge/compressed-repos/openmaic-compressed.md`
-- `documentation/sources/codex_recommendations.md`
-
-Conflict rule:
-
-- preserve the shared substrate
-- reject false tradeoffs between domain quality and cross-domain composition
-- prefer stronger general architecture over weaker incumbent wording
-- treat under-specification as something to resolve now, not later
+- ATLAS is a local-first intent operating environment, not a chat app with tools.
+- The product is one shared runtime with multiple presentations, work surfaces, substrate services, and control rails.
+- Participation levels are a UX design lens, not a backend primitive.
+- Blocks, capabilities, execution, events, settings, world state, and versioned durable state are the foundational primitives later files reuse.
+- Extensibility and customization are system-wide invariants, not optional domain features.
 
 ## 1. Product Thesis
 
