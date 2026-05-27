@@ -437,7 +437,7 @@ Settings must cover:
 - sensitivity handling and snapshot retention
 - whether time-based convenience triggers are enabled
 
-Scopes should use the canonical settings system: global, user, workspace, conversation, profile, subsystem, surface, capability family, run, automation, and explicit invocation override where appropriate.
+Settings use File 15's model: durable global/workspace/conversation scopes, active profile context and profile layers, plus non-durable invocation overlays for run, automation, evaluation, or per-call overrides. Subsystem, surface, and capability-family variation is represented by namespaced setting keys and constraints, not by inventing additional durable scopes.
 
 ## 21. Explicit Rejections
 

@@ -306,7 +306,7 @@ Approval flows produce typed decisions through the same hook bus. The user-facin
 
 ### 6.2 Resolution
 
-The capability's declared `touched_resources` (File 05 §6) are typed expressions referencing input-schema field paths (`args.path`, `args.command`, `args.url`, etc.). The policy layer resolves each expression against the proposed call's arguments to produce a concrete set of touched resources, each carrying its `class`, `access`, and resolved scope (concrete path, host, port, env-var name, process group, credential vault key, sub-agent type id, etc.).
+The capability's declared `touched_resources` (File 05 §6) are typed expressions referencing input-schema field paths (`args.path`, `args.command`, `args.url`, etc.). The policy layer resolves each expression against the proposed call's arguments to produce a concrete set of touched resources, each carrying its `class`, `access`, and resolved scope (concrete path, host, port, env-var name, settings key/scope, process group, credential vault key, sub-agent type id, etc.).
 
 For extension classes registered per File 05 §6.3, the registered containment predicate is invoked to produce the resolved scope.
 
@@ -318,6 +318,7 @@ The lease's `inherited_constraints` are typed predicates over the same resource 
 - `network` — host-set containment (the lease constrains "hosts in the set `{api.example.com, *.example.org}`"; the call's resolved host must match)
 - `process` — process-group containment (the lease constrains "processes in the run-scoped group"; the call's resolved process must belong to that group)
 - `env` — env-var-name allowlist containment
+- `setting` — key, key-prefix, owner, category, scope, or profile-context containment
 - `credential` — vault-key allowlist containment
 - `model-call` — provider/model identity containment
 - `browser-session` — session-id containment
@@ -857,7 +858,7 @@ Risk classification is one input to effective tier resolution. The classificatio
 
 ### 16.1 Configurable Dimensions and Layer Ownership
 
-Every policy mechanism in this file is configurable through settings (per File 01 §6.8 and File 05 §18). File 06 owns the resolution algorithm; the dimensions are:
+Every policy mechanism in this file is configurable through settings (per File 15). File 15 owns settings resolution; File 06 owns how already-resolved policy settings compose into policy decisions. The dimensions are:
 
 - per-capability `permission_tier` overrides (capped above by `permission_floor`), per scope
 - per-capability `approval_template_id` overrides, per scope
@@ -874,19 +875,11 @@ Every policy mechanism in this file is configurable through settings (per File 0
 - dedicated-tool preference mode (`Strict`, `Warn`, `Off`) per CT.16
 - fetch-fallback policy (`Forbidden`, `UserConfirmed`, `Allowed`) per CT.16
 - per-subsystem and per-surface approval-posture override
-- per-profile approval-posture override (per the unit-spec profiles: researcher, developer, office, etc.)
+- approval-posture defaults contributed by active profile layers
 
 ### 16.2 Resolution Algorithm
 
-The cascade order is the canonical settings cascade: conversation → workspace → global → TOML overlay → declared default (per the cross-cutting settings spec). For each policy decision:
-
-1. Look up the per-capability override at conversation scope; if present, apply
-2. Else look up at workspace scope; if present, apply
-3. Else look up at global scope; if present, apply
-4. Else look up at the TOML overlay; if present, apply
-5. Else use the declared default from the capability or template
-
-Per-source overrides resolve through the same cascade, keyed by source identity.
+Policy reads policy-relevant settings through File 15's source stack: invocation overlay, conversation, workspace, global, local explicit overlay, active profile layers, then definition default policy. Per-source overrides resolve through the same settings model, keyed by source identity.
 
 The approval-posture preset is a settings-resolved meta-setting. Selecting a posture sets sensible defaults for all the dimensions above; advanced users can still override individual dimensions, and overrides persist across posture changes (changing posture does not reset prior per-capability customizations).
 
@@ -910,7 +903,7 @@ Per the canonical settings exposure rules:
 
 ### 16.5 Boundary
 
-Settings resolution is the policy layer's read-side composition over the canonical settings cascade. The settings storage, the settings UI, and the per-key validation are owned by the cross-cutting settings system. File 06 specifies which dimensions are policy-relevant and how they compose into a decision; it does not reinvent the settings infrastructure.
+Settings resolution is owned by File 15. File 06 specifies which dimensions are policy-relevant and how resolved values compose into a decision; it does not reinvent settings storage, validation, profile layers, agent exposure, or UI.
 
 ## 17. Explicit Rejections
 

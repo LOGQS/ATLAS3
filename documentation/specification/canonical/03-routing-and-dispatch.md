@@ -669,7 +669,7 @@ At minimum, settings must support:
 
 - router enablement, including per-trigger-kind enablement (§2.1)
 - router profile and router-model selection, including collapsing router work into the downstream model request when policy allows it
-- router context policy selection, with per-profile, per-conversation, and per-workspace overrides
+- router context policy selection, with active profile-layer defaults plus per-conversation and per-workspace overrides
 - per-precheck enablement and ordering (§3.2)
 - model-routing strategy chain composition, profile preferences, and per-surface model preferences
 - fallback policy selection per scope

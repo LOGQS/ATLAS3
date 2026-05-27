@@ -329,13 +329,14 @@ The canonical top-level resource classes are a closed enumerable set:
 - `process`
 - `env`
 - `credential`
+- `setting`
 - `model-call`
 - `browser-session`
 - `ui-element`
 - `sub-agent`
 - `scheduler`
 
-These cover the resource kinds the canonical execution, policy, isolation, and ledger layers reason about. The closed set keeps policy-side resource matching, lease-scope inclusion checks, and conflict detection deterministic.
+These cover the resource kinds the canonical execution, policy, isolation, settings, and ledger layers reason about. The closed set keeps policy-side resource matching, lease-scope inclusion checks, and conflict detection deterministic.
 
 ### 6.3 Extension Resource Classes
 
@@ -351,6 +352,7 @@ Expressions are structured terms over the input schema and registered ambient va
 - argument-bound: `filesystem.path(args.path).within(workspace_root)`
 - derived: `shell.parse(args.command).filesystem_writes`
 - external account: `connector.account(args.account_id).mailbox(args.mailbox_id)`
+- setting key: `setting.key(args.key).scope(args.scope)`
 - process group: `process.group(run_id)`
 
 The exact expression grammar lives in File 06 or a capability-schema appendix; this file requires only that expressions are machine-parseable, that argument-bound expressions reference `args.*` field paths by name, and that the expression resolves to the concrete resources policy must check.
@@ -856,7 +858,7 @@ Dimensions and ownership:
 
 ### 18.2 Settings-Key Convention
 
-The settings keys for capability-related configuration follow the namespaced dotted-key convention (per the future Settings and Profiles spec): `capabilities.<id>.enabled`, `capabilities.<id>.permission_tier`, `registry.collision_policy`, `registry.source_approval_threshold`, `sources.<source_id>.trust_override`, etc. Plugin-supplied capabilities register their own settings keys at plugin install time per the future Extension and Plugin System spec.
+Capability-related configuration follows File 15's namespaced dotted-key convention: `capabilities.<id>.enabled`, `capabilities.<id>.permission_tier`, `registry.collision_policy`, `registry.source_approval_threshold`, `sources.<source_id>.trust_override`, etc. Plugin-supplied capabilities register their own settings keys at plugin install time per the future Extension and Plugin System spec.
 
 ### 18.3 Boundary
 

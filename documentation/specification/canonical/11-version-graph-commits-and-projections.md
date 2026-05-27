@@ -44,7 +44,7 @@ This file does not define:
 - the storage on-disk layout, the per-table physical schema, replication mechanics, projection-store realisation, or indexing strategy — the future Storage and Persistence spec owns those; this file specifies what must be durable and what must be reconstructable
 - the cross-device sync transport, the libsql embedded-replica mechanics, the conflict-detection pipeline, or import / export bundle format — the future Sync, Import, Export, and Data Portability spec owns those; this file specifies that the version-tree-aware merge is the canonical conflict-resolution semantics
 - retrieval, indexing, knowledge-base mechanics, or RAG hybrid-search algorithms — the future Retrieval, Indexing, and Knowledge Base spec owns those; this file specifies that retrieval indexes are projections rebuildable from the durable substrates
-- context-assembly, compaction algorithms, token-budget mechanics, or per-policy block selection — the future Context Assembly and Compaction spec owns those; this file specifies the materialised view as the canonical context-assembly input and the typed boundary at which compaction passes commit
+- context-assembly, compaction algorithms, token-budget mechanics, or per-policy block selection — File 13 owns those; this file specifies the materialised view as the canonical context-assembly input and the typed boundary at which compaction passes commit
 - memory promotion, salience scoring, recall, or decay — the future Memory spec owns those; this file specifies that memory entries that consolidate prior blocks are linked via `consolidates` edges from File 08 §5.2 and participate in the version graph as ordinary blocks
 - model strategy, provider routing, rate-limit reconciliation, or provider-health tracking — the future Model Strategy and Provider Layer specs own those
 - workspace materialization mechanics, materialised-path resolution, disk → block sync, or workspace-tree management beyond declaring that disk state is a projection of the active version's view per File 09 §7.5 — the future Workspaces and Materialization spec owns those
@@ -990,7 +990,7 @@ The canonical typed snapshot identities, each addressable as `<kind>_snapshot_id
 
 **`registry_snapshot_id`** — addresses the `RegisteredCapability` state at the named version per File 05 §10. Resolution: walk the capability-registration ledger entries (per File 10 §4.1 `CapabilityRegistered`, `CapabilityUnregistered`, `CapabilityUpdated`, `CapabilityEnabledChanged`, `CapabilityAvailabilityChanged`, `CapabilityRegistryStateChanged`) from the install boot to the snapshot's anchor timestamp; the result is the registered-capability set with their `enabled`, `availability_status`, `resolved_backend_binding`, `trust_state`, `active_aliases`, and registered declaration version at that moment.
 
-**`settings_snapshot_id`** — addresses the cascade-resolved settings tree at the named version per File 01 §6.8 and cross-cutting/settings.md. Resolution: walk the settings-change ledger entries from the install boot to the snapshot's anchor timestamp; the result is the per-scope settings cascade (global / workspace / conversation / per-capability overrides) as it would have resolved at that moment. Per cross-cutting/settings.md, the TOML overlay is per-device and not synced; the snapshot captures the SQLite-sourced settings, not the TOML overlay. Settings snapshots are SQLite-sourced; the TOML overlay is an out-of-band per-device runtime override that the snapshot does not capture (a deliberate consequence of the per-device exclusion from sync).
+**`settings_snapshot_id`** — addresses the effective settings source stack at the named version per File 15. Resolution captures explicit durable values, active profile context and profile layers, invocation overlays when used, definition versions, locality metadata, validation diagnostics that affected resolution, and redaction-safe overlay/default source metadata. The TOML file itself remains per-device and unsynced, but if execution depended on a TOML-provided non-secret value, the snapshot records the effective resolved value or a redaction-safe placeholder so replay and audit can explain what happened.
 
 **`world_snapshot_id`** — addresses the world-model state at the named version per File 01 §6.7. Resolution: the world model maintains its own durable substrate (active subsystem/surface, mounted panels, focused element, available actions, active workspaces, etc.); the snapshot resolves to the world state at the anchor timestamp through the world-model service's replay path.
 
@@ -1530,7 +1530,7 @@ Every version-graph mechanism in this file is configurable through settings (per
 
 ### 22.2 Settings-Key Convention
 
-Version-graph settings use the dotted-key convention `versioning.<dimension>`. Per-conversation overrides use `versioning.<dimension>.conversation.<conversation_id>`. Per-subsystem, per-surface, per-capability, and per-category overrides use the settings cascade defined by the future Settings, Profiles, and Scope Resolution spec.
+Version-graph settings use the dotted-key convention `versioning.<dimension>`. Per-conversation overrides use File 15's conversation scope. Per-subsystem, per-surface, per-capability, and per-category variation is represented by namespaced keys and resolved through File 15's source stack.
 
 ### 22.3 Boundary
 

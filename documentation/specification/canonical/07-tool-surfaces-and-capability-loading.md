@@ -55,9 +55,9 @@ ATLAS3 has one Capability Registry (per File 05). The set of capabilities that a
 A `ToolSurface` is:
 
 - a typed projection over the Capability Registry, with zone assignment computed per `(invoker, scope, context)`
-- composed from the registered state (per File 05 §10), the resolved settings snapshot (per File 01 §6.8 and the future Settings, Profiles, and Scope Resolution spec), active `BorrowGrant`s, the active routing decision (per File 03 §8.3 `tool_surface_strategy`), the active world-model snapshot (per File 01 §6.7), and the active context budget (per File 04 §10.3 and the future Context Assembly spec)
+- composed from the registered state (per File 05 §10), the resolved settings snapshot (per File 15), active `BorrowGrant`s, the active routing decision (per File 03 §8.3 `tool_surface_strategy`), the active world-model snapshot (per File 01 §6.7), and the active context budget (per File 04 §10.3 and File 13)
 - a presentation surface, not a security gate — invocation authority is owned by File 06's policy layer, and a capability visible in a surface is still subject to effective tier resolution at proposal time
-- inspectable, settable, and observable at every scope — global, profile, workspace, conversation, run, and per-call
+- inspectable, settable, and observable through the settings model: durable global/workspace/conversation scopes, active profile context, and non-durable run or per-call overlays
 
 The same registered `Capability` appears in multiple `ToolSurface` projections concurrently. The model running inside a `Run` sees a model-request surface. The user looking at the command palette sees a palette surface. A voice listener sees a voice-invokable surface. A keyboard shortcut resolver sees a shortcut surface. An automation rule editor sees an automation-trigger surface. An external MCP client sees the externally exposed surface. Each is the same registry projected through a different invocation lens, and each composition step honors the same canonical algorithm.
 
@@ -104,7 +104,7 @@ The composition algorithm produces a `ResolvedToolSurface` carrying at minimum:
 - `zoned_entries` — typed per-capability records grouped by zone (per §3): `primary`, `borrowable`, `deferred`, `disabled`, `unavailable`
 - `routing_inputs` — the `RunIntent.tool_surface_strategy` consulted (per File 03), the active routing decision facts (per §6), and any pre-existing `BorrowGrant`s honored
 - `provider_name_map` — when rendered for a provider, a bijective map from every provider-visible tool name to `(capability_id, capability_version, declaration_version)`; invocation records store both the canonical id and the provider-visible name used for the call
-- `context_budget` — the model context budget (per the future Context Assembly spec) at composition time and the post-shrink budget actually consumed by tool definitions (per §8)
+- `context_budget` — the model context budget (per File 13) at composition time and the post-shrink budget actually consumed by tool definitions (per §8)
 - `auto_shrink_record` — typed record of any auto-shrink performed: which capabilities moved between zones, the budget threshold that triggered shrink, the priority ordering applied
 - `composition_diagnostics` — typed diagnostic record naming, per capability ever considered, why it landed in its assigned zone (declared default, routing decision, settings override, active `BorrowGrant`, context-pressure shrink, availability state, trust narrowing); inspectable through the canonical inspector surface
 
@@ -173,7 +173,7 @@ A `Capability` declaration carries no zone field. Zone membership is computed by
 - the resolved settings snapshot for per-capability zone overrides, per-family zone overrides, per-source zone overrides, and lens visibility (per §12 and §18)
 - active `BorrowGrant`s for schema-visibility promotion and policy-resolved facts relevant to presentation (per §7.3 and File 06)
 - the registered entry's `enabled` flag and `availability_status` (per File 05 §10)
-- the active context budget reported by the context assembly layer (per File 04 §10.3 and the future Context Assembly spec) for auto-shrink decisions (per §8)
+- the active context budget reported by the context assembly layer (per File 04 §10.3 and File 13) for auto-shrink decisions (per §8)
 - the registered entry's trust state (per File 05 §9.2 and File 06 §4) for trust-driven narrowing
 
 The composition is deterministic given the same inputs (§9.4). Two invokers with the same `scope_context` consuming the same registry state produce the same zoned entries.
@@ -212,7 +212,7 @@ The model request receives `Borrowable` entries as model-request text content pl
 - per-entry one-liner — `name` and `short_description` (per File 05 §3.2)
 - `borrow_invocation_hint` — a single hint line indicating that `tool.borrow(name)` loads the schema for the rest of the turn
 
-The block is deterministically ordered (alphabetical by family, then alphabetical by name within family) so the model-request prefix is cache-friendly where the provider supports caching (per File 04 §3.3 cheap routing and §7 of the future Context Assembly spec). If a `BorrowGrant` (per §7.3) is active, the borrowed capability is rendered in `Primary` for the duration of the grant and removed from the `Borrowable` catalog block to avoid duplication.
+The block is deterministically ordered (alphabetical by family, then alphabetical by name within family) so the model-request prefix is cache-friendly where the provider supports caching (per File 04 §3.3 cheap routing and File 13). If a `BorrowGrant` (per §7.3) is active, the borrowed capability is rendered in `Primary` for the duration of the grant and removed from the `Borrowable` catalog block to avoid duplication.
 
 ### 4.4 The Borrow Operation
 
@@ -288,7 +288,7 @@ The router (per File 03 §3) produces a `RunIntent` whose `tool_surface_strategy
 
 When a `Run`'s primary surface changes mid-execution — for example, through a mid-execution reroute per File 03 §12 — the active `SubsystemSurfaceSpec` changes accordingly. The composition algorithm re-runs for subsequent model-request assembly; the next model turn sees the new primary surface. Capabilities that were borrowed before the transition retain their `BorrowGrant`s per the grant scope; a `run`-scoped `BorrowGrant` survives a primary-surface change within the same run.
 
-A primary-surface change emits a `PrimarySurfaceChanged` event (per §13). The model's next request includes a typed notice (rendered as part of request assembly per the future Context Assembly spec) describing the change so the model is aware its working surface changed.
+A primary-surface change emits a `PrimarySurfaceChanged` event (per §13). The model's next request includes a typed notice (rendered as part of request assembly per File 13) describing the change so the model is aware its working surface changed.
 
 ### 5.5 Cross-Surface Reach Without Primary-Surface Change
 
@@ -442,7 +442,7 @@ The default composition for a fresh `Run`:
 10. Evaluate `enabled` flag — capabilities disabled at any active scope move to `Disabled`
 11. Evaluate availability — capabilities whose `availability_status` is not `Available` move to `Unavailable` regardless of prior zone
 12. Apply trust narrowing per File 06 §4 — capabilities from `Community` or `Unverified` sources may shift between zones per source policy
-13. Estimate model-request cost of the resulting `Primary` and `Borrowable` zones using provider-aware token counting (per File 04 §23.1 and unit07 D7.1 recommendations) against the model's context budget
+13. Estimate model-request cost of the resulting `Primary` and `Borrowable` zones using provider-aware token counting (per File 04 §23.1 and File 13) against the model's context budget
 14. If estimated cost exceeds the configured tool-surface budget, run auto-shrink (§8.2)
 15. If legal shrink cannot fit the surface, return `ToolSurfaceOverflow`
 16. Render `composition_diagnostics` (§2.3) recording every assignment decision and its reason
@@ -450,7 +450,7 @@ The default composition for a fresh `Run`:
 
 ### 8.2 Auto-Shrink Algorithm
 
-When the assembled tool surface's estimated token cost exceeds the configured surface budget (a slice of the model's context window, per the future Context Assembly spec), auto-shrink runs deterministically in this priority order:
+When the assembled tool surface's estimated token cost exceeds the configured surface budget (a slice of the model's context window, per File 13), auto-shrink runs deterministically in this priority order:
 
 **Step A — drop `default_deferred_families` already-deferred entries** from the `Borrowable` catalog block. These entries entered `Borrowable` only through `supporting_surfaces` promotion or routing; the subsystem explicitly deferred them.
 
@@ -651,14 +651,14 @@ File 07 reads from File 06 to decide presentation. File 07 does not duplicate po
 
 Tool surface content occupies a deterministic position in the assembled model request:
 
-- After the identity and core-instructions section (per the future Context Assembly spec)
+- After the identity and core-instructions section (per File 13)
 - Before the conversation history and current user message
 - The `Primary` entries render first as provider-native callable declarations where the provider supports them
 - The `Borrowable` catalog block renders next as model-request text content
 - Optionally, a typed `auto_shrink_record` notice renders after the catalog if shrink occurred
 - The discovery capabilities (`tool.borrow`, `tool.search`, `mcp.search`, `tool.inspect`) render alongside other `Primary` entries — they are first-class registered capabilities, not a separate hint section
 
-The position is stable across turns. Two consecutive turns with the same `ResolvedToolSurface` produce byte-identical surface content up to the moment the conversation history changes, enabling provider cache reuse where the provider supports it (per unit07 D7.1 and unit05 R2 prompt-cache machinery recommendations).
+The position is stable across turns. Two consecutive turns with the same `ResolvedToolSurface` produce byte-identical surface content up to the moment the conversation history changes, enabling provider cache reuse where the provider supports it.
 
 ### 11.2 Per-Provider Format Normalization
 
@@ -734,7 +734,7 @@ This order is the canonical cache-friendly ordering. Changing the order (for exa
 
 ### 11.8 Boundary
 
-File 07 specifies what surface content exists and in what order. The actual model-request assembly — combining the surface with the rest of the request sections, applying cache markers (per unit07 D7.1 and unit05 R2 recommendations), and enforcing request-size invariants — is the future Context Assembly spec's concern. File 07 hands the rendered surface content to context assembly; context assembly composes the full model request.
+File 07 specifies what surface content exists and in what order. The actual model-request assembly — combining the surface with the rest of the request sections, applying cache markers, and enforcing request-size invariants — is File 13's concern. File 07 hands the rendered surface content to context assembly; context assembly composes the full model request.
 
 ## 12. Presentation in User-Facing Surfaces
 
@@ -772,7 +772,7 @@ The `Shortcut` lens renders a chord-to-capability map. Entries are capabilities 
 
 - Conflicts are detected at registration time (two capabilities with the same shortcut produce a `ShortcutConflict` event per §13; the registry rejects the second registration unless explicitly overridden)
 - User-bound shortcuts override `default_shortcut` declarations
-- Shortcuts are keybinding-context-aware (per unit13 D13.6) — the same chord may invoke different capabilities depending on the active keybinding context
+- Shortcuts are keybinding-context-aware: the same chord may invoke different capabilities depending on the active keybinding context.
 
 ### 12.4 Inspector Lens
 
@@ -880,7 +880,7 @@ File 07 specifies the event vocabulary and per-event payload. The event-bus impl
 The following are durable:
 
 - the Capability Registry — registered capabilities and their `RegisteredCapability` state (per File 05 §10) survive restart
-- per-scope settings — per-workspace, per-conversation, per-profile surface customization (zone overrides, enable/disable, always-load marks, shortcut bindings) persist through the settings system (per File 01 §6.8 and the cross-cutting settings spec)
+- per-scope settings — per-workspace and per-conversation surface customization persists through the settings system; profile-specific defaults are profile layers; run and per-call changes are invocation overlays
 - `BorrowGrant`s — durable grants at scopes `intent_thread`, `task`, `conversation`, `workspace`, `global`, `reusable_policy_rule` survive restart until their revocation conditions apply
 - the execution ledger — every `ResolvedToolSurface` consumed by an invocation is recorded with surface_id, composition_diagnostics, and zoned_entries; replay can reconstruct the exact surface a past invocation saw
 
@@ -947,7 +947,7 @@ Plugin update → declared as a new declaration version (per File 05 §13.4). If
 
 ### 15.4 Large MCP Registries
 
-For MCP servers with large tool catalogs (the unit12 D12.9 pattern; observed in many enterprise MCP servers), the default loading behavior is conservative:
+For MCP servers with large tool catalogs, the default loading behavior is conservative:
 
 - All MCP-sourced capabilities default to `Borrowable` for the `ModelAgent` lens if the active `SubsystemSurfaceSpec` does not explicitly place them in `Primary`
 - The `Borrowable` catalog block grows; auto-shrink (§8) may demote MCP-sourced entries first if budget pressure rises
@@ -1062,9 +1062,9 @@ Surface degradation is the projection layer's response to underlying state chang
 
 ### 18.1 Configurable Dimensions
 
-Every surface mechanism in this file is configurable through settings (per File 01 §6.8 and File 05 §18). File 07 consumes a resolved settings snapshot. Profiles are isolated settings containers that supply such snapshots; they are not an extra precedence layer inside the surface composition algorithm.
+Every surface mechanism in this file is configurable through settings (per File 15). File 07 consumes a resolved settings snapshot. Profiles contribute active profile layers to that snapshot; they are not capability registries, security principals, or separate surface-state stores.
 
-File 07 names the dimensions and the layer that owns each resolution. Exact cross-scope precedence, profile creation defaults, imports, and exports belong to the future Settings, Profiles, and Scope Resolution spec. File 07 owns how an already-resolved surface setting affects composition.
+File 07 names the dimensions and the layer that owns each resolution. Cross-scope precedence, profile layers, imports, exports, locality, and agent exposure belong to File 15. File 07 owns how an already-resolved surface setting affects composition.
 
 Dimensions:
 
@@ -1114,7 +1114,7 @@ A settings change that affects surface composition emits `SurfaceSettingsChanged
 
 ### 18.5 Boundary
 
-File 07 names the settings dimensions. The settings storage, validation, and UI rendering are owned by the cross-cutting settings system and the future Settings, Profiles, and Scope Resolution spec. File 07 specifies which dimensions are surface-relevant and how they compose into a `ResolvedToolSurface`.
+File 07 names the settings dimensions. Settings storage, validation, resolution, profile layers, and agent exposure are owned by File 15. File 07 specifies which dimensions are surface-relevant and how they compose into a `ResolvedToolSurface`.
 
 ## 19. Explicit Rejections
 
@@ -1164,9 +1164,9 @@ The canonical principles later specs must follow:
 - consume the auto-shrink mechanic (§8) as a deterministic, non-destructive, always-recorded token-budget mechanism; later specs may extend the priority order through the canonical settings dimension but may not introduce hidden shrink mechanisms
 - consume the persistence contract (§14) — `ToolSurface` is computed; durable state lives in the registry, settings, `BorrowGrant` records, and consumed surface snapshots; later specs do not introduce a parallel durable surface store
 - consume the discovery-capabilities ledger discipline — every `tool.borrow`, `tool.search`, `mcp.search`, `tool.inspect` is recorded; later specs that perform discovery-like operations declare new capabilities through the canonical mechanism rather than bypassing the ledger
-- the future Context Assembly and Compaction spec consumes the rendered `Primary` and `Borrowable` outputs of the composition algorithm as part of the model request; it does not invent its own surface; it places the surface in the canonical request position (§11.1) and applies cache markers as appropriate
+- File 13 consumes the rendered `Primary` and `Borrowable` outputs of the composition algorithm as part of the model request; it does not invent its own surface; it places the surface in the canonical request position (§11.1) and applies cache markers as appropriate
 - the future Storage and Persistence spec stores `BorrowGrant`s, settings, ledger entries, and consumed surface snapshots per the contracts here; it does not introduce parallel durability paths
-- the future Settings, Profiles, and Scope Resolution spec implements cross-scope settings resolution and profile isolation for the dimensions in §18; it does not redefine the dimensions
+- File 15 implements settings resolution, profile contexts, profile layers, locality, and agent exposure for the dimensions in §18; it does not redefine the dimensions
 - the future Extension and Plugin System spec and MCP and External Integrations spec hand their registered capabilities through the unified Capability Registry per File 05 §9; the surface composition picks them up automatically
 - the future Workspaces and Materialization spec defines workspace boundaries; the surface composition consumes workspace_id from `scope_context` as one of the resolution inputs; workspace switching emits the appropriate `SurfaceSettingsChanged` event
 - the future per-surface specs (Coder, Web, Teacher, Data Processor, GUI Control, System Agent) and the per-substrate-service specs (Memory) declare their `SubsystemSurfaceSpec` and any specialized discovery capabilities or specialized auto-shrink priorities specific to their subsystem

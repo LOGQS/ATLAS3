@@ -43,7 +43,7 @@ This file does not define:
 - sandbox primitives, process control internals, or isolation mechanics — the future Sandbox, Process Control, and Isolation spec owns those; this file specifies the events sandbox and process operations emit and the `backend_id` envelope dimension that demultiplexes them
 - the model-strategy layer, provider-routing logic, fallback chains, rate-limit reconciliation, or provider-health tracking — the future Model Strategy and Provider Layer specs own those; this file specifies the per-call attribution and per-error-class retry classification the ledger records
 - retrieval, indexing, knowledge-base mechanics, or RAG hybrid-search algorithms — the future Retrieval, Indexing, and Knowledge Base spec owns those; this file specifies that the ledger is the substrate over which forensic and replay queries operate
-- context-assembly, compaction algorithms, token-budget mechanics, or per-policy block selection — the future Context Assembly and Compaction spec owns those; this file specifies the typed `ContextPressureObserved` boundary and the compaction-related events that flow through the bus
+- context-assembly, compaction algorithms, token-budget mechanics, or per-policy block selection — File 13 owns those; this file specifies the typed `ContextPressureObserved` boundary and the compaction-related events that flow through the bus
 - the UI shell, the rendering of live or durable events into UI components, modal layouts, or accessibility surface choices — the future UI specs own those; this file specifies the typed envelope and event vocabulary the UI consumes
 - specific provider transport mechanics (Tauri IPC, Server-Sent Events, WebSocket, Unix sockets, MCP transports) — the future Runtime Infrastructure and Lifecycle spec owns those; this file specifies the canonical wire-format contract the transport must preserve
 
@@ -145,7 +145,7 @@ File 09 §20 owns the entity-relevant event vocabulary (`ArtifactCreated`, `Arti
 
 The structured logging substrate (cross-cutting/logging.md) uses the `tracing` crate with `#[tracing::instrument]` for span instrumentation; this file specifies that every ledger-event boundary carries the span context (`span_id`, `parent_span_id`, `operation`, `service`) that links structured logs to ledger entries.
 
-The typed error substrate (cross-cutting/errors.md, File 01 §6.9) defines `AppError` with discriminant variants; this file specifies that ledger entries recording errors carry the typed `AppError` plus an optional `TraceContext` field (per unit02 R6) linking the error to the originating span.
+The typed error substrate (File 01 §6.9) defines `AppError` with discriminant variants; this file specifies that ledger entries recording errors carry the typed `AppError` plus an optional `TraceContext` field linking the error to the originating span.
 
 The settings substrate (cross-cutting/settings.md, File 01 §6.8) defines the typed settings system; this file specifies the settings keys this layer reads (hook timeouts, fail-direction overrides, retention granularity, sensitivity classification overrides, aggregation policies, etc.).
 
@@ -375,13 +375,13 @@ Every ledger entry declares its `kind` at commit. The canonical closed catalogue
 
 **Model calls (per File 04 §23.1):**
 
-- `ModelCallStarted` — provider call initiated; payload includes provider id, model id, tokenizer id, role, request fingerprint, cache markers used (per unit05 D5.2)
+- `ModelCallStarted` — provider call initiated; payload includes provider id, model id, tokenizer id, role, request fingerprint, and cache markers used
 - `ModelCallCompleted` — provider returned; payload includes the full `TokenUsageRecord` (§6.2), the cost computed from per-model pricing, the stop reason, the parsed `ParsedResponse` reference
 - `ModelCallStreamingDelta` — provider streamed a chunk; payload includes delta size, accumulated counts, partial-block handle (aggregated per §13.4)
 - `ModelCallFailed` — provider returned an error; payload includes the typed provider error (per File 06 errors module), retry classification (`retryable`, `rate_limited`, `fatal`), `retry_after_ms` if provider-supplied
-- `ProviderHealthChanged` — provider transitioned `Healthy / Degraded / Unhealthy` (per unit05 D5.4); payload includes prior state, new state, contributing failure count
-- `RateLimitSnapshotReconciled` — provider headers reconciled local rate-limit state (per unit05 D5.5); payload includes the typed `RateLimitSnapshot`
-- `TokenCountEstimationTelemetry` — post-call accuracy comparison (per unit07 D7.3); payload includes estimated count, actual count, delta percentage, tokenizer id
+- `ProviderHealthChanged` — provider transitioned `Healthy / Degraded / Unhealthy`; payload includes prior state, new state, and contributing failure count
+- `RateLimitSnapshotReconciled` — provider headers reconciled local rate-limit state; payload includes the typed `RateLimitSnapshot`
+- `TokenCountEstimationTelemetry` — post-call accuracy comparison; payload includes estimated count, actual count, delta percentage, tokenizer id
 
 **Block and version-graph events:**
 
@@ -465,7 +465,7 @@ Every ledger entry declares its `kind` at commit. The canonical closed catalogue
 
 **Error and recovery:**
 
-- `TypedErrorRaised` — a typed `AppError` was raised in the run; payload includes the typed variant, the originating span context (per unit02 R6), the affected operation
+- `TypedErrorRaised` — a typed `AppError` was raised in the run; payload includes the typed variant, the originating span context, and the affected operation
 - `RecoveryStrategyApplied` — a recovery strategy fired (per File 04 §20.2); payload includes the strategy (`retry_same_unit`, `expose_to_model`, `switch_model_profile`, `switch_capability_implementation`, `narrow_capability_scope`, `revoke_and_narrow_lease`, `request_user_clarification`, `branch_strategy`, `restore_or_rollback`, `stop_with_typed_failure`)
 - `ContextPressureObserved` — execution observed context pressure (per File 04 §20.1); payload includes used percentage, kind of pressure
 - `StuckDetected` — runtime detected obvious stuck state (per File 04 §20.3); payload includes pattern detected (`repeated_identical_tool_calls`, `repeated_failed_validations`, `repeated_provider_errors`, `no_new_durable_output`, `cyclic_child_waiting`, `ping_pong`, `single_iteration_empty_response`)
@@ -527,7 +527,7 @@ Domain-specific workspace, source-control, browser, perception, system-watch, me
 - `AppStarted` — application initialized; payload includes versions, settings snapshot id, registry snapshot id
 - `AppShuttingDown` — graceful shutdown initiated with grace period (per cross-cutting infrastructure/lifecycle.md)
 - `AppStopped` — application terminated
-- `BackgroundWorkerSpawned` / `BackgroundWorkerStopped` — background worker (memory consolidator, scheduler, audit writer, lineage tracker, watch poller; per unit12 D12.10)
+- `BackgroundWorkerSpawned` / `BackgroundWorkerStopped` — background worker (memory consolidator, scheduler, audit writer, lineage tracker, watch poller)
 - `BackgroundWorkerHeartbeat` — periodic worker health signal
 - `LedgerCommitRejected` — a commit-time forgery guard or validation rule rejected an entry; payload includes the proposed entry's fields (with sensitivity redaction) and the rejection reason
 
@@ -621,7 +621,7 @@ Every event is an `AppEvent` variant. The closed canonical catalogue is the same
 - `BlockStreamCompleted` — a block finished streaming (durable counterpart is `StreamCompleted`)
 - `ContextAssembled` — context-assembly produced a prompt (per cross-cutting/context-assembly.md); payload includes budget breakdown
 - `ContextBudgetWarning` — context approached a budget (per cross-cutting/context-assembly.md)
-- `CompactionStarted` / `CompactionCompleted` — compaction pipeline events (per future Context Assembly and Compaction spec)
+- `CompactionStarted` / `CompactionCompleted` — compaction pipeline events (per File 13)
 - `UiPanelRegistered` / `UiPanelUnregistered` / `UiPrimaryPanelChanged` / `UiSelectionChanged` / `UiModeChanged` / `UiAvailableActionsRecomputed` — UI state-awareness events (per cross-cutting/state-awareness.md)
 - `UiThemeChanged` / `UiKeybindingChanged` / `UiLayoutChanged` — UI customization events
 - `DebugLog` — structured log entry (sensitive by default; secret content always redacted)
@@ -715,14 +715,14 @@ The required schema:
 - `record_id` — stable identifier for the record
 - `entry_id` — the parent `ModelCallCompleted` ledger entry id
 - `conversation_id`, `run_id`, `step_id`, `node_id`, `worktree_id`, `backend_id` — envelope/context identifiers
-- `provider_id` — the provider identity (e.g., `anthropic`, `openai`, `groq`, `local-ollama`)
-- `model_id` — the resolved model identity at call time (e.g., `claude-sonnet-4-6`, `gpt-4o`, `mistral-7b-instruct-v0.2`)
-- `tokenizer_id` — the tokenizer used for any local estimation (e.g., `cl100k_base`, `tiktoken-rs/o200k_base`, `anthropic-native`, `gemini-sentencepiece`)
+- `provider_id` — the provider identity
+- `model_id` — the resolved model identity at call time
+- `tokenizer_id` — the tokenizer or counting strategy used for any local estimation
 - `role` — the model's role in the call: `router`, `responder`, `critic`, `validator`, `summarizer`, `sub_agent`, `classifier`, `judge`, or registered custom role
 - `prompt_tokens` — input token count
 - `completion_tokens` — output token count
-- `cache_creation_tokens` — cache write tokens (typically 1.25× input cost on Anthropic per unit05 D5.2)
-- `cache_read_tokens` — cache hit tokens (typically 0.10× input cost on Anthropic)
+- `cache_creation_tokens` — cache write tokens when the provider exposes or can derive them
+- `cache_read_tokens` — cache hit tokens when the provider exposes or can derive them
 - `reasoning_tokens` — extended-thinking tokens (when the provider exposes them; `None` otherwise)
 - `request_id` — provider-supplied request id (for cross-referencing with provider dashboards or audit)
 - `token_source` — the typed `TokenSource` (§6.3) indicating accuracy provenance
@@ -733,7 +733,7 @@ The required schema:
 - `latency_ms` — round-trip latency including any network time
 - `inference_time_ms` — server-reported inference time when available
 - `cached_input_tokens` — provider-side cached input (where the provider exposes this field)
-- `image_tokens`, `audio_tokens`, `video_tokens` — for multimodal calls; computed as bytes × tokens-per-modality-unit per unit06 / File 04 §23.1
+- `image_tokens`, `audio_tokens`, `video_tokens` — for multimodal calls; computed from modality-specific accounting rules per File 04 §23.1
 
 The record is not durable as a single scalar (no unkeyed `total_tokens` field; aggregation is a query, not a stored row). Aggregation views (`total_tokens_per_session`, `cost_per_run`, `tokens_per_model`) are queries computed from `TokenUsageRecord` rows. Storage may materialize aggregation views, but the source of truth is the per-call record.
 
@@ -741,13 +741,13 @@ The record is not durable as a single scalar (no unkeyed `total_tokens` field; a
 
 `TokenSource` is the closed canonical enum classifying the accuracy of the recorded counts:
 
-- `ProviderNative { confidence: 0.95 }` — counts are from the provider's response body (Anthropic `usage.input_tokens`, OpenAI `prompt_tokens` from response, Gemini `usageMetadata`); highest accuracy
-- `Tiktoken { encoding_id, confidence: 0.99 }` — counts are from a local tokenizer matching the provider's tokenization (`tiktoken-rs` for OpenAI, `@anthropic-ai/tokenizer` for Anthropic, Gemini SentencePiece for Gemini); ~99.5% accuracy
-- `ProviderApi { endpoint, confidence: 0.95 }` — counts are from a provider's local token-counting API (Anthropic `count_tokens` endpoint, Gemini `countTokens`)
-- `CharacterApproximation { safety_margin: 1.3, confidence: 0.60 }` — counts are from byte-counting heuristic (bytes / 4 × 1.3 safety margin to compensate for the 25-35% underestimate); used only as last-resort fallback
-- `MultimodalEstimate { dimension, units, formula }` — for image / audio / video tokens computed from media properties (e.g., image: `(width × height) / 750`, audio: `~1 token per second`); recorded with the formula used
+- `ProviderNative { confidence }` — counts are from the provider's response body or equivalent native usage record
+- `LocalTokenizer { tokenizer_id, confidence }` — counts are from a registered local tokenizer or counting library selected by provider/model descriptor
+- `ProviderCountingApi { endpoint_ref, confidence }` — counts are from a provider-exposed counting operation
+- `CharacterApproximation { formula_id, safety_margin, confidence }` — counts are from a documented approximation formula; used only as last-resort fallback
+- `MultimodalEstimate { dimension, units, formula_id }` — counts are computed from media properties using a registered multimodal accounting formula
 
-The fallback chain at call time tries `ProviderNative` first (when the response includes `usage`), `Tiktoken` second (when a matching tokenizer is registered), `ProviderApi` third (when the provider exposes a counting endpoint), `CharacterApproximation` last. The chosen source is recorded so post-hoc accuracy analysis can compute per-tokenizer delta percentages.
+The fallback chain at call time tries `ProviderNative` first when native usage is available, `LocalTokenizer` when a matching tokenizer is registered, `ProviderCountingApi` when the provider exposes a counting operation, and `CharacterApproximation` last. The chosen source is recorded so post-hoc accuracy analysis can compute per-counting-source delta percentages.
 
 ### 6.4 Cost Computation
 
@@ -760,9 +760,9 @@ Pricing tiers are user-maintained; the user adds or edits pricing through the se
 
 ### 6.5 Accuracy Telemetry
 
-After every call, post-response token counting compares the provider-reported counts to any local pre-call estimate. The delta is recorded as a `TokenCountEstimationTelemetry` ledger entry (per unit07 D7.3):
+After every call, post-response token counting compares the provider-reported counts to any local pre-call estimate. The delta is recorded as a `TokenCountEstimationTelemetry` ledger entry:
 
-- `estimated_count` (pre-call local estimate using `Tiktoken` or `CharacterApproximation`)
+- `estimated_count` (pre-call local estimate using `LocalTokenizer` or `CharacterApproximation`)
 - `actual_count` (provider-native count from response)
 - `delta_pct` (percentage delta)
 - `tokenizer_id` and `model_id`
@@ -772,7 +772,7 @@ The telemetry table supports per-tokenizer accuracy analysis: "your token estima
 
 ### 6.6 STT / TTS Usage
 
-Speech-to-text and text-to-speech calls record analogous attribution (per unit07 D7.4):
+Speech-to-text and text-to-speech calls record analogous attribution:
 
 - `SttUsageRecord { provider_id, model_id, audio_seconds, duration_ms, request_id }`
 - `TtsUsageRecord { provider_id, voice_id, chars_synthesised, audio_seconds_generated, request_id }`
@@ -819,13 +819,13 @@ The four-outcome vocabulary is closed. A hook decision outside this set is an Ex
 
 ### 7.3 Priority and Ordering
 
-The canonical priority convention (per File 04 §23.3 and unit01 R2):
+The canonical priority convention (per File 04 §23.3):
 
 - `-100` — audit and logging hooks (capture pre-validation state, observe-only authority)
 - `0` — transformers, validators, narrowing hooks (default for most extensions)
 - `+100` — the approval router and equivalent final-decision hooks (post-validation, the policy layer's authoritative decision)
 
-Within the same priority, hooks run in stable registration order, with ties logged as warnings on first occurrence (per unit01 R2 tie-break logging). The executor evaluates blocking hooks in priority order and composes proposal transformations before terminal decisions:
+Within the same priority, hooks run in stable registration order, with ties logged as warnings on first occurrence. The executor evaluates blocking hooks in priority order and composes proposal transformations before terminal decisions:
 
 - `Continue` leaves the proposal unchanged.
 - `Substitute` stages a transformed proposal and normally allows later hooks to inspect the transformed proposal.
@@ -889,7 +889,7 @@ Hooks fall into canonical categories that share defaults:
 - **Surface mutation observers** (per File 07 §13): subscribe to surface-relevant events to react to capability registration, availability changes, source connections. Non-blocking, `observe_only`.
 - **Entity event observers** (per File 09 §20): subscribe to artifact / claim / evidence / observation events for memory promotion, knowledge-base curation, or downstream analysis. Non-blocking, `observe_only`.
 - **Streaming UI observers**: subscribe to `MessageChunk`, `StreamProgressBatch`, `BlockCommitted` to update the streaming UI. Non-blocking, `observe_only`.
-- **Background workers** (per unit12 D12.10): memory consolidator, SRS scheduler, system audit writer, data lineage tracker, watch poller, scheduled task runner. Each spawns and subscribes to its triggering events. Non-blocking, `observe_only`.
+- **Background workers**: memory consolidator, SRS scheduler, system audit writer, data lineage tracker, watch poller, scheduled task runner. Each spawns and subscribes to its triggering events. Non-blocking, `observe_only`.
 
 Each category has settings-driven defaults (priority, timeout, fail-direction, authority) that subscribers may override within their authority envelope. The categories are conventional groupings; the canonical rule is that every hook declares its own typed parameters.
 
@@ -942,8 +942,8 @@ Sources with `Community` or `Unverified` trust default to `narrowing_only` autho
 
 Users author hooks through one of three mechanisms:
 
-- **Settings table entries**: hooks registered through the canonical settings system (per File 01 §6.8) with a typed `HookDeclaration` schema. Persisted in the settings store; settings sync (per the future Sync spec) propagates across devices subject to sensitivity rules.
-- **File-based declarations**: `~/.atlas/hooks.toml` (or equivalent per-workspace `.atlas/hooks.toml`) declares hooks in TOML with the same schema. The runtime watches the file for changes (debounced) and re-registers hooks on edit.
+- **Settings-backed declarations**: hooks registered through the canonical settings system (per File 15) with a typed `HookDeclaration` schema. Persisted in the settings substrate; sync behavior follows the setting's locality and sensitivity rules.
+- **File-based declarations**: an infrastructure-owned hook declaration file may declare hooks in TOML with the same schema. The runtime watches the file through event-driven file watching and re-registers hooks on edit.
 - **Runtime registration capability**: the agent or the user invokes `tools.register_hook` (a registered capability with `UserApproval` tier) to add a hook at runtime. The capability call carries the full hook declaration and goes through the source-approval flow.
 
 User-authored hooks default to the user's identity as the source (`UserDefined { scope: user_id }`). The user can author hooks at `conversation`, `workspace`, or `global` scope.
@@ -960,7 +960,7 @@ These capabilities are `ReadOnly` tier and respect the standard agent-exposure r
 
 ### 8.6 Boundary
 
-The registration mechanism is owned by File 05 (capability registry) for the registry side and this file for the hook-subscription contract. Source-approval is owned by File 06 §9. Settings persistence is owned by the settings system. File-based discovery is owned by the future Settings, Profiles, and Scope Resolution spec.
+The registration mechanism is owned by File 05 (capability registry) for the registry side and this file for the hook-subscription contract. Source-approval is owned by File 06 §9. Settings persistence and profile-layer resolution are owned by File 15. File-based hook discovery is an infrastructure/plugin concern whose enablement and visibility are settings-controlled.
 
 ## 9. Hook Action Vocabulary
 
@@ -1072,18 +1072,18 @@ Retention is configurable per sensitivity class through settings:
 
 Per-event-kind retention overrides are configurable: a noisy event kind (e.g., `ToolCallStreamingPartial`) may have shorter retention than other entries. The override applies to durable storage only; the bus delivery is unaffected.
 
-Storage maintenance (`LedgerCompactionRan` events) runs as a background worker (per unit12 D12.10) and respects retention. Compacted entries collapse into summary entries linked by `consolidates` cross-reference (mirroring File 08 §3.1 `Consolidation` block-kind semantics).
+Storage maintenance (`LedgerCompactionRan` events) runs as a background worker and respects retention. Compacted entries collapse into summary entries linked by `consolidates` cross-reference (mirroring File 08 §3.1 `Consolidation` block-kind semantics).
 
 Retention and pruning decisions are themselves durable facts. No storage layer may silently prune `Sensitive` or safe-description `Secret` records without a policy-level transition recorded in the ledger.
 
 ### 10.5 Hash-Chained Audit-Log Tier
 
-A subset of ledger entries (security-sensitive operations) is also represented in a local hash-chained audit overlay (per unit12 D12.1) for tamper-evident integrity:
+A subset of ledger entries (security-sensitive operations) is also represented in a local hash-chained audit overlay for tamper-evident integrity:
 
-- entries: `~/.atlas/audit/audit-chain.jsonl`
+- entries: an infrastructure-owned local audit-chain file
 - structure: `{ ledger_entry_id, timestamp, actor, action, target, canonical_redacted_entry_hash, prev_entry_hash, entry_hash, device_id, chain_id }`
 - chain: `entry_hash = sha256(prev_entry_hash + canonical_redacted_entry_hash + timestamp + actor + action + target + device_id)`
-- per-device only — the audit log NEVER syncs across devices (per unit12 D12.13); each device's hash chain has its own integrity
+- per-device only — the audit log NEVER syncs across devices; each device's hash chain has its own integrity
 - never replaced by ordinary ledger — the audit log is an integrity overlay; every audit entry references an ordinary ledger entry, but only the audit overlay carries the hash chain
 - never disabled — even when telemetry / logging is disabled, security-sensitive operations write to the audit log
 
@@ -1254,7 +1254,7 @@ Streaming is the live half of the durable-history-versus-live-coordination split
 
 The following hook-related state is durable:
 
-- registered subscriptions (in the settings table, in `~/.atlas/hooks.toml`, or in the durable plugin / MCP registration record) — survive restart
+- registered subscriptions (settings-backed, file-backed, or durable plugin / MCP registration records) — survive restart
 - per-subscription `enabled` flags scoped per workspace, conversation, or globally — survive restart through the settings system
 - the source-approval state for each source — survive restart per File 06 §11.6
 - the audit log of hook lifecycle events (`HookSubscriptionRegistered`, `HookSubscriptionUnregistered`, `HookSubscriptionEnabledChanged`) — durable in the ledger
@@ -1277,7 +1277,7 @@ On startup (per cross-cutting infrastructure/lifecycle.md):
 6. MCP servers connect and register hooks subject to source-approval state
 7. external-API definitions load
 8. user-defined hooks register from settings and file-based declarations
-9. background workers spawn and subscribe to their triggering events (per unit12 D12.10)
+9. background workers spawn and subscribe to their triggering events
 10. the bus enters operational state
 11. `AppStarted` ledger entry committed
 
@@ -1374,7 +1374,7 @@ Every mechanism in this file is configurable through settings. The dimensions:
 - `hooks.priority_default` per category
 - `hooks.priority_max_user_authored` and `hooks.priority_min_user_authored` (preventing user-authored hooks from claiming the approval router tier or below the canonical audit tier without explicit policy approval)
 - `hooks.recursion_depth_limit` and per-hook recursion policy
-- `hooks.discovery_path` — file-based hook discovery directory (default `~/.atlas/hooks/`)
+- `hooks.discovery_path` — file-based hook discovery location, when infrastructure exposes one
 - `hooks.shell_script_allowlist` — explicit allowlist of shell-script hook handler commands per source class
 
 **Event bus configuration:**
@@ -1401,7 +1401,7 @@ Every mechanism in this file is configurable through settings. The dimensions:
 **Per-call attribution configuration:**
 
 - `attribution.token_source_preference` — preference order for token-counting sources
-- `attribution.tokenizer_fallback_chain` per provider (e.g., for OpenAI: `[Tiktoken, ProviderApi, CharacterApproximation]`)
+- `attribution.tokenizer_fallback_chain` per provider/model descriptor
 - `attribution.cache_token_pricing.<provider>` per provider (cache_creation_multiplier, cache_read_multiplier)
 - `attribution.cost_calculation_enabled`
 - `attribution.pricing_tier_user_managed` — flag indicating the user maintains pricing tiers
@@ -1466,7 +1466,7 @@ The hash-chained audit log is a local integrity overlay on a subset of ledger fa
 
 ### 16.2 Required Fields
 
-Per unit12 D12.1, each audit-overlay entry carries:
+Each audit-overlay entry carries:
 
 - `ledger_entry_id` — cross-reference to the corresponding ordinary ledger entry
 - `timestamp` — full-granularity
@@ -1480,7 +1480,7 @@ Per unit12 D12.1, each audit-overlay entry carries:
 
 ### 16.3 Per-Device Integrity
 
-The audit log NEVER syncs across devices (per unit12 D12.13). Each device maintains its own hash chain with its own genesis. Sync of ordinary ledger entries does not propagate audit-log integrity; per-device audit logs preserve integrity for that device's actions only.
+The audit log NEVER syncs across devices. Each device maintains its own hash chain with its own genesis. Sync of ordinary ledger entries does not propagate audit-log integrity; per-device audit logs preserve integrity for that device's actions only.
 
 This is intentional: cross-device sync would require resolving hash-chain merges, which would weaken the integrity guarantee. Per-device audit logs are tamper-evident on the device they protect.
 
@@ -1531,7 +1531,7 @@ Startup (per cross-cutting infrastructure/lifecycle.md and File 05 §16.1):
 2. registry: capability declarations register (built-in → subsystem → plugin → MCP → API → user-defined)
 3. settings: settings cascade resolves, settings change watchers spawn
 4. hooks: hook subscriptions register per §13.2
-5. background workers: spawned per unit12 D12.10
+5. background workers: spawned and subscribed to their triggering events
 6. UI: frontend bridge opens
 7. `AppStarted` ledger entry committed
 
@@ -1545,7 +1545,7 @@ Each worker emits `BackgroundWorkerSpawned`, health/progress events under its de
 
 ### 17.3 Cancellation Token
 
-Per unit12 D12.10, a global intervention handler maintains a cancellation token shared between the agent loop, long-running tool calls, sandbox operations, and git service calls. User-initiated interrupt sets the token; operations check at safe points and abort cleanly. The interrupt is itself recorded as `InterventionRecorded`.
+A global intervention handler maintains a cancellation token shared between the agent loop, long-running tool calls, sandbox operations, and git service calls. User-initiated interrupt sets the token; operations check at safe points and abort cleanly. The interrupt is itself recorded as `InterventionRecorded`.
 
 ### 17.4 Shutdown
 
@@ -1572,7 +1572,7 @@ The following shapes are wrong for this layer:
 - hooks that mutate the ledger directly: hooks emit decisions that the executor records as `HookDecisionRecorded` entries; hooks do not write ledger entries themselves
 - implicit ledger inference from events: events are live coordination; consequential events must be explicitly committed to the ledger by the executor / emitter; the ledger never silently materializes from event observation
 - live events as durable history: events are transient; the ledger is durable; pure UI-coordination events do not persist
-- cross-device sync of the audit log: per unit12 D12.13, the audit log is per-device for hash-chain integrity; sync of ordinary ledger entries is separate
+- cross-device sync of the audit log: the audit log is per-device for hash-chain integrity; sync of ordinary ledger entries is separate
 - silent retention or pruning: every retention transition is `LedgerCompactionRan` or per-kind retention policy; nothing disappears without a recorded event
 - canceled-but-still-running operations: cancellation must record `CancellationCompleted` with the final state; runs do not silently complete after cancellation
 - forgery of run completion: the status-transition forgery guard rejects `running → completed` transitions without ledger evidence of action (per File 04 §22)
