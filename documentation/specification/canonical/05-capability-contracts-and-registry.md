@@ -26,11 +26,11 @@ This file defines:
 This file does not define:
 
 - the policy engine, lease evaluation, approval UI, or runtime tier resolution mechanics — File 06 owns those
-- tool-surface zones, prompt visibility, deferred loading, or capability-borrowing UX — the future Tool Surfaces and Capability Loading spec owns those
+- tool-surface zones, prompt visibility, deferred loading, or capability-borrowing UX — File 07 owns those
 - run lifecycle, execution graph, hook execution mechanics, or runtime input coercion mechanics — File 04 owns those
 - routing or `RunIntent` selection — File 03 owns those
-- block schema, artifact lifecycle, evidence model — the future Blocks/Artifacts/Evidence specs own those
-- specific provider integration internals, rate-limit tracking, circuit-breaker mechanics, or polling intervals — the future Provider Layer and MCP/External Integrations specs own those
+- block schema, artifact lifecycle, evidence model — Files 08 and 09 own those
+- specific provider integration internals, rate-limit tracking, circuit-breaker mechanics, or polling intervals — File 17 owns provider concerns; the future MCP/External Integrations spec owns MCP and external tool-provider concerns
 - specific subsystem-runtime designs (Coder, Web, Teacher, Memory, etc.) — the future per-surface specs own those
 
 ## Source Resolution
@@ -67,7 +67,7 @@ The same declaration drives:
 
 There is no second registry, no per-subsystem bespoke capability list, and no `actions` vs `tools` split. The single Capability Registry is the source of truth for what the system can do.
 
-`Capability` is the canonical noun. "Tool" is a synonym used informally where the agent-tool framing is dominant; the word does not denote a separate primitive. A capability may or may not be currently exposed as a tool surface item — surface zoning is a separate concern owned by the future Tool Surfaces and Capability Loading spec.
+`Capability` is the canonical noun. "Tool" is a synonym used informally where the agent-tool framing is dominant; the word does not denote a separate primitive. A capability may or may not be currently exposed as a tool surface item — surface zoning is a separate concern owned by File 07.
 
 The `Capability` declaration defined here supersedes the `Action` interface in `atlas3-core/CONSTRAINTS.md` section 5. `Action` was a simplified prototype of the same invariant: one registered operation, multiple invocation paths. `Capability` fulfills that invariant with full contract metadata. The old `Action` shape maps into the declaration: `id` to identity (§3.1), `label` to display (§3.2), `shortcut` to `default_shortcut` (§3.2), `when` to `availability_predicate` (§9.2), `execute` to the backend descriptor (§3.12). `Action` is not preserved as a parallel registry, adapter layer, or alias.
 
@@ -87,7 +87,7 @@ A `Capability` is not:
 - a transient runtime concept (capabilities have durable identity and version)
 - a single function pointer (the contract is the declaration; the resolved handler binding is one field of the registered entry)
 
-A capability may or may not be currently exposed to an agent's tool surface, command palette, voice, or shortcut layer; presentation membership is owned by the surface layer (the future Tool Surfaces and Capability Loading spec) and does not change the underlying capability.
+A capability may or may not be currently exposed to an agent's tool surface, command palette, voice, or shortcut layer; presentation membership is owned by the surface layer (File 07) and does not change the underlying capability.
 
 ### 2.2 Required Properties (Declaration)
 
@@ -142,7 +142,7 @@ Display fields use a localizable descriptor: a literal default carries the canon
 - `icon_key`: optional icon identifier for surface presentation
 - `default_shortcut`: optional keyboard shortcut for direct user invocation; user-overridable through settings
 
-Display fields are declarative only. Surface presentation is owned by the future Tool Surfaces and Capability Loading and UI specs. Display fields must not be hardcoded into surface logic — surfaces read from the declaration.
+Display fields are declarative only. Surface presentation is owned by File 07 and the future UI specs. Display fields must not be hardcoded into surface logic — surfaces read from the declaration.
 
 ### 3.3 Schema Fields
 
@@ -220,7 +220,7 @@ The descriptor is declarative. The resolved live binding (the actual service met
 
 ### 3.13 Boundary
 
-The declaration field set above is the canonical minimum. The future storage and policy specs may attach additional metadata (telemetry attribution beyond the minimum, per-capability rate-limit scopes, capability-specific configuration). Such extensions must be additive and must not change the meaning of fields named here.
+The declaration field set above is the canonical minimum. The future storage spec and File 06 may attach additional metadata (telemetry attribution beyond the minimum, per-capability rate-limit scopes, capability-specific configuration). Such extensions must be additive and must not change the meaning of fields named here.
 
 The declaration is wire-stable through `schema_version`. Where a registry encounters a supported earlier declaration format, it normalizes the declaration to the current format at registration. Because ATLAS3 is local-only with no existing user base or persisted third-party declarations, no migration framework is required at present (per project constraints); when external declarations begin to persist, normalization-on-load applies and is a concern of the registry, not of the caller.
 
@@ -403,7 +403,7 @@ Every declaration carries a `replay_class`:
 - `effect_replayable_with_policy` — the call causes external effects (sending an email, calling a payment API, mutating a database) and may be reissued only through policy; the contract names the policy hook the replay must consult before reissuing
 - `not_replayable` — cannot be reproduced across process/device/session boundaries; closure-backed capabilities, capabilities depending on transient runtime handles, and inherently uncontrolled side-effects fall here
 
-The author classifies based on the call shape, not on per-call state — whether the file referenced by `args.path` still exists at replay time is a snapshot/policy concern, not a declaration concern. The replay layer (per File 04 §23.1 and the future ledger spec) consumes `replay_class` to decide what evidence to record, what to require for replay, and what to refuse to reproduce.
+The author classifies based on the call shape, not on per-call state — whether the file referenced by `args.path` still exists at replay time is a snapshot/policy concern, not a declaration concern. The replay layer (per File 04 §23.1 and File 10) consumes `replay_class` to decide what evidence to record, what to require for replay, and what to refuse to reproduce.
 
 Closure-backed declarations (§3.12) must declare `replay_class: not_replayable`. Declaring otherwise is an Explicit Rejection (§19).
 
@@ -450,7 +450,7 @@ The executor enforces nothing additional; the capability author is responsible f
 
 ### 8.4 Boundary
 
-Validation belongs to the capability and the registered validator hooks. Approval belongs to the policy layer. Postcondition reporting belongs to the ledger (per File 04 §23 and the future ledger/event-stream spec). Capability authors do not implement their own approval flow; they implement validation and rely on the shared policy layer.
+Validation belongs to the capability and the registered validator hooks. Approval belongs to the policy layer. Postcondition reporting belongs to the ledger (per File 04 §23 and File 10). Capability authors do not implement their own approval flow; they implement validation and rely on the shared policy layer.
 
 ## 9. Sourcing
 
@@ -536,7 +536,7 @@ The declaration is the contract. The binding is registry state. Diagnostics abou
 
 ## 11. `CapabilityInvocation` — Per-Call Record
 
-A `CapabilityInvocation` is the per-call record produced when the executor dispatches a capability through the File 04 §8.2 pipeline. The invocation record is owned by File 04 (proposal/execution) and the future ledger/event-stream spec; File 05 names the schema only to draw the layer boundary and to identify which facts are per-call resolved (and therefore not declaration fields).
+A `CapabilityInvocation` is the per-call record produced when the executor dispatches a capability through the File 04 §8.2 pipeline. The invocation record is owned by File 04 (proposal/execution) and File 10; File 05 names the schema only to draw the layer boundary and to identify which facts are per-call resolved (and therefore not declaration fields).
 
 Per-call resolved facts that are not declaration fields:
 
@@ -701,7 +701,7 @@ All lookup surfaces honor `availability_status` and `enabled` from the registere
 - `requires`: a typed declaration of state the capability needs (active surface, focused element class, selection presence, present capability prerequisites, present credentials, present provider with required model capability)
 - `blocked_by`: a typed declaration of state that prevents invocation (a destructive capability blocked while a prior destructive call is still committing; a publish-capability blocked while the workspace has unsaved changes)
 
-The state-awareness service evaluates predicates against the current world-model snapshot and produces the available-capability list (per File 01 §6.7 World Model). Surfaces consume that list — the command palette shows the available subset; the agent sees the available subset filtered further by surface-loading rules in the future Tool Surfaces and Capability Loading spec.
+The state-awareness service evaluates predicates against the current world-model snapshot and produces the available-capability list (per File 01 §6.7 World Model). Surfaces consume that list — the command palette shows the available subset; the agent sees the available subset filtered further by surface-loading rules in File 07.
 
 Predicates are declarative. A capability whose availability rule cannot be expressed as a typed declaration must extend the predicate vocabulary through registered availability checks (a named function that the registry evaluates). Ad-hoc procedural availability is rejected.
 
@@ -804,7 +804,7 @@ A capability whose handler internally invokes other capabilities declares `depen
 
 ### 17.2 `output_block_kinds` and `output_event_kinds`
 
-A capability declares the block kinds it produces and the event kinds it emits. Block kinds are drawn from the canonical block catalogue (per the future Blocks and Block Graph spec); event kinds are drawn from the canonical event catalogue (per the future Execution Ledger and Event Stream spec). The declarations enable:
+A capability declares the block kinds it produces and the event kinds it emits. Block kinds are drawn from the canonical block catalogue (per File 08); event kinds are drawn from the canonical event catalogue (per File 10). The declarations enable:
 
 - the surface layer to know how to render the output without inspecting the runtime value
 - the context-assembly layer to budget tokens for expected outputs
@@ -832,7 +832,7 @@ Adapters serve subsystem-specialized presentations (a `coder.git_commit` capabil
 
 ### 17.5 Boundary
 
-Composition primitives at the contract level make capability use inspectable. The runtime mechanics of dispatch, batching, dependency tracking, and parallel execution belong to File 04. The block and event catalogs belong to the future Blocks and Block Graph and Execution Ledger and Event Stream specs. File 05 declares the surface area; later specs operate on it.
+Composition primitives at the contract level make capability use inspectable. The runtime mechanics of dispatch, batching, dependency tracking, and parallel execution belong to File 04. The block and event catalogs belong to Files 08 and 10. File 05 declares the surface area; later specs operate on it.
 
 ## 18. Settings
 

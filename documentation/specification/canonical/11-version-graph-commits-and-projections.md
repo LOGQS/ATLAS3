@@ -1,4 +1,4 @@
-# Version Graph, Commits, and Projections
+﻿# Version Graph, Commits, and Projections
 
 ## Status
 
@@ -9,26 +9,26 @@ Canonical.
 This file defines:
 
 - `ContextVersion` — the durable per-conversation version-graph node, its required fields, and its identity
-- `VersionDiff` — the typed compact difference recorded on each non-root version, the closed canonical field set, and the hashing rule that protects materialised-view integrity
+- `VersionDiff` — the typed compact difference recorded on each non-root version, the closed canonical field set, and the hashing rule that protects materialized-view integrity
 - `VersionOpSummary` — the closed canonical enum of commit-trigger kinds plus the registered-extension mechanism
 - the closed canonical commit-boundary set, expanding the minimum in File 04 §23.4 and aligning with the block-commit boundary set in File 08 §7.6
 - the pending-operations buffer (`pending_ops` on `ConversationVersionState`) — accumulation semantics, in-session undo, discard, and the boundary-fires-commit rule
-- `ContextOp` — the closed canonical operation vocabulary the user, the agent, hooks, and subsystems apply against the materialised view; per-operation contribution to `VersionDiff`
-- the materialised view (`context_view`) — the canonical read-optimised projection of the active version's view-state over the block pool
+- `ContextOp` — the closed canonical operation vocabulary the user, the agent, hooks, and subsystems apply against the materialized view; per-operation contribution to `VersionDiff`
+- the materialized view (`context_view`) — the canonical read-optimised projection of the active version's view-state over the block pool
 - version switching — the deterministic path-walk algorithm, the reverse-and-forward diff application contract, and the strategic-cache-node optimisation
 - branching and forking — sibling branches as the canonical non-destructive divergence primitive, fork-from-version semantics, and the named cross-conversation fork operation
 - per-version derived state maps — `BlockLifecycle` (per File 08 §6.1), `PinState` (per File 08 §6.1), `ArtifactLifecycle` / `ReviewState` / `ValidationState` (per File 09 §5), `ClaimStatus` (per File 09 §9.4) all derived from the version-graph action log
 - sibling-block versioning over the block pool — the canonical interaction with File 08 §6.2 edit semantics and the `supersedes` edge
 - artifact version chains as a specialisation of sibling-block versioning, including the entity-record `current_version_block_id` pointer (per File 09 §3.2) and the per-`ContextVersion` resolution rule
 - `Snapshot` — the closed canonical typed-reference vocabulary the ledger, runs, capability invocations, and replay use to address registry / settings / world / policy / pricing / routing state at a point in time
-- version-graph-backed projections — the concrete projection contract used by the materialised view, derived state maps, snapshot views, and version-history surfaces, inheriting the general primitive from File 01 §6.11
+- version-graph-backed projections — the concrete projection contract used by the materialized view, derived state maps, snapshot views, and version-history surfaces, inheriting the general primitive from File 01 §6.11
 - replay semantics — the three closed canonical replay modes (`Inspect`, `SimulateDeterministic`, `FullRerun`) per File 10 §11 and the version-graph data they require
 - forensic reconstruction — the "what did the model see at moment X" query surface plus the closed canonical comparison-and-diff operations
 - the canonical undo / redo / restore / revert operation set, all expressed through the version-graph mechanism
 - the persistence contract — what is durable, what is computed, what is reconstructable, plus the deterministic reconstruction guarantee across restart, retry, edit, reroute, branch, and child-run
-- the cross-device sync contract — version-tree-aware merge with no last-write-wins, both-children-survive sibling resolution, and the per-device materialised-view pointer
+- the cross-device sync contract — version-tree-aware merge with no last-write-wins, both-children-survive sibling resolution, and the per-device materialized-view pointer
 - garbage collection and pruning — the closed canonical retention policy set, typed tombstone / compaction / payload-deletion operations, and the user-controlled storage-reclamation surface from File 01 §7.13
-- the canonical version-graph event vocabulary on the unified event bus (per File 10 §5) — `PendingOpApplied`, `VersionCommitted`, `VersionSwitched`, `BranchCreated`, `VersionLabelled`, `VersionTombstoned`, `VersionRangeCompacted`, `VersionPayloadHardDeleted`, `MaterialisedViewRebuilt`, `MaterialisedViewIntegrityViolated`
+- the canonical version-graph event vocabulary on the unified event bus (per File 10 §5) — `PendingOpApplied`, `VersionCommitted`, `VersionSwitched`, `BranchCreated`, `VersionLabelled`, `VersionTombstoned`, `VersionRangeCompacted`, `VersionPayloadHardDeleted`, `MaterializedViewRebuilt`, `MaterializedViewIntegrityViolated`
 - the settings dimensions every mechanism in this file exposes, with the agent-exposure rules per File 06 §16.4
 - the closed set of explicit rejections covering parallel checkpoint systems, mutable diffs, time-based pruning, snapshot-as-full-prompt-audit, version-as-storage-shape, and forgery
 - the canonical contract every later spec consumes when it produces a versioned artefact, declares a snapshot identity, builds a derived projection, queries history, or replays an execution
@@ -43,11 +43,11 @@ This file does not define:
 - the `ExecutionLedger` row format, the `EventEnvelope` field set, or the live-bus delivery contract — File 10 owns those; this file specifies which version-graph events flow through the canonical bus and which corresponding ledger entry kinds record them
 - the storage on-disk layout, the per-table physical schema, replication mechanics, projection-store realisation, or indexing strategy — the future Storage and Persistence spec owns those; this file specifies what must be durable and what must be reconstructable
 - the cross-device sync transport, the libsql embedded-replica mechanics, the conflict-detection pipeline, or import / export bundle format — the future Sync, Import, Export, and Data Portability spec owns those; this file specifies that the version-tree-aware merge is the canonical conflict-resolution semantics
-- retrieval, indexing, knowledge-base mechanics, or RAG hybrid-search algorithms — the future Retrieval, Indexing, and Knowledge Base spec owns those; this file specifies that retrieval indexes are projections rebuildable from the durable substrates
-- context-assembly, compaction algorithms, token-budget mechanics, or per-policy block selection — File 13 owns those; this file specifies the materialised view as the canonical context-assembly input and the typed boundary at which compaction passes commit
-- memory promotion, salience scoring, recall, or decay — the future Memory spec owns those; this file specifies that memory entries that consolidate prior blocks are linked via `consolidates` edges from File 08 §5.2 and participate in the version graph as ordinary blocks
-- model strategy, provider routing, rate-limit reconciliation, or provider-health tracking — the future Model Strategy and Provider Layer specs own those
-- workspace materialization mechanics, materialised-path resolution, disk → block sync, or workspace-tree management beyond declaring that disk state is a projection of the active version's view per File 09 §7.5 — the future Workspaces and Materialization spec owns those
+- retrieval, indexing, knowledge-base mechanics, or RAG hybrid-search algorithms — File 12 owns those; this file specifies that retrieval indexes are projections rebuildable from the durable substrates
+- context-assembly, compaction algorithms, token-budget mechanics, or per-policy block selection — File 13 owns those; this file specifies the materialized view as the canonical context-assembly input and the typed boundary at which compaction passes commit
+- memory promotion, salience scoring, recall, or decay — File 14 owns those; this file specifies that memory entries that consolidate prior blocks are linked via `consolidates` edges from File 08 §5.2 and participate in the version graph as ordinary blocks
+- model strategy, provider routing, rate-limit reconciliation, or provider-health tracking — Files 16 and 17 own those
+- workspace materialization mechanics, materialized-path resolution, disk → block sync, or workspace-tree management beyond declaring that disk state is a projection of the active version's view per File 09 §7.5 — the future Workspaces and Materialization spec owns those
 - security primitives, sandbox isolation, or credential management — the future Security, Credentials, Sandbox specs own those
 - UI rendering choices for the version-timeline, tree view, comparison-board, history-panel, inspector previews, undo affordances, or accessibility surfaces — the future UI Shell, UI Customization, and per-surface specs own those; this file specifies the canonical data contracts those surfaces consume
 - specific evaluation-suite or benchmark schemas — the future Evaluation and Benchmarking spec owns those, though it consumes the replay surface defined here
@@ -69,7 +69,7 @@ Resolved design:
 
 ATLAS3 has one `VersionGraph` per conversation. It uses the File 01 `Projection` primitive for read-optimised derived views over durable state.
 
-The `VersionGraph` is a tree of `ContextVersion` nodes rooted at the conversation's empty initial state. Every non-root node is a child of exactly one parent and carries one compact typed `VersionDiff` describing the net change from that parent. The tree topology accumulates as commit boundaries fire; the materialised view (`context_view`) holds the active version's fully resolved state for O(1) reads; switching to any other version walks the path between current and target and applies reverse-and-forward diffs to rebuild the view in O(path length); branching is what happens when a new commit is made after switching to a non-leaf version — the new commit becomes a sibling of the prior leaf, and both branches remain permanent and switchable.
+The `VersionGraph` is a tree of `ContextVersion` nodes rooted at the conversation's empty initial state. Every non-root node is a child of exactly one parent and carries one compact typed `VersionDiff` describing the net change from that parent. The tree topology accumulates as commit boundaries fire; the materialized view (`context_view`) holds the active version's fully resolved state for O(1) reads; switching to any other version walks the path between current and target and applies reverse-and-forward diffs to rebuild the view in O(path length); branching is what happens when a new commit is made after switching to a non-leaf version — the new commit becomes a sibling of the prior leaf, and both branches remain permanent and switchable.
 
 This single mechanism handles every product surface that used to feel like a separate "history" feature:
 
@@ -84,7 +84,7 @@ This single mechanism handles every product surface that used to feel like a sep
 
 There is no parallel checkpoint table, no `file_checkpoints` row type, no `SessionCheckpoint` / `ToolCallCheckpoint` / `MessageVersion` / `VersionSnapshot` type, no per-tool-call atomic version commit, and no shadow-directory snapshot mechanism. The pre-canonical specbase explicitly named and deleted those vocabulary variants in favour of the unified version graph; this file confirms the deletion and reserves the canonical names.
 
-File 01 owns the general `Projection` primitive. This file applies that primitive to version-graph-backed projections: the materialised view, per-`ContextVersion` lifecycle and pin maps, snapshot resolutions, version timelines, comparison diffs, and version-aware surface lenses. Adjacent layers may define their own projections over the same substrates, but they inherit File 01's rule: projections are rebuildable, non-authoritative read models whose corruption costs rebuild time, never data loss.
+File 01 owns the general `Projection` primitive. This file applies that primitive to version-graph-backed projections: the materialized view, per-`ContextVersion` lifecycle and pin maps, snapshot resolutions, version timelines, comparison diffs, and version-aware surface lenses. Adjacent layers may define their own projections over the same substrates, but they inherit File 01's rule: projections are rebuildable, non-authoritative read models whose corruption costs rebuild time, never data loss.
 
 The version graph composes with adjacent layers:
 
@@ -92,10 +92,10 @@ The version graph composes with adjacent layers:
 - File 09 owns the artifact entity records, materialization policies, and entity-relevant events; this file owns the version-graph membership of artifact versions and the per-`ContextVersion` artifact-lifecycle / review-state / validation-state derivation
 - File 10 owns the unified `ExecutionLedger` and `EventStream`; this file owns the canonical version-graph events and ledger entry kinds, all emitted through the canonical bus and recorded with the canonical envelope
 - File 04 owns the run lifecycle and the canonical commit-boundary list as a minimum; this file expands and closes the boundary catalogue
-- File 06 owns lease lifecycle and approval; this file owns the version-graph commits that record lease grants and reuses File 06's "projection over events" pattern for the materialised view
+- File 06 owns lease lifecycle and approval; this file owns the version-graph commits that record lease grants and reuses File 06's "projection over events" pattern for the materialized view
 - File 07 owns tool-surface composition; this file owns the registry-snapshot identity that anchors a run's surface composition for replay
 
-`ContextVersion` supersedes any earlier vocabulary that named the same primitive: "version node", "history snapshot", "context snapshot", "chat state node", "checkpoint commit", "session checkpoint", "context-version row". `VersionDiff` supersedes "version delta", "context diff", "snapshot diff". `VersionOpSummary` supersedes "commit type", "version reason", "version label". `ContextOp` supersedes "context operation", "atomic context change", "inspector action". `Snapshot` supersedes "snapshot id", "frozen state record", "point-in-time reference". `Projection` supersedes "derived view", "materialised view", "read model", "computed view", "cache" (when applied to durably-derivable read-side data). Earlier names from source material map into these canonical typed shapes.
+`ContextVersion` supersedes any earlier vocabulary that named the same primitive: "version node", "history snapshot", "context snapshot", "chat state node", "checkpoint commit", "session checkpoint", "context-version row". `VersionDiff` supersedes "version delta", "context diff", "snapshot diff". `VersionOpSummary` supersedes "commit type", "version reason", "version label". `ContextOp` supersedes "context operation", "atomic context change", "inspector action". `Snapshot` supersedes "snapshot id", "frozen state record", "point-in-time reference". `Projection` supersedes "derived view", "materialized view", "read model", "computed view", "cache" (when applied to durably-derivable read-side data). Earlier names from source material map into these canonical typed shapes.
 
 ## 2. Boundaries with Adjacent Layers
 
@@ -137,15 +137,15 @@ A `policy_snapshot_id` resolves to the active policy rule set, lease set, approv
 
 ### 2.7 With File 07 (Tool Surfaces and Capability Loading)
 
-File 07 §1 establishes that a `ToolSurface` is "a typed projection over the Capability Registry" — another instance of the canonical `Projection` primitive this file generalises. File 07 §14's reconstruction contract — "reconstruction across retry, edit, reroute, branch, and child-run spawn is deterministic from current inputs" — is the same contract this file specifies for the materialised view across the same operations. The registry snapshot anchors the surface composition for replay.
+File 07 §1 establishes that a `ToolSurface` is "a typed projection over the Capability Registry" — another instance of the canonical `Projection` primitive this file generalises. File 07 §14's reconstruction contract — "reconstruction across retry, edit, reroute, branch, and child-run spawn is deterministic from current inputs" — is the same contract this file specifies for the materialized view across the same operations. The registry snapshot anchors the surface composition for replay.
 
 ### 2.8 With File 08 (Blocks and Block Graph)
 
-File 08 owns the block pool, the `BlockKind` catalogue, the `BlockEdge` catalogue, the block commit validator, sibling-block edit semantics, hard-delete tombstones, and the canonical block-commit boundary set in §7.6. This file consumes those boundaries as the canonical commit-boundary set (§5) and specifies the per-`ContextVersion` view over the pool. File 08 §6 declares `BlockLifecycle` and `PinState` as derived per-`ContextVersion` view-state; §10 of this file specifies the derivation algorithm and the materialised-view representation.
+File 08 owns the block pool, the `BlockKind` catalogue, the `BlockEdge` catalogue, the block commit validator, sibling-block edit semantics, hard-delete tombstones, and the canonical block-commit boundary set in §7.6. This file consumes those boundaries as the canonical commit-boundary set (§5) and specifies the per-`ContextVersion` view over the pool. File 08 §6 declares `BlockLifecycle` and `PinState` as derived per-`ContextVersion` view-state; §10 of this file specifies the derivation algorithm and the materialized-view representation.
 
-File 08 §5.2's `supersedes` edge is the canonical sibling-block versioning mechanism this file consumes for artifact version chains (§12), file edits, message edits, knowledge-entry edits, validator and adapter updates, and every other case where observable content changes through "create a sibling block, swap the active reference in the materialised view, record the swap in the diff."
+File 08 §5.2's `supersedes` edge is the canonical sibling-block versioning mechanism this file consumes for artifact version chains (§12), file edits, message edits, knowledge-entry edits, validator and adapter updates, and every other case where observable content changes through "create a sibling block, swap the active reference in the materialized view, record the swap in the diff."
 
-File 08 §11's block scope (`run`, `intent_thread`, `task`, `conversation`, `workspace`, `global`, `reusable_policy_rule`) bounds version-graph membership: a `ContextVersion` row is conversation-scoped; the materialised view it projects sees blocks at conversation scope and broader; narrower-scoped blocks (run-scoped, intent-thread-scoped) are visible to the runs and threads that produced them.
+File 08 §11's block scope (`run`, `intent_thread`, `task`, `conversation`, `workspace`, `global`, `reusable_policy_rule`) bounds version-graph membership: a `ContextVersion` row is conversation-scoped; the materialized view it projects sees blocks at conversation scope and broader; narrower-scoped blocks (run-scoped, intent-thread-scoped) are visible to the runs and threads that produced them.
 
 ### 2.9 With File 09 (Artifacts, Claims, Evidence, and Provenance)
 
@@ -155,7 +155,7 @@ File 09 §15 establishes the canonical provenance query surface (`query_lineage`
 
 ### 2.10 With File 10 (Execution Ledger, Event Stream, and Hooks)
 
-File 10 §3 specifies the durable `ExecutionLedger`; this file's version-graph commits become ledger entries (`VersionCommitted`, `VersionSwitched`, `BranchCreated`, `PendingOpApplied`, `VersionLabelled`, `VersionTombstoned`, `VersionRangeCompacted`, `VersionPayloadHardDeleted`, `MaterialisedViewRebuilt`, `MaterialisedViewIntegrityViolated`) and flow through the canonical event bus with the canonical envelope. File 10 §11 establishes the three replay modes; this file specifies the version-graph data each mode consumes.
+File 10 §3 specifies the durable `ExecutionLedger`; this file's version-graph commits become ledger entries (`VersionCommitted`, `VersionSwitched`, `BranchCreated`, `PendingOpApplied`, `VersionLabelled`, `VersionTombstoned`, `VersionRangeCompacted`, `VersionPayloadHardDeleted`, `MaterializedViewRebuilt`, `MaterializedViewIntegrityViolated`) and flow through the canonical event bus with the canonical envelope. File 10 §11 establishes the three replay modes; this file specifies the version-graph data each mode consumes.
 
 File 10 §3.7's forgery guards do not apply to version-graph commits in addition to the existing guards — version-graph commits are themselves the carriers of the consequential transitions, and the ledger's existing rules (status-transition forgery, unkeyed-scalar rejection, sensitivity-aware persistence) govern them at the ledger commit boundary.
 
@@ -167,7 +167,7 @@ This file is the durable-state-versioning and read-projection layer. It owns:
 - the `VersionDiff` field set and the `VersionOpSummary` enum
 - the canonical commit-boundary set
 - the `ContextOp` operation vocabulary and the `pending_ops` buffer contract
-- the materialised view's shape and rebuild contract
+- the materialized view's shape and rebuild contract
 - the canonical version-switching algorithm
 - the per-`ContextVersion` derived-state derivation rules
 - the canonical snapshot identity catalogue and resolution contract
@@ -187,7 +187,7 @@ It does not own:
 - the tool-surface composition algorithm (File 07)
 - the storage on-disk layout or sync transport (future specs)
 - the UI rendering of timelines, comparison boards, or inspectors (future UI specs)
-- the retrieval / context-assembly / compaction algorithms (future specs)
+- the retrieval algorithms (File 12) and context-assembly / compaction algorithms (File 13)
 
 ## 3. `ContextVersion`
 
@@ -207,11 +207,11 @@ A `ContextVersion`:
 - carries the typed snapshot references (`registry_snapshot_id`, `settings_snapshot_id`, `world_snapshot_id`, `policy_snapshot_id`, `pricing_snapshot_id`, `routing_snapshot_id`, others §13) anchored at the commit time, when the corresponding substrate was consulted
 - carries the `producer` reference (matching File 08 §2.2's `producer` enum) — the actor that committed the version
 - is durable across process restart, conversation archival, projection rebuild, schema migration, and version-graph compaction
-- is addressable across every layer: the execution ledger references `version_id` per File 10 §3.6; the materialised view consumes `version_id` per §7; the artifact entity's `current_version_block_id` denormalised pointer resolves through `version_id` per File 09 §3.2; the surface composition record references the `version_id` at which the surface was consumed per File 07 §14
+- is addressable across every layer: the execution ledger references `version_id` per File 10 §3.6; the materialized view consumes `version_id` per §7; the artifact entity's `current_version_block_id` denormalised pointer resolves through `version_id` per File 09 §3.2; the surface composition record references the `version_id` at which the surface was consumed per File 07 §14
 
 A `ContextVersion` is not:
 
-- a snapshot of full prompt context — assembled prompts are reconstructable from the materialised view at the version, not stored on the version row
+- a snapshot of full prompt context — assembled prompts are reconstructable from the materialized view at the version, not stored on the version row
 - a copy of block content — content lives in the block pool per File 08; the version references blocks by `block_id`
 - a UI element — surfaces (the conversation transcript, the coder history panel, the comparison board, the inspector timeline) are projections of the version graph; the canonical row is independent of presentation
 - a row in any single storage backend — the storage layer chooses physical layout subject to the persistence contract (§18)
@@ -234,8 +234,8 @@ Every `ContextVersion` carries at minimum:
 - `bookmarked` — `bool`; user-marked retention preference exempting the version from garbage-collection retention policies (§19.4); mutable through the `bookmark_version` operation
 - `snapshot_refs` — typed map of snapshot identities the version anchors (§13): `registry_snapshot_id`, `settings_snapshot_id`, `world_snapshot_id`, `policy_snapshot_id`, `pricing_snapshot_id`, `routing_snapshot_id`, plus registered extension keys; entries unused for a given commit are absent rather than null-padded
 - `version_schema_version` — version of the canonical row shape, so the future Storage spec can normalise supported earlier shapes during registration
-- `diff_hash` — SHA-256 over the canonical serialised `VersionDiff` payload; supports materialised-view integrity verification (§7.6) and forgery guards (§19.5)
-- `expected_view_hash` — optional SHA-256 over the canonical serialised materialised view at this version, used as an integrity sentinel for path-walk verification (§7.6 and §8.4); present when the storage layer chose to record it; absent versions are still valid
+- `diff_hash` — SHA-256 over the canonical serialised `VersionDiff` payload; supports materialized-view integrity verification (§7.6) and forgery guards (§19.5)
+- `expected_view_hash` — optional SHA-256 over the canonical serialised materialized view at this version, used as an integrity sentinel for path-walk verification (§7.6 and §8.4); present when the storage layer chose to record it; absent versions are still valid
 
 The `diff`, `snapshot_refs`, `committed_at`, `committed_by`, `op_summary`, `version_id`, `parent_version_id`, `merge_source_version_ids`, `conversation_id`, `version_schema_version`, and `diff_hash` fields are immutable for the version's lifetime. `label`, `bookmarked`, and `expected_view_hash` are mutable through the explicit operations named in §17 and §7.6; mutations emit typed events and ledger entries.
 
@@ -253,7 +253,7 @@ A version's identity is independent of its content. Two versions with identical 
 
 ### 3.4 Boundary
 
-The `ContextVersion` defines durable version-graph identity and the immutable per-version metadata. The block pool owns block content. The materialised view (§7) projects the active version's view-state over the block pool. The ledger records the events that produced each commit. The version graph itself is an append-only tree over immutable `ContextVersion` rows; mutations to label, bookmark, or expected-view-hash are recorded as typed events but do not alter the immutable fields.
+The `ContextVersion` defines durable version-graph identity and the immutable per-version metadata. The block pool owns block content. The materialized view (§7) projects the active version's view-state over the block pool. The ledger records the events that produced each commit. The version graph itself is an append-only tree over immutable `ContextVersion` rows; mutations to label, bookmark, or expected-view-hash are recorded as typed events but do not alter the immutable fields.
 
 ## 4. `VersionDiff`
 
@@ -261,13 +261,13 @@ The `ContextVersion` defines durable version-graph identity and the immutable pe
 
 Every non-root `ContextVersion` carries one `VersionDiff` describing the net change from its parent. The diff is compact by design: only changes are recorded; unchanged blocks, lifecycle states, pin states, and positions are not enumerated. The closed canonical field set:
 
-- `added` — `Vec<(BlockId, Position)>` — blocks newly active in this version's materialised view, with their position in the sequence
-- `removed` — `Vec<BlockId>` — blocks removed from the materialised view in this version (lifecycle transitioned to `Dropped` from any prior `Active` / `Masked` / `Recovered`, or block was unreferenced after a child-removal in a `Composed` parent that this version supersedes)
+- `added` — `Vec<(BlockId, Position)>` — blocks newly active in this version's materialized view, with their position in the sequence
+- `removed` — `Vec<BlockId>` — blocks removed from the materialized view in this version (lifecycle transitioned to `Dropped` from any prior `Active` / `Masked` / `Recovered`, or block was unreferenced after a child-removal in a `Composed` parent that this version supersedes)
 - `lifecycle_changes` — `Vec<(BlockId, BlockLifecycle, BlockLifecycle)>` — per-block lifecycle transitions in this version's view: `(block_id, from_state, to_state)` where states are drawn from `BlockLifecycle` per File 08 §6.1 (`Raw`, `Active`, `Masked`, `Dropped`, `Recovered`)
 - `pin_changes` — `Vec<(BlockId, PinState, PinState)>` — per-block pin transitions in this version's view: `(block_id, from_state, to_state)` where states are drawn from `PinState` per File 08 §6.1 (`Unpinned`, `Pinned`, `Protected`)
 - `position_changes` — `Vec<(BlockId, Position)>` — blocks whose sequence position changed in this version's view, with their new position
 - `metadata_changes` — `Vec<MetadataChange>` — typed per-block metadata changes that the version-graph layer tracks (sensitivity-tag override applied at this version, description regeneration sibling activated, scope promotion projection adopted); each `MetadataChange` is a closed enum drawn from the canonical set in §4.3
-- `hard_deletes` — `Vec<BlockId>` — blocks that this version's commit physically destroyed (per File 08 §6.6); the affected blocks have transitioned to tombstones; this change is irreversible by version switch; switching to a version where the block was active produces a tombstone placeholder (per File 08 §6.6's materialised-by fallback)
+- `hard_deletes` — `Vec<BlockId>` — blocks that this version's commit physically destroyed (per File 08 §6.6); the affected blocks have transitioned to tombstones; this change is irreversible by version switch; switching to a version where the block was active produces a tombstone placeholder (per File 08 §6.6's materialized-by fallback)
 - `derived_state_changes` — `Vec<DerivedStateChange>` — typed per-entity derived-state transitions that the version graph computes at commit: `(ArtifactReviewState, artifact_id, from, to)`, `(ArtifactValidationState, artifact_version_block_id, from, to)`, `(ClaimStatus, claim_id, from, to)`, plus registered extension entries; documented in §10
 
 `Position` is an integer in `[0, view_size)` denoting the block's index in the active version's render-order sequence. Positions are not stable identifiers; the same block at different versions may occupy different positions.
@@ -287,7 +287,7 @@ The diff is immutable for the version's lifetime. Corrections to a diff (a malfo
 - `SensitivityOverrideApplied { block_id, prior, new, field_path: Option<JsonPath> }` — block sensitivity raised at this version (per File 08 §9; lowering requires a typed-confirmation policy override and emits the same change with `prior > new`)
 - `DescriptionRegenerated { old_block_id, new_block_id }` — the block's description was regenerated through the canonical regeneration capability, producing a sibling block (per File 08 §10.4); the diff records the supersession
 - `ScopePromotionAdopted { source_block_id, projection_block_id, source_scope, target_scope }` — a `scope_projection_of` or `promotes_scope_of` edge was committed (per File 08 §11.2); the diff records that the promotion projection is now visible at the broader scope
-- `MaterializationRecorded { block_id, materialised_paths }` — the active version's render of this block has a recorded materialisation footprint at the named workspace paths (per File 09 §7.4); used by the disk → block sync loop
+- `MaterializationRecorded { block_id, materialized_paths }` — the active version's render of this block has a recorded materialization footprint at the named workspace paths (per File 09 §7.4); used by the disk → block sync loop
 - `Custom { namespace, name, payload }` — typed extension entries registered through the canonical proposal-first mechanism (per File 05 §16.2)
 
 ### 4.4 Per-Entity Derived-State Change Catalogue
@@ -308,15 +308,15 @@ These derived-state changes are recorded on the version commit when the change d
 
 The `diff_hash` field on `ContextVersion` (§3.2) is SHA-256 over the canonical serialised `VersionDiff` payload plus the `version_schema_version` discriminator. The hash supports:
 
-- materialised-view integrity verification at path-walk strategic-cache nodes (§7.6, §8.6)
-- forgery detection — a stored diff whose hash does not match recomputed-from-payload triggers a `MaterialisedViewIntegrityViolated` event and forces a rebuild from the action log
+- materialized-view integrity verification at path-walk strategic-cache nodes (§7.6, §8.6)
+- forgery detection — a stored diff whose hash does not match recomputed-from-payload triggers a `MaterializedViewIntegrityViolated` event and forces a rebuild from the action log
 - cross-device sync deduplication — two devices that committed the same operation at the same parent under deterministic conditions produce identical `diff_hash`es (though typically `version_id` differs); the sync layer may use the hash to confirm a sibling is identical to a remote sibling before suppressing duplicate-sync notifications
 
 The hash is `NOT NULL` and immutable.
 
 ### 4.6 Boundary
 
-The `VersionDiff` defines what changed at a commit. The materialised view (§7) is the integrated result of applying every diff on the path from the root. The ledger (per File 10) records the events that produced each commit. The hash supports integrity verification but is not a forgery guard at commit (the diff itself is the authority); it is a verification artifact for replay and rebuild.
+The `VersionDiff` defines what changed at a commit. The materialized view (§7) is the integrated result of applying every diff on the path from the root. The ledger (per File 10) records the events that produced each commit. The hash supports integrity verification but is not a forgery guard at commit (the diff itself is the authority); it is a verification artifact for replay and rebuild.
 
 ## 5. `VersionOpSummary` and the Commit Boundary Set
 
@@ -365,7 +365,7 @@ Every `ContextVersion` declares its `op_summary` at commit. The canonical closed
 
 **Workspace / disk-sync boundaries:**
 
-- `ExternalEdit` — the filesystem watcher detected an external edit to a materialised file and committed a sibling block per File 09 §7.5; the diff records the swap
+- `ExternalEdit` — the filesystem watcher detected an external edit to a materialized file and committed a sibling block per File 09 §7.5; the diff records the swap
 
 **Recovery / correction boundaries:**
 
@@ -437,10 +437,10 @@ The buffer is durable — every `ContextOp` applied through the versioning opera
 The buffer's lifecycle:
 
 1. **Empty.** After a boundary commits, the buffer clears. The conversation's `current_version_id` points at the new committed version.
-2. **Accumulating.** As the user or the agent invokes `apply_op` (mask, drop, pin, reorder, etc.), each operation appends to `pending_ops` and updates the materialised view live for immediate UI feedback. The version graph is not yet aware of the operation as a committed fact.
-3. **In-session undo.** The user may undo the most recently applied operation via `undo_pending`, which pops the last `ContextOp` from `pending_ops` and re-derives the materialised view from the previous state. No new commit is created; the buffer simply shrinks. Multiple undos walk backward through the buffer; `redo_pending` re-applies (if supported per §6.5).
-4. **Commit.** When a boundary fires (per §5), the runtime computes the net diff of `pending_ops` against the pre-buffer materialised view, creates a new `ContextVersion` with that diff, clears the buffer, advances `current_version_id`, and emits the canonical events (`PendingOpApplied` for each operation that contributed; `VersionCommitted` for the new version).
-5. **Discard.** A user-cancellation of an in-flight assistant turn (per File 04 §17.3) may discard the buffer entirely: cooperatively cancel the producing operations, drop the accumulated `pending_ops`, and re-derive the materialised view to the state at `current_version_id`. The conversation returns to the pre-buffer state with no version commit.
+2. **Accumulating.** As the user or the agent invokes `apply_op` (mask, drop, pin, reorder, etc.), each operation appends to `pending_ops` and updates the materialized view live for immediate UI feedback. The version graph is not yet aware of the operation as a committed fact.
+3. **In-session undo.** The user may undo the most recently applied operation via `undo_pending`, which pops the last `ContextOp` from `pending_ops` and re-derives the materialized view from the previous state. No new commit is created; the buffer simply shrinks. Multiple undos walk backward through the buffer; `redo_pending` re-applies (if supported per §6.5).
+4. **Commit.** When a boundary fires (per §5), the runtime computes the net diff of `pending_ops` against the pre-buffer materialized view, creates a new `ContextVersion` with that diff, clears the buffer, advances `current_version_id`, and emits the canonical events (`PendingOpApplied` for each operation that contributed; `VersionCommitted` for the new version).
+5. **Discard.** A user-cancellation of an in-flight assistant turn (per File 04 §17.3) may discard the buffer entirely: cooperatively cancel the producing operations, drop the accumulated `pending_ops`, and re-derive the materialized view to the state at `current_version_id`. The conversation returns to the pre-buffer state with no version commit.
 
 ### 6.3 In-Session Undo
 
@@ -448,7 +448,7 @@ The buffer's lifecycle:
 
 - requires `pending_ops` to be non-empty; an empty buffer's undo is a no-op
 - pops the most recent `ContextOp` from the buffer
-- re-derives the materialised view by re-applying the remaining operations from the post-`current_version_id` baseline (or by applying the inverse of the popped operation if the inverse is well-defined for that operation kind — see §11.4)
+- re-derives the materialized view by re-applying the remaining operations from the post-`current_version_id` baseline (or by applying the inverse of the popped operation if the inverse is well-defined for that operation kind — see §11.4)
 - emits a typed `PendingOpUndone { conversation_id, popped_op }` event
 
 The operation is non-destructive: the popped operation is not recorded as committed history (it never committed). Walking the buffer backward by repeated undo is the canonical in-session undo affordance.
@@ -459,7 +459,7 @@ The operation is non-destructive: the popped operation is not recorded as commit
 
 - requires `pending_ops` to be non-empty
 - drops every operation in the buffer
-- re-derives the materialised view to the state at `current_version_id`
+- re-derives the materialized view to the state at `current_version_id`
 - emits a typed `PendingOpsDiscarded { conversation_id, reason, dropped_count }` event
 
 Used by user-cancellation of an in-flight assistant turn (per File 04 §17.3 cooperative cancellation) and by run-level supersession (a retry that explicitly discards the prior turn's pending state instead of committing it).
@@ -485,7 +485,7 @@ ConversationVersionState {
 }
 ```
 
-The buffer survives process restart. On restart, the runtime reloads `ConversationVersionState`, re-derives the materialised view from `current_version_id` plus the buffer, and the conversation resumes from where it was. If the buffer's contents are inconsistent with the substrate (a referenced block was hard-deleted between operations, a referenced version_id no longer exists), the runtime emits a `PendingOpsInconsistencyDetected` event and discards the buffer with a typed reason; this is rare and corresponds to a substrate violation.
+The buffer survives process restart. On restart, the runtime reloads `ConversationVersionState`, re-derives the materialized view from `current_version_id` plus the buffer, and the conversation resumes from where it was. If the buffer's contents are inconsistent with the substrate (a referenced block was hard-deleted between operations, a referenced version_id no longer exists), the runtime emits a `PendingOpsInconsistencyDetected` event and discards the buffer with a typed reason; this is rare and corresponds to a substrate violation.
 
 ### 6.7 Concurrent Modifications
 
@@ -493,19 +493,19 @@ Multiple actors may modify `pending_ops` for the same conversation (the user cli
 
 ### 6.8 Boundary
 
-The pending buffer defines the accumulation point. The commit boundary (§5) defines when the buffer flushes. The materialised view (§7) reflects the buffer's live state for instant UI feedback. The ledger records the typed events at apply, undo, and discard. The version graph itself is updated only at commit.
+The pending buffer defines the accumulation point. The commit boundary (§5) defines when the buffer flushes. The materialized view (§7) reflects the buffer's live state for instant UI feedback. The ledger records the typed events at apply, undo, and discard. The version graph itself is updated only at commit.
 
-## 7. Materialised View (`context_view`)
+## 7. Materialized View (`context_view`)
 
 ### 7.1 Definition
 
-The materialised view (`context_view`) is the canonical read-optimised projection of the active conversation version's view-state over the block pool, consumed by context assembly, surface rendering, retrieval, and downstream operations that need the current state. The source of truth is the version graph plus the block pool and relevant durable substrates. `context_view` is rebuildable from those substrates and holds no facts they do not.
+The materialized view (`context_view`) is the canonical read-optimised projection of the active conversation version's view-state over the block pool, consumed by context assembly, surface rendering, retrieval, and downstream operations that need the current state. The source of truth is the version graph plus the block pool and relevant durable substrates. `context_view` is rebuildable from those substrates and holds no facts they do not.
 
-`context_view` is the single shared materialised projection layer for active conversation state. It inherits File 01's `Projection` contract.
+`context_view` is the single shared materialized projection layer for active conversation state. It inherits File 01's `Projection` contract.
 
 ### 7.2 Required Shape
 
-The materialised view is a per-conversation table of typed rows:
+The materialized view is a per-conversation table of typed rows:
 
 ```
 ContextViewRow {
@@ -517,22 +517,22 @@ ContextViewRow {
 }
 ```
 
-For each `(conversation_id, block_id)` active at the conversation's `current_version_id`, there is exactly one row. Blocks at `BlockLifecycle::Dropped` are retained as rows in the materialised view (so the version-graph layer can resolve them on demand and so the inspector can render their masked/dropped placeholders), but downstream layers filter `Dropped` blocks out of context assembly and standard retrieval per File 08 §6.
+For each `(conversation_id, block_id)` active at the conversation's `current_version_id`, there is exactly one row. Blocks at `BlockLifecycle::Dropped` are retained as rows in the materialized view (so the version-graph layer can resolve them on demand and so the inspector can render their masked/dropped placeholders), but downstream layers filter `Dropped` blocks out of context assembly and standard retrieval per File 08 §6.
 
 Per-version derived state for adjacent entity layers (artifact lifecycle / review / validation, claim status) is computed on demand at read time from the version graph plus the entity records; only `lifecycle_state` and `pin_state` are stored on the row, because those are the load-bearing per-`ContextVersion` view-state of every block and are accessed at every context-assembly read.
 
 ### 7.3 Properties
 
-- **Live updates.** Every `ContextOp` applied through the versioning operation surface updates `context_view` immediately, before the commit. The buffer plus the live materialised view together represent the user's current intent; the version graph records the commit at boundaries.
+- **Live updates.** Every `ContextOp` applied through the versioning operation surface updates `context_view` immediately, before the commit. The buffer plus the live materialized view together represent the user's current intent; the version graph records the commit at boundaries.
 - **O(1) reads.** Direct table lookup by `(conversation_id, block_id)` or by `(conversation_id, position)` returns the active state without traversing the version graph. This is the dominant access pattern for context assembly, render, and retrieval.
 - **O(path-length) rebuild.** Version switching (§8) rebuilds `context_view` by walking the path between the current version and the target, applying reverse and forward diffs. For long-range jumps, strategic-cache nodes (§7.6) shorten the walk.
-- **Per-conversation isolation.** Each conversation has its own materialised view; switching versions in one conversation does not affect another's view.
+- **Per-conversation isolation.** Each conversation has its own materialized view; switching versions in one conversation does not affect another's view.
 - **Rebuildable from durable substrate.** The view's contents are entirely derivable from `(current_version_id, pending_ops)` plus the chain of `ContextVersion`s and their `VersionDiff`s reachable from the root. Any corruption is resolved by rebuild, never by loss of canonical state.
 - **No durable facts unique to the view.** Every fact the view holds is reconstructable; the view is a projection, not a source of truth.
 
 ### 7.4 Update Triggers
 
-The materialised view rebuilds or updates on:
+The materialized view rebuilds or updates on:
 
 - **Apply.** `apply_context_op(op)` applies the operation's effect to the view in place; the buffer accumulates the operation but the view is updated live for instant feedback. Update cost: O(1) for most operations; O(view_size) for reorder.
 - **Undo / Discard.** `undo_pending` and `discard_pending` re-derive the view to the appropriate state per §6.3 and §6.4.
@@ -541,11 +541,11 @@ The materialised view rebuilds or updates on:
 - **Block-pool mutation.** A new sibling block committed at the active version (per File 08 §6.2) is added to the view at the supersession's recorded position; the view updates synchronously with the block commit.
 - **Hard delete.** A hard-deleted block's row in the view transitions to a tombstone placeholder (per File 08 §6.6); referenced positions remain but resolve to the tombstone.
 - **Restart.** On process restart, the view is rebuilt from durable storage (the view itself is durable in `context_view` rows; corruption fallback rebuilds from action log).
-- **Integrity violation.** A detected `MaterialisedViewIntegrityViolated` event (§7.6) triggers full rebuild from the action log.
+- **Integrity violation.** A detected `MaterializedViewIntegrityViolated` event (§7.6) triggers full rebuild from the action log.
 
 ### 7.5 Rebuild Trigger Declaration
 
-Per File 01 §6.11, every projection declares its rebuild triggers. The materialised view declares:
+Per File 01 §6.11, every projection declares its rebuild triggers. The materialized view declares:
 
 - **event-driven** — every `apply_op`, every commit, every block-pool mutation at the active version, every switch
 - **on-demand** — explicit rebuild on integrity violation, explicit rebuild requested by inspector or maintenance operation
@@ -553,30 +553,30 @@ Per File 01 §6.11, every projection declares its rebuild triggers. The material
 
 ### 7.6 Integrity Verification
 
-The materialised view's integrity is verifiable through the `expected_view_hash` field on `ContextVersion` (§3.2). At strategic-cache nodes (§8.6) and at commit, the storage layer may compute a canonical hash over `context_view` for the active version and store it on the version row. Subsequent rebuilds or reads can verify by:
+The materialized view's integrity is verifiable through the `expected_view_hash` field on `ContextVersion` (§3.2). At strategic-cache nodes (§8.6) and at commit, the storage layer may compute a canonical hash over `context_view` for the active version and store it on the version row. Subsequent rebuilds or reads can verify by:
 
 1. Recomputing the canonical hash over the current `context_view`
 2. Comparing against the stored `expected_view_hash` on the active version
-3. On mismatch, emitting a `MaterialisedViewIntegrityViolated { conversation_id, version_id, expected_hash, actual_hash }` ledger entry, marking the conversation's view as `degraded`, and rebuilding from the action log
+3. On mismatch, emitting a `MaterializedViewIntegrityViolated { conversation_id, version_id, expected_hash, actual_hash }` ledger entry, marking the conversation's view as `degraded`, and rebuilding from the action log
 4. After rebuild, recomputing and recording the corrected hash
 
 Storage may make hash computation mandatory or optional based on the `versioning.view_integrity_check_strictness` setting (`Strict`, `CacheAnchorsOnly`, `Off`). Exact defaults belong to settings profiles, not this canonical layer.
 
 The canonical hash domain is SHA-256 over the row set sorted by `(block_id)` with each row serialised as `(block_id, position, lifecycle_state, pin_state)`. The hash is independent of insertion order, durable across implementations, and stable across storage backends.
 
-### 7.7 Cross-Surface Materialised View
+### 7.7 Cross-Surface Materialized View
 
-Each conversation has one materialised view. Surfaces project the view through surface-specific filters (per File 07 §1, File 08 §12, File 09 §17.2); the underlying view is shared across all surfaces of the conversation. A coder-surface render filters for `FileAttachment` and `Artifact` blocks; a transcript render filters for transcript-anchorable kinds; an inspector render shows every row including `Dropped` placeholders. All read from the same `context_view` rows.
+Each conversation has one materialized view. Surfaces project the view through surface-specific filters (per File 07 §1, File 08 §12, File 09 §17.2); the underlying view is shared across all surfaces of the conversation. A coder-surface render filters for `FileAttachment` and `Artifact` blocks; a transcript render filters for transcript-anchorable kinds; an inspector render shows every row including `Dropped` placeholders. All read from the same `context_view` rows.
 
 ### 7.8 Boundary
 
-The materialised view defines the active-version projection over the block pool. The version graph defines the action log. The block pool defines content. The ledger records the events. The storage layer realises the durability (per §18). The view's shape and integrity contract are owned by this section; the rest is consumed.
+The materialized view defines the active-version projection over the block pool. The version graph defines the action log. The block pool defines content. The ledger records the events. The storage layer realises the durability (per §18). The view's shape and integrity contract are owned by this section; the rest is consumed.
 
 ## 8. Version Switching
 
 ### 8.1 Definition
 
-Version switching changes a conversation's `current_version_id` to a target version's id, rebuilding the materialised view to match the target's state. Switching is non-destructive: the prior current version remains in the tree and is reachable through subsequent switches.
+Version switching changes a conversation's `current_version_id` to a target version's id, rebuilding the materialized view to match the target's state. Switching is non-destructive: the prior current version remains in the tree and is reachable through subsequent switches.
 
 ### 8.2 The Algorithm
 
@@ -584,10 +584,10 @@ Version switching changes a conversation's `current_version_id` to a target vers
 
 1. **Validate.** The target must exist in the conversation's version tree; the current version must exist; both must share the conversation's root.
 2. **Find path.** Compute the path in the tree from the current version to the target: walk up from current to the common ancestor with target, then walk down from the common ancestor to target. The path is a sequence of `(direction, version_id)` pairs where direction is `Up` or `Down`.
-3. **Discard pending operations.** Any `pending_ops` accumulated from the current version's session are discarded (no implicit commit on switch per §6.4). The buffer clears; the materialised view is re-derived against the current version's state before the walk begins.
-4. **Apply reverse diffs (up).** For each `Up` step, apply the reverse of that version's diff to `context_view`. Reverse semantics: `added` entries are removed; `removed` entries are re-added at their old positions; `lifecycle_changes` reverse `(block_id, from, to)` to `(block_id, to, from)`; `pin_changes` reverse similarly; `position_changes` move blocks back to their parent-version positions; `metadata_changes` and `derived_state_changes` reverse per their typed inverse rules; `hard_deletes` cannot be reversed by switch — affected blocks remain tombstones, and the materialised view shows the tombstone placeholder.
+3. **Discard pending operations.** Any `pending_ops` accumulated from the current version's session are discarded (no implicit commit on switch per §6.4). The buffer clears; the materialized view is re-derived against the current version's state before the walk begins.
+4. **Apply reverse diffs (up).** For each `Up` step, apply the reverse of that version's diff to `context_view`. Reverse semantics: `added` entries are removed; `removed` entries are re-added at their old positions; `lifecycle_changes` reverse `(block_id, from, to)` to `(block_id, to, from)`; `pin_changes` reverse similarly; `position_changes` move blocks back to their parent-version positions; `metadata_changes` and `derived_state_changes` reverse per their typed inverse rules; `hard_deletes` cannot be reversed by switch — affected blocks remain tombstones, and the materialized view shows the tombstone placeholder.
 5. **Apply forward diffs (down).** For each `Down` step, apply the forward diff of that version to `context_view`.
-6. **Verify integrity.** If the target has an `expected_view_hash`, recompute the canonical hash and verify per §7.6. On mismatch, emit `MaterialisedViewIntegrityViolated` and rebuild from the action log.
+6. **Verify integrity.** If the target has an `expected_view_hash`, recompute the canonical hash and verify per §7.6. On mismatch, emit `MaterializedViewIntegrityViolated` and rebuild from the action log.
 7. **Advance pointer.** Update `ConversationVersionState.current_version_id` to `target_version_id`.
 8. **Discard pending again.** The buffer remains empty (it was discarded in step 3); no operations from the prior version's session are retained.
 9. **Emit events.** Emit `VersionSwitched { conversation_id, from_version_id, to_version_id, path_length, rebuild_from_action_log: bool }` (the boolean indicates whether a full rebuild was required) through the canonical bus and record it in the ledger.
@@ -605,7 +605,7 @@ Application of each step is O(diff_size). Typical diff size is single-digit entr
 
 ### 8.4 Hard Delete Handling
 
-If the path includes versions with `hard_deletes`, those deletions are not reversible by switch. The affected blocks remain tombstones in the block pool (per File 08 §6.6); the materialised view at versions where the blocks were active resolves them to the tombstone placeholder. The composition-materialisation fallback (per File 08 §6.6) applies if a `Composed` parent's child was hard-deleted: the composed block's resolved content is materialised into a new block linked by `materialized_by`, preserving the view's resolvability past the deletion.
+If the path includes versions with `hard_deletes`, those deletions are not reversible by switch. The affected blocks remain tombstones in the block pool (per File 08 §6.6); the materialized view at versions where the blocks were active resolves them to the tombstone placeholder. The composition-materialization fallback (per File 08 §6.6) applies if a `Composed` parent's child was hard-deleted: the composed block's resolved content is materialized into a new block linked by `materialized_by`, preserving the view's resolvability past the deletion.
 
 Switching to a version before a `hard_delete` does not restore the deleted block. The version tree records that the block was once active and then destroyed; the tombstone represents what remains.
 
@@ -621,13 +621,13 @@ If `pending_ops` is non-empty when `switch_to_version` is called:
 
 ### 8.6 Strategic-Cache Nodes
 
-For long-range switches, the storage layer may maintain materialised-view caches at strategic version nodes. When a switch's path crosses a strategic-cache node, the walk starts from the nearest cached node instead of the root. This is a storage optimisation; the canonical algorithm does not require it. Cache placement, eviction, and count limits are storage/profile concerns. Cache corruption triggers rebuild from the durable substrate and never changes canonical state.
+For long-range switches, the storage layer may maintain materialized-view caches at strategic version nodes. When a switch's path crosses a strategic-cache node, the walk starts from the nearest cached node instead of the root. This is a storage optimisation; the canonical algorithm does not require it. Cache placement, eviction, and count limits are storage/profile concerns. Cache corruption triggers rebuild from the durable substrate and never changes canonical state.
 
 Strategic-cache nodes may also serve as anchor points for `expected_view_hash` integrity verification (§7.6).
 
 ### 8.7 Boundary
 
-Version switching defines the deterministic path-walk algorithm. The materialised view (§7) is the substrate. The block pool (File 08) is the content source. Strategic-cache nodes (§8.6) are storage optimisations. The ledger records the switch events. No layer redefines the switch semantics; they consume what this section specifies.
+Version switching defines the deterministic path-walk algorithm. The materialized view (§7) is the substrate. The block pool (File 08) is the content source. Strategic-cache nodes (§8.6) are storage optimisations. The ledger records the switch events. No layer redefines the switch semantics; they consume what this section specifies.
 
 ## 9. Branching and Forking
 
@@ -658,7 +658,7 @@ The version graph remains a single-parent tree. When a user intentionally combin
 A fork is a new conversation seeded from an existing conversation's version. Forking:
 
 1. Creates a new `conversation_id` (per File 02)
-2. Copies allowed materialised-view rows from the source's target version into the new conversation's root materialised view
+2. Copies allowed materialized-view rows from the source's target version into the new conversation's root materialized view
 3. Creates the new conversation's root `ContextVersion` with `parent_version_id = null` and an `Import` op_summary referencing the source `(source_conversation_id, source_version_id)`
 4. Establishes block-pool references for blocks whose scope, sensitivity, and policy allow visibility in the destination
 5. Records the fork event `ConversationForked { source_conversation_id, source_version_id, new_conversation_id }` through the canonical bus
@@ -688,7 +688,7 @@ Tree view and expandable list view are surface projections of the same data per 
 
 ### 9.6 Boundary
 
-Branching is the natural consequence of switch-plus-commit. Merge-source references preserve merge provenance without changing tree parentage. Forking is the explicit-copy variant of cross-conversation reference. Tree topology is the data structure the materialised view rebuilds against. None of these add new commit semantics; they compose with the existing primitives.
+Branching is the natural consequence of switch-plus-commit. Merge-source references preserve merge provenance without changing tree parentage. Forking is the explicit-copy variant of cross-conversation reference. Tree topology is the data structure the materialized view rebuilds against. None of these add new commit semantics; they compose with the existing primitives.
 
 ## 10. Per-Version Derived State Maps
 
@@ -706,7 +706,7 @@ Per File 08 §6.1, `BlockLifecycle` is `Raw | Active | Masked | Dropped | Recove
 2. All `lifecycle_changes` entries in `VersionDiff`s along the path from the version where the block was first added to the current version
 3. The final state declared in the latest applicable `lifecycle_change`
 
-The materialised view stores the result; the action log is the substrate. The derivation is deterministic.
+The materialized view stores the result; the action log is the substrate. The derivation is deterministic.
 
 ### 10.3 Pin State Derivation
 
@@ -752,13 +752,13 @@ Registered custom derived state participates in the version graph through `deriv
 
 ### 10.8 Boundary
 
-Per-version derived state is computed on demand from the substrate (action log plus entity records plus snapshot references). The materialised view stores only `BlockLifecycle` and `PinState` because those are accessed on every read; other derived state is recomputed at query time or cached as a separate materialised projection per the storage layer's optimisations. The derivation is deterministic; corruption is resolved by rebuild.
+Per-version derived state is computed on demand from the substrate (action log plus entity records plus snapshot references). The materialized view stores only `BlockLifecycle` and `PinState` because those are accessed on every read; other derived state is recomputed at query time or cached as a separate materialized projection per the storage layer's optimisations. The derivation is deterministic; corruption is resolved by rebuild.
 
 ## 11. `ContextOp` — Closed Canonical Operation Vocabulary
 
 ### 11.1 Definition
 
-A `ContextOp` is one user-or-agent-or-subsystem-applied operation against the materialised view. Operations accumulate in `pending_ops` (§6) and merge into one `VersionDiff` at the next commit boundary (§5). Operations are the version-graph's action language; the diff is the net result.
+A `ContextOp` is one user-or-agent-or-subsystem-applied operation against the materialized view. Operations accumulate in `pending_ops` (§6) and merge into one `VersionDiff` at the next commit boundary (§5). Operations are the version-graph's action language; the diff is the net result.
 
 The canonical closed catalogue:
 
@@ -876,7 +876,7 @@ The `ContextOp` vocabulary defines the operation language. The pending buffer (�
 
 ### 12.1 Definition
 
-Sibling-block versioning is the canonical mechanism by which observable content changes produce new immutable blocks in the unified pool, linked to the prior by `supersedes` edges (per File 08 §5.2), with the active reference in the materialised view updated to point at the new block. The version graph records the swap in the diff; the prior block stays in the pool, reachable through the version-tree-aware projection.
+Sibling-block versioning is the canonical mechanism by which observable content changes produce new immutable blocks in the unified pool, linked to the prior by `supersedes` edges (per File 08 §5.2), with the active reference in the materialized view updated to point at the new block. The version graph records the swap in the diff; the prior block stays in the pool, reachable through the version-tree-aware projection.
 
 This mechanism is shared across:
 
@@ -901,14 +901,14 @@ A file edit (per File 09 §6.3 and `tools/file-operations.md`) creates a new sib
 - a fresh `created_at`
 - a `producer` field reflecting the edit source (user edit, agent `file.edit` invocation, filesystem watcher)
 
-The materialised view's row for the active file block transitions to reference the new sibling at the same position. The version diff records the swap as a `(BlockId, Position)` removed-and-added pair plus any per-version metadata changes.
+The materialized view's row for the active file block transitions to reference the new sibling at the same position. The version diff records the swap as a `(BlockId, Position)` removed-and-added pair plus any per-version metadata changes.
 
 Reverting a file: per File 09 §6.3 and `domains/coder/checkpoints-undo.md`, there are two paths:
 
 - **Forward revert** (`coder.file_reverted`): commit a new `ContextEdit` version that swaps the active file block back to the historical sibling. The current branch advances; the prior current-branch state is reachable through switch.
 - **Switch revert**: switch the conversation's `current_version_id` to a version where the historical file block was active. Both branches remain in the tree.
 
-The file-sync layer (per File 09 §7.5) detects the active-block change and rewrites the materialised file on disk to match.
+The file-sync layer (per File 09 §7.5) detects the active-block change and rewrites the materialized file on disk to match.
 
 ### 12.3 Message Edits
 
@@ -932,7 +932,7 @@ Plugin-bundled knowledge entries that a user wants to customise can be forked by
 
 ### 12.6 Boundary
 
-Sibling-block versioning is the canonical content-change mechanism shared across all entity layers. File 08 owns the block-pool mechanics; this section specifies the version-graph integration. The `supersedes` edge plus the active-reference swap in the materialised view are the canonical signals of "this content was edited"; the version-tree branch is the canonical record of "here's where in history that edit happened."
+Sibling-block versioning is the canonical content-change mechanism shared across all entity layers. File 08 owns the block-pool mechanics; this section specifies the version-graph integration. The `supersedes` edge plus the active-reference swap in the materialized view are the canonical signals of "this content was edited"; the version-tree branch is the canonical record of "here's where in history that edit happened."
 
 ## 13. Artifact Version Chains
 
@@ -964,17 +964,17 @@ The resolution is O(path-length from current version to the artifact's first com
 
 ### 13.4 Branch-Aware Artifact Versions
 
-When a conversation branches and the artifact is edited on multiple branches, the artifact's effective version diverges per branch. The materialised view of each branch resolves the artifact to its branch-active version-block; the artifact's entity record carries the default/latest pointer (typically the leaf branch's most recent version), but branch-aware surfaces (the comparison board, the version inspector, the cross-branch diff renderer) resolve per branch.
+When a conversation branches and the artifact is edited on multiple branches, the artifact's effective version diverges per branch. The materialized view of each branch resolves the artifact to its branch-active version-block; the artifact's entity record carries the default/latest pointer (typically the leaf branch's most recent version), but branch-aware surfaces (the comparison board, the version inspector, the cross-branch diff renderer) resolve per branch.
 
 The artifact's version chain in DAG form may carry multi-parent versions when the user merges two branches' versions of the artifact through `artifact.merge`.
 
-### 13.5 Materialisation Across Versions
+### 13.5 Materialization Across Versions
 
-Per File 09 §7.4, each version's `materialized_paths` record carries the workspace paths where the version's content was written. When the conversation switches versions, the workspace's disk state updates to match the active version's `materialized_paths` (per File 09 §7.5 disk-sync loop). Prior versions' materialisations remain on disk according to the workspace retention policy (per File 09 §7.4 — paths typically include the `version_id` in the path template to avoid overwriting).
+Per File 09 §7.4, each version's `materialized_paths` record carries the workspace paths where the version's content was written. When the conversation switches versions, the workspace's disk state updates to match the active version's `materialized_paths` (per File 09 §7.5 disk-sync loop). Prior versions' materializations remain on disk according to the workspace retention policy (per File 09 §7.4 — paths typically include the `version_id` in the path template to avoid overwriting).
 
 ### 13.6 Boundary
 
-Artifact version chains are a specialisation of sibling-block versioning over the unified pool. File 09 owns the entity-record schema; this section owns the version-graph integration and the per-`ContextVersion` resolution rule. The materialisation contract is owned by File 09 §7.
+Artifact version chains are a specialisation of sibling-block versioning over the unified pool. File 09 owns the entity-record schema; this section owns the version-graph integration and the per-`ContextVersion` resolution rule. The materialization contract is owned by File 09 §7.
 
 ## 14. Snapshots
 
@@ -1068,17 +1068,17 @@ This file specifies the version-graph data each mode consumes.
 
 - the `ContextVersion` at any point in the run's path
 - the `VersionDiff` at each commit
-- the materialised view as it was at the run's anchor commits (reconstructed by walking from the root)
+- the materialized view as it was at the run's anchor commits (reconstructed by walking from the root)
 - the `snapshot_refs` on each commit (resolved through §14.4 to substrate state at the anchor)
 - the block pool's content (per File 08)
 - the ledger entries the run produced (per File 10 §3)
 
 Inspect answers queries like:
 
-- "What did the model see at the moment of this run's model call?" — resolve the materialised view at the relevant anchor version; context assembly reconstructs the model-request text/content from that view, settings, and policy; File 07 reconstructs callable declarations; File 10 ledger entries identify model-call inputs, snapshots, and provider invocation records
+- "What did the model see at the moment of this run's model call?" — resolve the materialized view at the relevant anchor version; context assembly reconstructs the model-request text/content from that view, settings, and policy; File 07 reconstructs callable declarations; File 10 ledger entries identify model-call inputs, snapshots, and provider invocation records
 - "What capability calls did this run make, and with what arguments?" — read the `ToolCallProposed` and `ToolCallExecuted` ledger entries in the run's scope
 - "What was the policy state when this approval was granted?" — resolve the `policy_snapshot_id` on the `ApprovalGranted` ledger entry
-- "What did the workspace look like at this version?" — resolve the materialised view's `materialized_paths` per File 09 §7.4 at the version
+- "What did the workspace look like at this version?" — resolve the materialized view's `materialized_paths` per File 09 §7.4 at the version
 
 No execution; no side effects; deterministic given the durable substrate.
 
@@ -1182,7 +1182,7 @@ The version graph exposes a canonical operation surface. Exact Rust traits, Taur
 
 The semantic operation groups are:
 
-- reads: current version, version by id, version tree, active materialised view, pending operations, path-spec resolution
+- reads: current version, version by id, version tree, active materialized view, pending operations, path-spec resolution
 - pending-buffer operations: apply operation, undo pending, redo pending when enabled, discard pending
 - commit operations: commit pending operations with a `VersionOpSummary` and snapshot references
 - navigation: switch to version
@@ -1193,7 +1193,7 @@ The semantic operation groups are:
 
 ### 17.3 Read Surface
 
-The read methods provide deterministic reads of version-graph state. `get_current_version` returns the row at `current_version_id`. `get_version_tree` returns the typed tree topology (each node with `parent_version_id`, `op_summary`, `committed_at`, `label`, `bookmarked`). `get_context_view` returns the materialised view at `current_version_id`. `get_version_at_path` resolves a path expression (e.g., "the version 5 commits back on this branch") to a concrete `version_id`.
+The read methods provide deterministic reads of version-graph state. `get_current_version` returns the row at `current_version_id`. `get_version_tree` returns the typed tree topology (each node with `parent_version_id`, `op_summary`, `committed_at`, `label`, `bookmarked`). `get_context_view` returns the materialized view at `current_version_id`. `get_version_at_path` resolves a path expression (e.g., "the version 5 commits back on this branch") to a concrete `version_id`.
 
 ### 17.4 Label and Bookmark Operations
 
@@ -1222,7 +1222,7 @@ The service surface defines the canonical mutation and read API for the version 
 The following version-graph facts are durable:
 
 - the version-graph itself — every `ContextVersion` row survives process restart, conversation archival, and version-graph compaction until explicit tombstoning, reconstruction-preserving compaction, or payload deletion applies. Required durable fields: `version_id`, `conversation_id`, `parent_version_id`, `merge_source_version_ids` when present, `committed_at`, `committed_by`, `op_summary`, `diff`, `label`, `bookmarked`, `snapshot_refs`, `version_schema_version`, `diff_hash`, `expected_view_hash` when present
-- the materialised view — `context_view` rows for each conversation's active version are durable; on restart, they reload from storage; a corrupted or missing materialised view rebuilds from the action log
+- the materialized view — `context_view` rows for each conversation's active version are durable; on restart, they reload from storage; a corrupted or missing materialized view rebuilds from the action log
 - the pending-operations buffer — `ConversationVersionState` carries `current_version_id`, `pending_ops`, and revision/update metadata; durable
 - labels and bookmarks — mutations to `label` and `bookmarked` are durable through the ledger (`VersionLabelled`, `VersionBookmarked`); the latest values are stored on the `ContextVersion` row
 - `expected_view_hash` records — durable when present; the storage layer chooses where to store them
@@ -1231,11 +1231,11 @@ The following version-graph facts are durable:
 
 The following are computed, not stored:
 
-- per-version `ArtifactLifecycle`, `ReviewState`, `ValidationState`, `ClaimStatus`, `TaskRevision` (per §10) — derived on demand from the action log plus entity records; storage may cache as a materialised projection (per §16.3) but the source of truth is the substrate
-- materialised view rebuilds — derived from the action log when on-demand rebuild is requested
+- per-version `ArtifactLifecycle`, `ReviewState`, `ValidationState`, `ClaimStatus`, `TaskRevision` (per §10) — derived on demand from the action log plus entity records; storage may cache as a materialized projection (per §16.3) but the source of truth is the substrate
+- materialized view rebuilds — derived from the action log when on-demand rebuild is requested
 - snapshot resolutions — derived per §14.4
 - the version-tree projection (tree topology with collapsed linear runs, branch-point markers, bookmark highlights) — derived for tree-view rendering
-- per-tokenizer token counts of the active materialised view (per File 08 §13.2)
+- per-tokenizer token counts of the active materialized view (per File 08 §13.2)
 - conversation-list metadata such as surfaces used, last activity, and active status — derived
 
 ### 18.3 Reconstruction Across Restart
@@ -1243,9 +1243,9 @@ The following are computed, not stored:
 On process restart:
 
 - the version graph reloads from durable storage
-- materialised views (`context_view`) reload; corruption triggers rebuild
+- materialized views (`context_view`) reload; corruption triggers rebuild
 - `ConversationVersionState` reloads with `current_version_id` and `pending_ops`
-- per-version derived state recomputes on first read (or from cached materialised projections)
+- per-version derived state recomputes on first read (or from cached materialized projections)
 - snapshot resolutions recompute on first query
 - the active view a new run sees after restart is the same view a new run would have seen before restart, modulo any changes recorded during the offline interval (per File 08 §13.3)
 
@@ -1269,7 +1269,7 @@ Child runs (per File 04 §16) commit:
 
 ### 18.5 Reconstruction Across Sync
 
-Per §19, cross-device sync preserves the version graph's branching topology. Concurrent commits on two devices produce sibling branches; no last-write-wins. On sync pull, the materialised view stays on the local device's `current_version_id`; the remote's new commits are appended as siblings or as a different branch in the tree.
+Per §19, cross-device sync preserves the version graph's branching topology. Concurrent commits on two devices produce sibling branches; no last-write-wins. On sync pull, the materialized view stays on the local device's `current_version_id`; the remote's new commits are appended as siblings or as a different branch in the tree.
 
 ### 18.6 Boundary
 
@@ -1307,7 +1307,7 @@ There is no automatic merge. There is no last-write-wins. There is no squash. Th
 
 Block-level concurrent edits never conflict because blocks are immutable (per File 08 §6.2) — concurrent edits produce concurrent sibling blocks; the version graph records which sibling is active per branch.
 
-### 19.4 Per-Device Materialised-View Pointer
+### 19.4 Per-Device Materialized-View Pointer
 
 Each device maintains its own `ConversationVersionState.current_version_id` and `pending_ops`. When sync pulls remote commits, the local `current_version_id` does not change automatically — the local user remains on whatever version they last committed or switched to. The remote's commits are reachable through the version tree; the user explicitly switches to them.
 
@@ -1329,7 +1329,7 @@ Per File 10 §4.1, the canonical sync ledger entry kinds and bus events:
 
 ### 19.7 Boundary
 
-The sync transport is owned by the future Sync, Import, Export, and Data Portability spec. This section specifies the version-tree-aware merge semantics and the per-device materialised-view pointer rule. The conflict resolution is the canonical contract; the transport realises it.
+The sync transport is owned by the future Sync, Import, Export, and Data Portability spec. This section specifies the version-tree-aware merge semantics and the per-device materialized-view pointer rule. The conflict resolution is the canonical contract; the transport realises it.
 
 ## 20. Garbage Collection and Pruning
 
@@ -1357,7 +1357,7 @@ The canonical mechanisms:
 - emits `VersionTombstoned { conversation_id, version_id, parent_version_id, has_descendants }`
 - records a tombstone so provenance queries resolve the version as `Tombstoned`
 
-Tombstoning a version with descendants has a hard reconstruction constraint. It must either preserve the original diff with per-field content redaction for sensitive material, or replace the diff with a reconstruction-preserving compacted summary that produces identical materialised-view state when applied during a path-walk. If neither is achievable because the diff contains irreducibly `Secret` content that cannot be summarised without leaking, the operation fails with `TombstoneReconstructionUnsafe { version_id, reason }`. The user must then choose `hard_delete_version_payload`, explicitly acknowledging reconstruction loss for descendants and recording that loss as a typed provenance gap, or narrow cleanup to a version without descendants.
+Tombstoning a version with descendants has a hard reconstruction constraint. It must either preserve the original diff with per-field content redaction for sensitive material, or replace the diff with a reconstruction-preserving compacted summary that produces identical materialized-view state when applied during a path-walk. If neither is achievable because the diff contains irreducibly `Secret` content that cannot be summarised without leaking, the operation fails with `TombstoneReconstructionUnsafe { version_id, reason }`. The user must then choose `hard_delete_version_payload`, explicitly acknowledging reconstruction loss for descendants and recording that loss as a typed provenance gap, or narrow cleanup to a version without descendants.
 
 The blocks the version's diff added are not destroyed by tombstoning — they remain in the unified pool, subject to their own hard-delete contract per File 08 §6.6.
 
@@ -1413,7 +1413,7 @@ The cleanup respects the full version tree, not just the active view: a version 
 
 ### 20.8 Boundary
 
-Garbage collection is user-driven and policy-driven. The canonical retention-policy enum closes the catalogue; tombstones preserve identity and reconstruction safety; compaction preserves equivalent materialised-view state across linear ranges; hard payload deletion records reconstruction loss when it is accepted. The reclamation surface honours File 01 §7.13's storage-management invariant.
+Garbage collection is user-driven and policy-driven. The canonical retention-policy enum closes the catalogue; tombstones preserve identity and reconstruction safety; compaction preserves equivalent materialized-view state across linear ranges; hard payload deletion records reconstruction loss when it is accepted. The reclamation surface honours File 01 §7.13's storage-management invariant.
 
 ## 21. Events
 
@@ -1441,10 +1441,10 @@ Every version-graph operation emits typed events through the canonical bus per F
 - `VersionBookmarked { version_id }`
 - `VersionUnbookmarked { version_id }`
 
-**Materialised view:**
+**Materialized view:**
 
-- `MaterialisedViewRebuilt { conversation_id, version_id, source: RebuildSource }` — rebuild completed (with `RebuildSource` typed enum: `IntegrityViolation`, `ManualRequest`, `Restart`, `SwitchPathTooLong`, `CacheRefresh`)
-- `MaterialisedViewIntegrityViolated { conversation_id, version_id, expected_hash, actual_hash }` — hash mismatch detected
+- `MaterializedViewRebuilt { conversation_id, version_id, source: RebuildSource }` — rebuild completed (with `RebuildSource` typed enum: `IntegrityViolation`, `ManualRequest`, `Restart`, `SwitchPathTooLong`, `CacheRefresh`)
+- `MaterializedViewIntegrityViolated { conversation_id, version_id, expected_hash, actual_hash }` — hash mismatch detected
 
 **Deletion and retention:**
 
@@ -1489,7 +1489,7 @@ Every version-graph mechanism in this file is configurable through settings (per
 - `versioning.switch_with_pending_behaviour` — `Discard` | `Commit` | `Prompt`
 - `versioning.pending_buffer_max_size` — soft cap on `pending_ops` length before forcing a `ContextEdit` commit
 
-**Materialised-view dimensions:**
+**Materialized-view dimensions:**
 
 - `versioning.view_integrity_check_strictness` — `Strict` | `CacheAnchorsOnly` | `Off`
 - `versioning.strategic_cache_policy` — storage/profile-selected cache placement and eviction policy
@@ -1542,7 +1542,7 @@ The following shapes are wrong for this layer:
 
 - **Parallel checkpoint systems** — no `file_checkpoints` table, no `SessionCheckpoint` / `FileCheckpoint` / `ToolCallCheckpoint` rows, no shadow-directory checkpoint mechanism, no per-tool-call atomic checkpoint commit. The "checkpoint" vocabulary maps onto the unified version graph; checkpoints in any UI are commit boundaries in the version graph.
 - **`MessageVersion` rows** — messages do not version at the row level; the version tree does. The "version of message X" view is reconstructed by walking the version graph to the version where message X was last edited.
-- **`VersionSnapshot` table separate from version diffs** — versioning uses per-version diffs against the parent; the materialised view is rebuilt by walking the tree. Storing full snapshots on every version row contradicts the compact-diff discipline. Strategic-cache nodes (§8.6) store materialised-view caches as storage optimisations, not as the canonical version-storage shape.
+- **`VersionSnapshot` table separate from version diffs** — versioning uses per-version diffs against the parent; the materialized view is rebuilt by walking the tree. Storing full snapshots on every version row contradicts the compact-diff discipline. Strategic-cache nodes (§8.6) store materialized-view caches as storage optimisations, not as the canonical version-storage shape.
 - **In-place mutation of `ContextVersion` fields** — every field except `label`, `bookmarked`, and `expected_view_hash` is immutable. Observable corrections commit a `Correction` sibling per §4.2. In-place mutation of `diff`, `op_summary`, `committed_at`, `committed_by`, `parent_version_id`, `snapshot_refs`, or any other immutable field is invalid.
 - **`pending_ops` buffer as transient in-memory queue** — the buffer is durable on `ConversationVersionState`; the buffer survives restart. Treating it as in-memory state loses user-applied operations across crashes.
 - **Implicit commit on switch** — switching with pending operations must follow the configured `versioning.switch_with_pending_behaviour`. An implicit unconfigured commit would bury in-session edits in the wrong place in the tree.
@@ -1552,7 +1552,7 @@ The following shapes are wrong for this layer:
 - **Squashing or implicit merge of sibling branches at sync** — both branches survive. The user explicitly switches between them or explicitly merges; merge-source references preserve contribution provenance without changing single-parent tree topology. No implicit merge ever fires.
 - **Snapshot as a stored copy of substrate content** — snapshots are typed references to substrate state at a point in time. The substrate (registry, settings, world, policy, pricing, routing) maintains its own durable event log; the snapshot resolves by walking the log. Storing duplicate substrate content as a snapshot row violates the projection contract and the storage-cost discipline.
 - **Token counts or costs stored on `ContextVersion` rows** — per File 01 §8, model-dependent scalars are never stored as unkeyed values. Token counts and costs are computed per `(block_id, tokenizer_id)` per File 08 §13.2; the version graph never stores them as version-row fields.
-- **Materialised view as the source of truth** — the materialised view is a projection; the version-graph action log is the substrate. Treating the view as authoritative leads to corruption when projections fall out of sync. The cost of corruption is rebuild, never data loss.
+- **Materialized view as the source of truth** — the materialized view is a projection; the version-graph action log is the substrate. Treating the view as authoritative leads to corruption when projections fall out of sync. The cost of corruption is rebuild, never data loss.
 - **Time-based version pruning by default** — per File 01 constraint, time-based behaviour is invalid unless explicitly justified. Time-based policies require explicit user or selected-profile opt-in.
 - **Implicit hard-delete of versions** — version cleanup is explicit, typed, and policy-governed. No automated process hard-deletes versions or payloads without user authorisation.
 - **Descendant reparenting during cleanup** — tombstoning or cleaning a version must not silently reparent descendants to a different parent. Descendant diffs were computed against their actual parent state.
@@ -1564,7 +1564,7 @@ The following shapes are wrong for this layer:
 - **Time-based mask / drop / lifecycle transitions** — per File 08 §6.7 and File 01 constraints, no implicit time-based lifecycle transition. Compaction policies invoke explicit `Mask` / `Drop` operations driven by their own logic, never by clock time.
 - **Treating `ContextVersion` and `Block` as the same primitive** — `ContextVersion` is the version-graph node addressing a conversation's view-state. `Block` is the durable content carrier. A conversation has many versions; each version references many blocks; blocks live in the unified pool addressable by any conversation. The two are distinct primitives that compose.
 - **Treating `Projection` as authoritative for any durable fact** — projections are derived. Any durable fact that exists only in a projection is invalid. The substrate must produce the fact; the projection reads it.
-- **Snapshot-as-full-prompt-audit** — capturing the full assembled prompt context as a separate audit record at every model call is the wrong shape. File 11 reconstructs the materialised view input; Context Assembly, File 07, and File 10 reconstruct the final model request, callable declarations, snapshots, and provider invocation record.
+- **Snapshot-as-full-prompt-audit** — capturing the full assembled prompt context as a separate audit record at every model call is the wrong shape. File 11 reconstructs the materialized view input; File 13, File 07, and File 10 reconstruct the final model request, callable declarations, snapshots, and provider invocation record.
 - **`expected_view_hash` as the source of truth for view content** — the hash is a verification artifact; the action log is the substrate. A hash mismatch triggers rebuild, never trust-the-hash-over-the-substrate.
 - **Operation sequence as reconstruction source** — the committed `VersionDiff` is the canonical reconstruction input. Operation-sequence ledger facts are audit and UI inspection data; switching and rebuilds must not depend on replaying every pending operation event.
 - **Forging a `VersionCommitted` ledger entry without producing a version row** — per File 10 §3.7, ledger entries that name a version_id must reference an existing version; orphan references are rejected at ledger commit.
@@ -1578,10 +1578,10 @@ The following shapes are wrong for this layer:
 
 Later specs must follow these rules:
 
-- Later specs must not introduce parallel history, checkpoint, rollback, undo, fork, or versioning primitives. They consume `ContextVersion`, `VersionDiff`, `ContextOp`, snapshots, File 10 events, and the materialised-view contract defined here.
+- Later specs must not introduce parallel history, checkpoint, rollback, undo, fork, or versioning primitives. They consume `ContextVersion`, `VersionDiff`, `ContextOp`, snapshots, File 10 events, and the materialized-view contract defined here.
 - Storage and persistence must store the required `ContextVersion` fields, `ConversationVersionState`, active `context_view`, labels, bookmarks, tombstones, compacted segments, payload-deletion provenance gaps, hashes when present, and snapshot references. Physical schema, indexing, migration, and storage optimisation choices remain storage-spec concerns.
 - Sync, import, export, and portability must preserve version topology, parent links, `merge_source_version_ids`, tombstones, compacted segments, block identity, content-addressing semantics, and per-device active pointers unless a later sync spec explicitly defines a shared-pointer mode. Last-write-wins remains invalid.
-- Context assembly and compaction consume the materialised view as input. Compaction that changes durable context state commits explicit `ContextEdit`, `Consolidation`, tombstone, or range-compaction operations; it must preserve evidence/provenance closure instead of silently severing chains.
+- Context assembly and compaction consume the materialized view as input. Compaction that changes durable context state commits explicit `ContextEdit`, `Consolidation`, tombstone, or range-compaction operations; it must preserve evidence/provenance closure instead of silently severing chains.
 - Retrieval, memory, knowledge, artifact, claim, validation, workspace mirror, and UI-history surfaces are projections or sibling-block version chains over this substrate. They may cache derived views, but they do not own separate history stores.
 - Model strategy, provider, pricing, settings, world, routing, policy, perception, evaluation, and replay specs consume snapshot identities and the File 10 ledger to reconstruct past execution state. File 11 provides the version-graph substrate; those specs own their own replay details.
 - Extensions, plugins, MCP integrations, workflows, automation, quality control, and work surfaces register custom op summaries, context ops, metadata changes, derived-state changes, snapshot kinds, and projections through the File 05 proposal-first mechanism. They must not bypass the versioning operation surface or the File 06 policy layer.

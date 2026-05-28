@@ -36,13 +36,13 @@ This file does not define:
 - the `ToolSurface` composition algorithm, surface zoning, or per-lens composition contracts — File 07 owns those; this file specifies the surface-relevant events that flow through this layer
 - the `Block` schema, `BlockKind` catalogue, `BlockContent` variants, the block commit validator, or the streaming-to-block commit boundary — File 08 owns those; this file specifies which block-related events flow through and which block-commit events become durable ledger entries
 - the entity layer over blocks (`Artifact`, `Claim`, `Evidence`, `Citation`, `Observation`, `Validation`, `Critique`, `Provenance`) or the entity-relevant event vocabulary itself — File 09 owns those; this file specifies the unified bus and ledger they emit through
-- the version-graph commit storage, the version-tree action-log algorithms, or the materialized-view rebuild semantics — the future Version Graph, Commits, and Projections spec owns those; this file specifies which version-commit events flow through and how the ledger references version identities
+- the version-graph commit storage, the version-tree action-log algorithms, or the materialized-view rebuild semantics — File 11 owns those; this file specifies which version-commit events flow through and how the ledger references version identities
 - the storage schema, on-disk layout, indexing strategy, projection rebuild policies, or per-table durability invariants — the future Storage and Persistence spec owns those; this file specifies what is durable, what is computed, and the deterministic-reconstruction contract storage must support
 - sync, import, export, or portability mechanics — the future Sync, Import, Export, and Data Portability spec owns those; this file specifies which ledger entries sync, which do not (the hash-chained audit log is per-device), and how sensitivity gates participation
 - credential storage internals, trust-state cryptography, or secret-vault primitives — the future Security, Credentials, and Trust Boundaries spec owns those; this file specifies the canonical `Secret` sensitivity class and the rule that `Secret` payloads never persist to the durable ledger
 - sandbox primitives, process control internals, or isolation mechanics — the future Sandbox, Process Control, and Isolation spec owns those; this file specifies the events sandbox and process operations emit and the `backend_id` envelope dimension that demultiplexes them
-- the model-strategy layer, provider-routing logic, fallback chains, rate-limit reconciliation, or provider-health tracking — the future Model Strategy and Provider Layer specs own those; this file specifies the per-call attribution and per-error-class retry classification the ledger records
-- retrieval, indexing, knowledge-base mechanics, or RAG hybrid-search algorithms — the future Retrieval, Indexing, and Knowledge Base spec owns those; this file specifies that the ledger is the substrate over which forensic and replay queries operate
+- the model-strategy layer, provider-routing logic, fallback chains, rate-limit reconciliation, or provider-health tracking — Files 16 and 17 own those; this file specifies the per-call attribution and per-error-class retry classification the ledger records
+- retrieval, indexing, knowledge-base mechanics, or RAG hybrid-search algorithms — File 12 owns those; this file specifies that the ledger is the substrate over which forensic and replay queries operate
 - context-assembly, compaction algorithms, token-budget mechanics, or per-policy block selection — File 13 owns those; this file specifies the typed `ContextPressureObserved` boundary and the compaction-related events that flow through the bus
 - the UI shell, the rendering of live or durable events into UI components, modal layouts, or accessibility surface choices — the future UI specs own those; this file specifies the typed envelope and event vocabulary the UI consumes
 - specific provider transport mechanics (Tauri IPC, Server-Sent Events, WebSocket, Unix sockets, MCP transports) — the future Runtime Infrastructure and Lifecycle spec owns those; this file specifies the canonical wire-format contract the transport must preserve
@@ -75,7 +75,7 @@ The three primitives compose:
 - the executor produces events at each phase of the capability-call pipeline (per File 04 §8.2) — `ToolCallProposed`, `ToolCallApproved`, `ToolCallExecuted`, `ToolCallCompleted`, `ToolCallFailed`, `ToolCallDenied`. Hook subscribers fire at each phase, including the approval router at `ToolCallProposed`. Consequential events also commit to the ledger as typed entries.
 - the model-strategy layer emits `ModelCallStarted` and `ModelCallCompleted` with full per-call attribution. The ledger records `TokenUsageRecord` keyed by `(provider_id, model_id, tokenizer_id, role)` per File 04 §23.1.
 - the block layer (per File 08 §7) commits blocks at the canonical commit boundaries; each commit emits `BlockCommitted` to the bus and records `BlockCommitted` (with `block_id`, `kind`, `producer`, `origin_run_id`, `content_hash`, sensitivity, scope) to the ledger.
-- the version graph (per the future Version Graph spec) commits version nodes at the canonical boundaries; each commit emits `VersionCommitted` (with `version_id`, `parent_version_id`, `op_summary`, `diff`) to the bus and ledger.
+- the version graph (per File 11) commits version nodes at the canonical boundaries; each commit emits `VersionCommitted` (with `version_id`, `parent_version_id`, `op_summary`, `diff`) to the bus and ledger.
 - the policy layer (per File 06 §12) emits `PolicyDecisionMade`, `LeaseGranted`, `LeaseRevoked`, `LeaseStale`, `PolicyContradictionDetected`, `PolicyFloorViolated`, and records each as a ledger entry.
 - the entity layer (per File 09 §20) emits `ArtifactCommitted`, `ArtifactLifecycleChanged`, `ClaimPublished`, `EvidenceLinked`, `ObservationCommitted`, `ValidationCommitted`, `CritiquePosted`, `ProvenanceQueryExecuted`, and records the consequential ones.
 - the surface layer (per File 07 §13) emits `ToolSurfaceComposed`, `CapabilityBorrowed`, `CapabilityRegistered`, `CapabilityAvailabilityChanged`, and records the consequential ones.
@@ -171,13 +171,13 @@ It does not own:
 - the capability declaration field set (File 05)
 - the policy evaluation algorithm (File 06)
 - the surface composition algorithm (File 07)
-- the block schema or version graph internals (File 08, future Version Graph spec)
+- the block schema or version graph internals (Files 08 and 11)
 - the entity layer (File 09)
 - the storage on-disk layout (future Storage spec)
 - the sync mechanics (future Sync spec)
 - the security primitives (future Security spec)
 - the UI rendering (future UI specs)
-- the model-strategy and provider-routing internals (future Model Strategy / Provider Layer specs)
+- the model-strategy and provider-routing internals (Files 16 and 17)
 
 ## 3. `ExecutionLedger`
 
@@ -199,7 +199,7 @@ The ledger is not:
 
 - a UI representation — UI components consume the ledger through projections; the ledger itself is the durable substrate, not the rendered view
 - a memory or knowledge-base mechanism — Memory and the knowledge base are separate primitives; the ledger may be read by them but does not subsume them
-- the version graph — version-graph commits emit ledger entries and reference block ids in the same pool, but the version graph (the future Version Graph spec) owns the version tree's structural invariants; the ledger records that a commit happened
+- the version graph — version-graph commits emit ledger entries and reference block ids in the same pool, but File 11 owns the version tree's structural invariants; the ledger records that a commit happened
 - a parallel block pool — the ledger references `block_id`, but does not duplicate block content
 - a substitute for the event stream — events deliver real-time coordination; the ledger is the durable record. Consequential events commit to both; pure UI-coordination events live only on the bus
 
@@ -245,7 +245,7 @@ Per File 04 §23.1 the ledger records at minimum:
 - child-run relationships (parent and child run ids, spawn reason, output contract)
 - cancellation and intervention (per File 04 §17.1 and §17.3)
 - block commits (at canonical commit boundaries per File 08 §7.6)
-- version commits (per the future Version Graph spec)
+- version commits (per File 11)
 - artifact-version commits (per File 09 §6.3)
 - claim publication and status changes (per File 09 §9)
 - evidence-link grants and removals (per File 09 §11)
@@ -781,7 +781,7 @@ These are sibling ledger entries to `TokenUsageRecord`; cost calculation reads t
 
 ### 6.7 Boundary
 
-Per-call attribution is owned by this file. Per-model pricing maintenance, accuracy projections, and budget-enforcement actions are owned by adjacent specs (future Provider Layer, Budget, Telemetry). This file specifies what must be recorded; those specs specify what to do with the records.
+Per-call attribution is owned by this file. Per-model pricing maintenance, accuracy projections, and budget-enforcement actions are owned by adjacent specs (File 17 and the future Budget and Telemetry specs). This file specifies what must be recorded; those specs specify what to do with the records.
 
 ## 7. `Hook`
 
@@ -1590,7 +1590,7 @@ The following shapes are wrong for this layer:
 - ledger entries with omitted envelopes: every entry carries the full envelope; contextual refs inside `context_refs` may be absent only when inapplicable
 - hook handlers that mutate global state outside the typed action taxonomy: handlers either return a typed decision, invoke a registered capability, or emit a synthesized event; direct global-state mutation is forbidden
 - using shutdown grace periods as correctness: successful critical ledger/audit-overlay commits must be durable before success is reported; shutdown flushing is best effort for remaining noncritical buffers
-- the ledger silently becoming the version graph: the ledger references version ids; the version graph (future Version Graph spec) owns the version-tree action log; ledger entries do not duplicate version-graph operations
+- the ledger silently becoming the version graph: the ledger references version ids; File 11 owns the version-tree action log; ledger entries do not duplicate version-graph operations
 - duplicating per-capability data into ledger payloads: ledger entries reference capability declarations via `(capability_id, capability_version)`; they do not embed the declaration content
 - using `Custom` event kinds for canonical concerns: if a new canonical-kind need arises, the canonical catalogue extends through a canonical-spec update; `Custom` is for domain-specific extensions, not for canonical workarounds
 - treating cancellation as a destructive operation: cancellation is a recorded ledger event; partial outputs may persist per declaration; cancellation does not erase prior ledger entries

@@ -29,12 +29,12 @@ This file defines:
 
 This file does not define:
 
-- the execution ledger row format — the future ledger, event stream, and hooks spec owns the ledger schema; this file specifies which block events flow through it
-- the version-graph commit storage or version tree algorithms — the future version graph spec owns version graph mechanics; this file specifies the commit boundary contract
-- artifact lifecycle, claims, evidence-set membership, or provenance algorithms beyond the block-relation surface — the future artifacts, claims, evidence, and provenance spec owns those
-- retrieval, indexing, or knowledge-base construction mechanics — the future retrieval, indexing, and knowledge-base spec owns those
-- context assembly, compaction algorithms, or token-budget mechanics — the future context assembly and compaction spec owns those
-- memory promotion, salience scoring, or memory lifecycle — the future memory spec owns those
+- the execution ledger row format — File 10 owns the ledger schema; this file specifies which block events flow through it
+- the version-graph commit storage or version tree algorithms — File 11 owns version graph mechanics; this file specifies the commit boundary contract
+- artifact lifecycle, claims, evidence-set membership, or provenance algorithms beyond the block-relation surface — File 09 owns those
+- retrieval, indexing, or knowledge-base construction mechanics — File 12 owns those
+- context assembly, compaction algorithms, or token-budget mechanics — File 13 owns those
+- memory promotion, salience scoring, or memory lifecycle — File 14 owns those
 - run lifecycle, the capability-call pipeline, or hook execution — File 04 owns those
 - block-rendering UI choices (collapsible cards, syntax highlighting, hover states) — the future UI presentation and customization specs own those
 - storage schema, sync, or import/export — the future storage, sync, import, and export specs own those
@@ -145,15 +145,15 @@ Every block declares its `kind` at creation. The canonical closed catalogue:
 **Observation and evidence kinds:**
 
 - `Observation` — a structured observation of the world (file content snapshot, accessibility tree snapshot, screenshot reference, status query result, browser DOM extract) committed for replay and policy revalidation (File 04 §8.2 stale-state revalidation)
-- `Evidence` — a structured evidence record supporting a claim, an output, or an action; carries citation references and the typed claim it supports (full evidence semantics belong to the future artifacts, claims, evidence, and provenance spec)
+- `Evidence` — a structured evidence record supporting a claim, an output, or an action; carries citation references and the typed claim it supports (full evidence semantics belong to File 09)
 - `Citation` — a structured reference to an external source (URL, document section, file range, prior block id, MCP resource); the durable lookup key for provenance
 
 **Persistence-related kinds:**
 
 - `KnowledgeEntry` - a curated knowledge-base content block. The block carries content, source references, sensitivity, scope, and description; mutable curation state such as tags, featured status, validation status, lifecycle, and last-reference statistics belongs to the knowledge-base entity layer.
 
-- `Memory` — a memory entry promoted into durable cross-conversation knowledge; carries the salience and decay metadata (full memory mechanics belong to the future memory spec)
-- `Artifact` — a block whose content is a durable user-visible output (a file, a document, a chart, a notebook, a lesson, a code patch). May be `Inline` for small artifacts or `External` referencing artifact storage. Artifact identity, lifecycle, versioning, materialization, and export mechanics belong to the future artifacts, claims, evidence, and provenance spec; this kind is the block-level handle.
+- `Memory` — a memory entry promoted into durable cross-conversation knowledge; carries the salience and decay metadata (full memory mechanics belong to File 14)
+- `Artifact` — a block whose content is a durable user-visible output (a file, a document, a chart, a notebook, a lesson, a code patch). May be `Inline` for small artifacts or `External` referencing artifact storage. Artifact identity, lifecycle, versioning, materialization, and export mechanics belong to File 09; this kind is the block-level handle.
 - `FileAttachment` — a block referring to a file in the workspace; carries the path, mtime, size, content hash, and content-type; resolved against workspace state on read
 - `SourceExcerpt` — a deliberately committed excerpt from a source block, file, document, web page, retrieval result, graph traversal, direct lookup, or manual selection. Retrieval chunks, embedding segments, and graph index nodes remain derived records unless intentionally committed as durable context.
 
@@ -519,7 +519,7 @@ A block whose committed references resolve to non-existent targets at read time 
 
 ### 8.5 Boundary
 
-Identity, validation, and hashing are commit-time concerns owned by this file. Storage of these fields, indexing them, and propagating them to surface displays are owned by the future storage, retrieval, and UI specs.
+Identity, validation, and hashing are commit-time concerns owned by this file. Storage of these fields and propagating them to surface displays are owned by the future storage and UI specs; indexing is owned by File 12.
 
 ## 9. Sensitivity
 
@@ -712,7 +712,7 @@ Retention dimensions:
 
 - `blocks.hard_delete_confirmation_threshold` — the typed-confirmation requirements for hard delete (per File 06 §7); per-kind override allowed
 - `blocks.orphan_retention_policy` — whether to keep partial orphans, discard them, or per-kind override (default: keep when `partial_output_meaningful: true`)
-- `blocks.compaction_default_policy` — the default compaction policy for non-pinned blocks; the future context assembly and compaction spec owns the policy set
+- `blocks.compaction_default_policy` — the default compaction policy for non-pinned blocks; File 13 owns the policy set
 
 Sensitivity dimensions:
 

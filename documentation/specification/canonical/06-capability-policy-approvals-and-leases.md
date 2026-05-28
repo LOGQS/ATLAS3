@@ -27,14 +27,14 @@ This file does not define:
 
 - the Capability Contract field set itself — File 05 owns declaration
 - the registry's resolution, lookup, or backend-binding lifecycle — File 05 §10–§16 own those
-- tool-surface zones, prompt visibility, deferred loading, or capability-borrowing UX — the future Tool Surfaces and Capability Loading spec owns those
+- tool-surface zones, prompt visibility, deferred loading, or capability-borrowing UX — File 07 owns those
 - run lifecycle, execution graph, hook execution mechanics, or the typed hook-decision vocabulary — File 04 owns those (File 06 reuses File 04 §23.3's hook architecture)
 - routing or `RunIntent` selection — File 03 owns those
-- block schema, artifact lifecycle, evidence model — the future Blocks/Artifacts/Evidence specs own those
+- block schema, artifact lifecycle, evidence model — Files 08 and 09 own those
 - ledger row format, event-stream wire format, and storage projections — File 04 §23 owns the contract; later ledger and storage specs own the schema
 - credential vault internals or trust-state cryptographic verification — the future Security, Credentials, and Trust Boundaries spec owns those
 - sandbox or process isolation primitives — the future Sandbox, Process Control, and Isolation spec owns those
-- specific provider rate-limit tracking, circuit breakers, or polling intervals — the future Provider Layer and MCP/External Integrations specs own those
+- specific provider rate-limit tracking, circuit breakers, or polling intervals — File 17 owns provider concerns; the future MCP/External Integrations spec owns MCP and external tool-provider concerns
 - approval modal layout, color palettes, modal stacking, or any UI rendering choices — File 06 specifies the data contract; UI specs own presentation
 
 ## Source Resolution
@@ -111,7 +111,7 @@ The denial-in-band rule (File 04 §8.3) is a load-bearing invariant. A denied ca
 
 ### 2.3 With Cross-Cutting Substrate
 
-The approval router is a blocking subscriber on `ToolCallProposed` (per File 04 §23.3 and the canonical event-bus pattern). Other policy events emit through the same bus. The event envelope (`chat_id`, `step_id`, `node_id`, `worktree_id`, `backend_id`, `sequence`, `timestamp`, `sensitivity`) carries enough context for policy decisions to attribute correctly across parallel runs and concurrent worktrees.
+The approval router is a blocking subscriber on `ToolCallProposed` (per File 04 §23.3 and the canonical event-bus pattern). Other policy events emit through the same bus. The event envelope (`conversation_id`, `step_id`, `node_id`, `worktree_id`, `backend_id`, `sequence`, `timestamp`, `sensitivity`) carries enough context for policy decisions to attribute correctly across parallel runs and concurrent worktrees.
 
 Settings are read through the settings system (per File 01 §6.8). The settings cascade is the canonical conversation → workspace → global → overlay → declared default order. File 06 does not introduce a parallel settings store.
 
@@ -719,7 +719,7 @@ Every ask-user, typed-confirmation, batched-approval, or contradiction-resolutio
 - `prompt_template_text` — the localized prompt text from the active approval-policy template
 - `confirmation_string_pattern` — present only for typed-confirmation flows; the pattern the user's typed string must match per §7.4. Template variables referencing validated `args.*` field paths resolve to concrete argument values (for example, `force-push to {args.branch}` resolves to `force-push to main`). Static patterns remain valid. Sensitive interpolations must preserve redaction; `Secret` values use safe labels or typed surrogates, not raw secret values.
 
-The payload flows through the canonical event bus carrying the standard envelope (chat_id, step_id, node_id, worktree_id, backend_id, sequence, timestamp, sensitivity).
+The payload flows through the canonical event bus carrying the standard envelope (`conversation_id`, `step_id`, `node_id`, `worktree_id`, `backend_id`, `sequence`, `timestamp`, `sensitivity`).
 
 ### 13.3 `LeaseOption`
 

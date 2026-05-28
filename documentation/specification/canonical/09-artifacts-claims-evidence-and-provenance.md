@@ -34,11 +34,11 @@ This file does not define:
 
 - the `Block`, `BlockEdge`, or `BlockGraph` model itself — File 08 owns those; this file consumes them
 - block immutability, sibling versioning, lifecycle state machinery, pin states, scope, sensitivity, or descriptions — File 08 owns those
-- the execution ledger row format, event stream wire format, or storage projections — File 04 §23 owns the contract, the future Execution Ledger, Event Stream, and Hooks spec and the future Storage and Persistence spec own the schemas
-- the version-graph commit storage or version-tree action-log shape — the future Version Graph, Commits, and Projections spec owns those; this file specifies which entity transitions emit version-commit boundaries
-- retrieval, indexing, knowledge-base, RAG mechanics, or hybrid-search algorithms — the future Retrieval, Indexing, and Knowledge Base spec owns those
-- context-assembly, compaction algorithms, token-budget mechanics, or per-policy block selection — the future Context Assembly and Compaction spec owns those, though this file requires that compaction preserve evidence chains as specified in §11.5
-- memory promotion, salience scoring, recall, decay, or consolidation — the future Memory spec owns those, though this file requires that memory entries whose content originates from a Claim, Artifact, or Evidence record preserve their entity identity
+- the execution ledger row format, event stream wire format, or storage projections — File 04 §23 owns the contract, File 10 owns the ledger and event schemas, and the future Storage and Persistence spec owns storage schemas
+- the version-graph commit storage or version-tree action-log shape — File 11 owns those; this file specifies which entity transitions emit version-commit boundaries
+- retrieval, indexing, knowledge-base, RAG mechanics, or hybrid-search algorithms — File 12 owns those
+- context-assembly, compaction algorithms, token-budget mechanics, or per-policy block selection — File 13 owns those, though this file requires that compaction preserve evidence chains as specified in §11.5
+- memory promotion, salience scoring, recall, decay, or consolidation — File 14 owns those, though this file requires that memory entries whose content originates from a Claim, Artifact, or Evidence record preserve their entity identity
 - run lifecycle, the capability-call pipeline, hook execution, cancellation, streaming, or postcondition validation — File 04 owns those
 - the `CapabilityDeclaration` field set, registry operations, or backend bindings — File 05 owns those; this file declares the entity-level capabilities listed above as canonical built-in capability declarations
 - the policy evaluation algorithm, approval flows, leases, or contradiction-checking — File 06 owns those; this file specifies which entity mutations are tier-gated and how
@@ -130,7 +130,7 @@ Entity capabilities appear in tool surfaces per the standard composition algorit
 
 ### 2.6 With Cross-Cutting Substrate
 
-Entity events emit through the canonical event bus per File 04 §23.2 with the standard envelope (`chat_id`, `step_id`, `node_id`, `worktree_id`, `backend_id`, `sequence`, `timestamp`, `sensitivity`). Settings are read through the canonical settings system (per File 01 §6.8). Typed errors flow through the typed-error envelope (per File 01 §6.9). State awareness (per File 01 §6.7) consumes the artifact and claim catalogues for state-aware capability availability.
+Entity events emit through the canonical event bus per File 04 §23.2 with the standard envelope (`conversation_id`, `step_id`, `node_id`, `worktree_id`, `backend_id`, `sequence`, `timestamp`, `sensitivity`). Settings are read through the canonical settings system (per File 01 §6.8). Typed errors flow through the typed-error envelope (per File 01 §6.9). State awareness (per File 01 §6.7) consumes the artifact and claim catalogues for state-aware capability availability.
 
 ### 2.7 Boundary
 
@@ -188,7 +188,7 @@ The entity record's `current_version_block_id` is a default/latest projection po
 
 ### 3.3 Boundary
 
-The entity record defines cross-version identity and review/lifecycle/materialization metadata. The version's content is owned by the `Artifact`-kind block (per File 08 §3.1). The version chain lives in the block graph. The execution ledger records the policy decision and capability execution that produced each version commit. The version graph (per the future Version Graph spec) records which version is active in each `ContextVersion`. None of those layers may invent new entity semantics; they consume what this file defines.
+The entity record defines cross-version identity and review/lifecycle/materialization metadata. The version's content is owned by the `Artifact`-kind block (per File 08 §3.1). The version chain lives in the block graph. The execution ledger records the policy decision and capability execution that produced each version commit. File 11 records which version is active in each `ContextVersion`. None of those layers may invent new entity semantics; they consume what this file defines.
 
 The entity record is wire-stable through `entity_schema_version`. ATLAS3 is in initial development; no third-party persisted entity records exist yet, so no migration framework is required at present (per project constraints). When external records begin to persist (artifacts shared across installations, exported and re-imported), normalization-on-load applies at that boundary.
 
@@ -387,7 +387,7 @@ Version commit boundaries match File 08 §7.6 — `accepted assistant turn`, `ca
 
 ### 6.4 Boundary
 
-Version creation is a capability concern; version content is a block concern; cross-version chronology is a version-graph concern. This file specifies the metadata record and the creation rules; the future Storage and Version Graph specs realize the persistence and chronology.
+Version creation is a capability concern; version content is a block concern; cross-version chronology is a version-graph concern. This file specifies the metadata record and the creation rules; the future Storage spec realizes persistence and File 11 realizes chronology.
 
 ## 7. Artifact Materialization
 
@@ -512,8 +512,8 @@ A `Claim` is not:
 
 - a fact — the claim is the assertion that something is the case; whether the assertion is supported is a separate matter resolved through evidence linking
 - a chat message — a `MessageAssistant` block may contain text that asserts something; the assertion only becomes a `Claim` entity when explicitly published via `claim.publish` or automatically extracted under settings opt-in
-- a memory entry — `Memory` blocks (per File 08 §3.1) may consolidate claims into long-term knowledge; the memory mechanics are the future Memory spec's concern
-- a knowledge-base entry — the future Retrieval, Indexing, and Knowledge Base spec defines knowledge entries; they may reference claims through `cites` or `references`, but a claim is not by default a knowledge entry
+- a memory entry — `Memory` blocks (per File 08 §3.1) may consolidate claims into long-term knowledge; the memory mechanics are File 14's concern
+- a knowledge-base entry — File 12 defines knowledge entries; they may reference claims through `cites` or `references`, but a claim is not by default a knowledge entry
 
 ### 9.2 Required Fields
 
@@ -640,7 +640,7 @@ Automatic extraction always emits per-extraction `ClaimAutoExtracted` events wit
 
 ### 10.3 Boundary
 
-Extraction is a content-analysis operation that produces `Claim` blocks through the normal capability pipeline. The extractor model selection, policy prompt registration, and confidence-threshold tuning are settings concerns. The retrieval and memory subsystems may consume extracted claims as inputs, but those mechanics are owned by the future Retrieval and Memory specs.
+Extraction is a content-analysis operation that produces `Claim` blocks through the normal capability pipeline. The extractor model selection, policy prompt registration, and confidence-threshold tuning are settings concerns. The retrieval and memory subsystems may consume extracted claims as inputs, but those mechanics are owned by Files 12 and 14.
 
 ## 11. `Evidence`
 
@@ -709,11 +709,11 @@ The `EvidenceSet` of a claim or artifact is the set of blocks reachable from the
 - transitive closure: every block linked from any block in the set is in the set only when that edge's relation declares `transitive: true`. Canonical defaults: `Supports`, `Corroborates`, `Derives`, and `Witnesses` are transitive; `Refutes`, `Contextualizes`, `WeakSupports`, `Summarizes`, and `IllustratesByExample` are not. Extension relations declare their own.
 - closure is bounded by a configurable maximum depth (default 4) and a configurable maximum cardinality (default 100); when bounds are exceeded, the set is reported with a `truncated: true` flag and the user may request expansion
 
-Compaction policies must preserve evidence-set closure for any claim or artifact at `Supported` or `Validated` state by default; the future Context Assembly and Compaction spec implements this. Removing an evidence link is an explicit capability operation; compaction never silently severs evidence chains.
+Compaction policies must preserve evidence-set closure for any claim or artifact at `Supported` or `Validated` state by default; File 13 implements this. Removing an evidence link is an explicit capability operation; compaction never silently severs evidence chains.
 
 ### 11.6 Boundary
 
-Evidence blocks are blocks; evidence links are edges. The closure mechanics are graph queries over the existing canonical block-graph. This file specifies the relation enum, the confidence class enum, and the closure rules; the future Storage and Retrieval specs implement the indexes that make these queries fast.
+Evidence blocks are blocks; evidence links are edges. The closure mechanics are graph queries over the existing canonical block-graph. This file specifies the relation enum, the confidence class enum, and the closure rules; the future Storage spec and File 12 implement the indexes that make these queries fast.
 
 ## 12. `Citation`
 
@@ -832,7 +832,7 @@ The runtime checks the fingerprint against current state when a capability decla
 
 ### 13.4 Replay Use
 
-Observations participate in replay (per File 04 §23 and the future Ledger spec): a `snapshot_replayable` capability whose original execution depended on an observation requires the same observation (or a re-captured equivalent) at replay time. The observation's `staleness_fingerprint` and `content_hash` (per File 08 §4.5) enable replay-time equality checks.
+Observations participate in replay (per File 04 §23 and File 10): a `snapshot_replayable` capability whose original execution depended on an observation requires the same observation (or a re-captured equivalent) at replay time. The observation's `staleness_fingerprint` and `content_hash` (per File 08 §4.5) enable replay-time equality checks.
 
 ### 13.5 Boundary
 
@@ -913,7 +913,7 @@ Validation and critique are block-level records; this file specifies their conte
 
 ### 15.1 Definition
 
-`Provenance` is a derived view over the unified block graph (File 08), the version graph (future spec), the execution ledger (File 04 §23.1), the capability registry (File 05), and the entity records (this file). It is the answer to questions like "what produced this artifact?", "which evidence supports this claim?", "what runs touched this block?", "what is the derivation chain of this version?".
+`Provenance` is a derived view over the unified block graph (File 08), the version graph (File 11), the execution ledger (File 04 §23.1), the capability registry (File 05), and the entity records (this file). It is the answer to questions like "what produced this artifact?", "which evidence supports this claim?", "what runs touched this block?", "what is the derivation chain of this version?".
 
 A `Provenance` is not:
 
@@ -961,7 +961,7 @@ When an artifact, claim, or supporting block is imported from another workspace 
 
 ### 15.6 Boundary
 
-Provenance is a query surface over existing substrates. This file specifies the closure rules, the canonical query set, the determinism contract, and the cross-installation boundary. Implementation choices (graph traversal algorithms, caching layers, index structures) belong to the future Storage and Retrieval specs.
+Provenance is a query surface over existing substrates. This file specifies the closure rules, the canonical query set, the determinism contract, and the cross-installation boundary. Implementation choices (graph traversal algorithms, caching layers, index structures) belong to the future Storage spec and File 12.
 
 ## 16. Capability Surface
 
@@ -1278,7 +1278,7 @@ Entity events carry the canonical `sensitivity` tag per File 04 §23.2. Most eve
 
 ### 20.3 Boundary
 
-This file specifies the event vocabulary and per-event payload shape. The event-bus implementation (delivery semantics, subscription mechanics, replay) is owned by File 04 §23 and the future Execution Ledger, Event Stream, and Hooks spec.
+This file specifies the event vocabulary and per-event payload shape. The event-bus implementation (delivery semantics, subscription mechanics, replay) is owned by File 04 §23 and File 10.
 
 ## 21. Explicit Rejections
 

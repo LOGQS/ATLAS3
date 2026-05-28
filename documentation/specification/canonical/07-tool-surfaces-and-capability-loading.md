@@ -33,7 +33,7 @@ This file does not define:
 - the per-surface specifications themselves (Coder, Web, Teacher, Data Processor, GUI Control, System Agent) — those later specs declare their `SubsystemSurfaceSpec` to the contract this file defines
 - the storage schema for surface state, `BorrowGrant`s, policy leases, or settings — the future Storage and Persistence spec owns those
 - UI rendering choices (palette layout, voice cadence, shortcut display) — File 07 specifies the data contract, the future UI Shell and UI Customization specs render
-- MCP transport mechanics, plugin install lifecycle internals, provider rate limits, or sandbox primitives — the future MCP and External Integrations, Extension and Plugin System, Provider Layer, and Sandbox specs own those
+- MCP transport mechanics, plugin install lifecycle internals, provider rate limits, or sandbox primitives — the future MCP and External Integrations, Extension and Plugin System, and Sandbox specs own those; File 17 owns provider concerns
 
 ## Source Resolution
 
@@ -308,7 +308,7 @@ The composition algorithm (§9) consumes the following routing-supplied inputs:
 - `RunIntent.supporting_surfaces` — additional surfaces routing identifies as relevant; their `primary_capability_ids` are promoted into the active surface's `Borrowable` zone by default
 - `RunIntent.capability_families` — illustrative routing hints about which families matter; the composition uses these to prefer those families if zone slots are constrained by context budget
 - `RunIntent.tool_surface_strategy` — `use_current_surface_tools` | `borrow_foreign_capabilities` | `load_deferred_capabilities` per File 03 §8.3; consumed as in §5.3
-- `RunIntent.model_route.resolved_model_id` — the resolved model identity; used to determine native tool-call format (per File 04 §9) and the model's context window (per the future Provider Layer spec) for budget-aware shrinking
+- `RunIntent.model_route.resolved_model_id` — the resolved model identity; used to determine native tool-call format (per File 04 §9) and the model's context window (per File 17) for budget-aware shrinking
 - `RunIntent.execution_entry` — `respond_inline` | `respond_with_tools` | `domain_runtime` | `multi_step_agent` per File 04 §4; affects whether tool surface is rendered at all (a `respond_inline` entry that needs no tools renders an empty surface)
 - `routing_metadata` — observability fields per File 03 §4.3; surfaces use this for diagnostic display in the inspector lens
 
@@ -593,7 +593,7 @@ Step 17 — Emit ToolSurfaceComposed event with surface_id and diagnostic facts
 
 ### 9.2 Determinism
 
-The algorithm is deterministic given the same inputs. Two compositions with the same `scope_context`, the same registry snapshot, the same settings snapshot, and the same `BorrowGrant` snapshot produce byte-identical `ResolvedToolSurface` outputs and byte-identical rendered model-request surface content. This is the load-bearing property for cache friendliness where supported (per File 04 §3.3) and replay (per File 04 §23 and the future Ledger spec).
+The algorithm is deterministic given the same inputs. Two compositions with the same `scope_context`, the same registry snapshot, the same settings snapshot, and the same `BorrowGrant` snapshot produce byte-identical `ResolvedToolSurface` outputs and byte-identical rendered model-request surface content. This is the load-bearing property for cache friendliness where supported (per File 04 §3.3) and replay (per File 04 §23 and File 10).
 
 ### 9.3 Caching
 
@@ -662,7 +662,7 @@ The position is stable across turns. Two consecutive turns with the same `Resolv
 
 ### 11.2 Per-Provider Format Normalization
 
-The native tool-call format varies by provider (per File 04 §9 and File 05 §4 §15.1). The composition algorithm produces a canonical `ResolvedToolSurface`; the provider adapter (per the future Provider Layer spec) renders `Primary` entries as provider-native callable declarations when possible and records `provider_name_map` for any provider-visible renaming. File 07 specifies the canonical content; provider adapters render.
+The native tool-call format varies by provider (per File 04 §9 and File 05 §4 §15.1). The composition algorithm produces a canonical `ResolvedToolSurface`; the provider adapter (per File 17) renders `Primary` entries as provider-native callable declarations when possible and records `provider_name_map` for any provider-visible renaming. File 07 specifies the canonical content; provider adapters render.
 
 The native-format rendering preserves:
 
@@ -712,7 +712,7 @@ Keeping `Deferred` entries out of the model request is the load-bearing request-
 
 ### 11.6 Empty Surface Handling
 
-If the composition algorithm produces no `Primary` entries (e.g., `execution_entry` is `respond_inline` and no surface or routing strategy contributed Primary capabilities), the model request's callable-declaration section is empty. The native provider format omits the tools field where appropriate (per File 04 §9 and the future Provider Layer spec). `tool_choice` semantics:
+If the composition algorithm produces no `Primary` entries (e.g., `execution_entry` is `respond_inline` and no surface or routing strategy contributed Primary capabilities), the model request's callable-declaration section is empty. The native provider format omits the tools field where appropriate (per File 04 §9 and File 17). `tool_choice` semantics:
 
 - `none` — model produces text only (the surface is rendered as if empty for this turn)
 - `auto` — default; model uses tools or not at its discretion based on the rendered surface
@@ -787,7 +787,7 @@ The `Inspector` lens shows the full registry catalog with no filtering — every
 - Per-source trust override (per File 06 §15)
 - Per-capability shortcut binding
 - Inspection of declared metadata (description, input/output schemas, touched_resources expressions, replay class, postconditions)
-- Inspection of recent invocations (per the future Ledger spec)
+- Inspection of recent invocations (per File 10)
 
 The inspector's data contract is the canonical surface customization surface. Users do not need to write settings files manually — the inspector renders the same data the resolved settings snapshot contains.
 
@@ -820,7 +820,7 @@ File 07 specifies the per-lens data contract. The future UI Shell and UI Customi
 
 ### 13.1 Event Vocabulary
 
-Every surface-relevant input change, grant change, source lifecycle change, or consumed composition emits a typed event through the canonical event bus with the standard envelope (per File 04 §23.2): `chat_id`, `step_id`, `node_id`, `worktree_id`, `backend_id`, `sequence`, `timestamp`, `sensitivity`. The canonical surface-relevant events are:
+Every surface-relevant input change, grant change, source lifecycle change, or consumed composition emits a typed event through the canonical event bus with the standard envelope (per File 04 §23.2): `conversation_id`, `step_id`, `node_id`, `worktree_id`, `backend_id`, `sequence`, `timestamp`, `sensitivity`. The canonical surface-relevant events are:
 
 - `ToolSurfaceComposed { surface_id, invoker_kind, scope_context_id, zone_counts, auto_shrink_record }` — a new surface composition produced
 - `CapabilityBorrowed { surface_id, capability_id, capability_version, borrow_grant_id, grant_scope, borrowed_by }` — a `tool.borrow` granted a `BorrowGrant`
@@ -871,7 +871,7 @@ Per File 04 §23, the event stream is the live coordination channel; the ledger 
 
 ### 13.6 Boundary
 
-File 07 specifies the event vocabulary and per-event payload. The event-bus implementation (delivery semantics, subscription mechanics, replay) is owned by File 04 §23 and the future Execution Ledger and Event Stream spec. File 07 names what is emitted; those specs handle the channel.
+File 07 specifies the event vocabulary and per-event payload. The event-bus implementation (delivery semantics, subscription mechanics, replay) is owned by File 04 §23 and File 10. File 07 names what is emitted; those specs handle the channel.
 
 ## 14. Persistence and Reconstruction
 
@@ -923,7 +923,7 @@ Per File 03 §11.2, editing a prior user message invalidates the prior route and
 
 ### 14.6 Boundary
 
-File 07 specifies what is computed versus what is durable, and how reconstruction works. The actual storage of `BorrowGrant`s, policy leases, settings, and ledger entries is owned by the future Storage and Persistence spec. The actual replay machinery is owned by the future Ledger and Event Stream spec. File 07 names the persistence contract; storage realizes it.
+File 07 specifies what is computed versus what is durable, and how reconstruction works. The actual storage of `BorrowGrant`s, policy leases, settings, and ledger entries is owned by the future Storage and Persistence spec. The actual replay machinery is owned by File 10. File 07 names the persistence contract; storage realizes it.
 
 ## 15. MCP and Plugin Tool Integration
 
@@ -1169,7 +1169,7 @@ The canonical principles later specs must follow:
 - File 15 implements settings resolution, profile contexts, profile layers, locality, and agent exposure for the dimensions in §18; it does not redefine the dimensions
 - the future Extension and Plugin System spec and MCP and External Integrations spec hand their registered capabilities through the unified Capability Registry per File 05 §9; the surface composition picks them up automatically
 - the future Workspaces and Materialization spec defines workspace boundaries; the surface composition consumes workspace_id from `scope_context` as one of the resolution inputs; workspace switching emits the appropriate `SurfaceSettingsChanged` event
-- the future per-surface specs (Coder, Web, Teacher, Data Processor, GUI Control, System Agent) and the per-substrate-service specs (Memory) declare their `SubsystemSurfaceSpec` and any specialized discovery capabilities or specialized auto-shrink priorities specific to their subsystem
+- the future per-surface specs (Coder, Web, Teacher, Data Processor, GUI Control, System Agent) and File 14 for Memory declare their `SubsystemSurfaceSpec` and any specialized discovery capabilities or specialized auto-shrink priorities specific to their subsystem
 - the future Automation and Triggers spec consumes the `AutomationTrigger` lens through the canonical contract; it pins surface strategies at save time through the same `tool_surface_strategy` field as runtime routing
 - the future Workflows, Templates, and Reuse spec composes capabilities through the unified registry; workflow nodes reference capability ids; the surface composition for a workflow execution honors the workflow's declared capability list as an additional input
 - the future UI Shell, Layout, Presentation, and Interaction Models spec renders the `Palette`, `Inspector`, `Voice`, `Shortcut`, `AutomationTrigger` lens data into UI; File 07 hands them the canonical data contract
