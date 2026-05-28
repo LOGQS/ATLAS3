@@ -51,6 +51,8 @@ Resolved design:
 
 ## 1. Chosen Model
 
+Anchor: `run.chosen-model`
+
 This file defines what happens after routing produces a `RunIntent`.
 
 Execution consumes routing, context assembly, model strategy, capability registry, capability policy, blocks, artifacts, versioning, settings, and typed errors. It does not replace those systems. Its responsibility is to create or resume the run, orchestrate work, record what happened, expose live state, and commit accepted outputs through the correct durable primitives.
@@ -72,6 +74,8 @@ The chosen execution model is:
 This makes execution inspectable and reusable without forcing ordinary chat into heavy task ceremony.
 
 ## 2. Run
+
+Anchor: `run.run`
 
 ### 2.1 Definition
 
@@ -147,6 +151,8 @@ The primary conversation, primary intent thread, and trigger do not change durin
 
 ### 2.6 Minimum Durable Reconstruction
 
+Anchor: `run.minimum-durable-reconstruction`
+
 A run record must preserve enough durable information to reconstruct:
 
 - stable run identity
@@ -160,9 +166,47 @@ A run record must preserve enough durable information to reconstruct:
 
 Run `control` answers "who is producing the run's next blocks" and is orthogonal to task ownership: ownership names the responsible work-line owner at the task level, while control names the present driver at the run level. Control is not a gate on the user. The user may act through any external surface (their own editor, terminal, browser) at any time without first taking control; the field tracks what the system knows is producing observable blocks, not what the user is permitted to do.
 
+A run record must also preserve its `RunCompletionContract` and the contract's authorized revision history (§2.7).
+
 Exact storage fields belong in the storage spec. This file requires reconstructability, not a final database schema.
 
+### 2.7 Run Completion Contract
+
+Anchor: `run.completion-contract`
+
+Every run has a `RunCompletionContract`, derived at run creation from its `RunIntent` (§3) and the requirements declared by the capabilities, validators, and policy in scope. The contract declares what the run must achieve to terminate as `completed`. Each requirement records what satisfies it and the authority that introduced it.
+
+Requirement kinds:
+
+- plain-text response only
+- capability invocation
+- artifact commit
+- block commit
+- evidence or citation capture
+- validation result
+- approval or denial resolution
+- task-state update
+- external side-effect confirmation
+
+Completion rule:
+A run may be marked `completed` only when every active requirement of its latest authorized `RunCompletionContract` is satisfied by ledgered facts, committed blocks, committed artifacts, or recorded policy decisions. A fluent assistant response satisfies only a plain-text-only contract; it never satisfies a contract that requires artifact mutation, validation, approval, or evidence capture. This contract is what the deterministic forgery guard of §22 and `ledger.forgery-guards` (File 10 §3.7) enforces.
+
+Revision authority:
+A `RunCompletionContract` is revised only through a ledgered `RunCompletionContractRevised` event (`ledger.entry-kind-catalogue`, File 10 §4.1). Revisions are authority-gated:
+
+- Requirements may be added by reroute, policy escalation, validation, or explicit execution update.
+- Removing a requirement, weakening it, or marking it no longer required may be done only by an authority at least as strong as the authority that introduced it.
+- The run's executing agent may never remove or weaken its own completion requirements; it may only add them.
+- A user-introduced requirement is removed or weakened only by explicit user action or an equivalently user-authorized policy.
+- A policy-introduced requirement requires policy approval.
+- A router-introduced requirement requires a reroute or route override.
+
+Monotonicity:
+By default, contract revisions are monotonic: requirements may be added, narrowed, or clarified, never removed or weakened. A non-monotonic revision — any removal or weakening — requires explicit qualifying authority and records the old contract, the new contract, the removed or weakened requirements, the authority source, the reason, the approving actor or policy decision, and the ledger evidence. A non-monotonic revision is itself subject to the forgery guard: an unauthorized weakening is rejected at the ledger boundary exactly as a forged completion is (`ledger.forgery-guards`, File 10 §3.7). Because completion always verifies against the latest authorized contract, weakening the contract is not a path to trivial completion — it relocates nothing past the guard.
+
 ## 3. From `RunIntent` to Run
+
+Anchor: `run.from-run-intent-to-run`
 
 Execution consumes `RunIntent`.
 
@@ -186,6 +230,8 @@ No fast-path result may be treated as invisible context.
 
 ## 4. Execution Entry
 
+Anchor: `run.execution-entry`
+
 `RunIntent.execution_entry` selects the initial execution shape. It does not create a separate backend architecture.
 
 Entry types:
@@ -206,6 +252,8 @@ All entries share:
 - cancellation and retry semantics
 
 ## 5. Execution Structure
+
+Anchor: `run.execution-structure`
 
 ### 5.1 Principle
 
@@ -246,6 +294,8 @@ Each unit must have:
 
 ### 5.3 Structure Shapes
 
+Anchor: `run.structure-shapes`
+
 Allowed execution shapes:
 
 - inline response
@@ -259,6 +309,8 @@ Allowed execution shapes:
 These shapes share the same run lifecycle and ledger.
 
 ## 6. Lifecycle
+
+Anchor: `run.lifecycle`
 
 The standard lifecycle is:
 
@@ -283,6 +335,8 @@ Those behaviors may happen when useful, but they are expressed as ordinary execu
 
 ## 7. Model/Tool Loop
 
+Anchor: `run.model-tool-loop`
+
 ### 7.1 Role
 
 The model/tool loop is the default shape for ordinary agentic work.
@@ -290,6 +344,8 @@ The model/tool loop is the default shape for ordinary agentic work.
 It is not the only execution shape.
 
 ### 7.2 Iteration
+
+Anchor: `run.iteration`
 
 A loop iteration proceeds logically as:
 
@@ -318,6 +374,8 @@ A loop may stop when:
 
 ## 8. Capability Execution
 
+Anchor: `run.capability-execution`
+
 ### 8.1 Rule
 
 All side effects must pass through capability contracts and policy.
@@ -332,6 +390,8 @@ This applies equally to:
 - system actions
 
 ### 8.2 Call Pipeline
+
+Anchor: `run.call-pipeline`
 
 A capability execution must follow this logical pipeline:
 
@@ -366,6 +426,8 @@ Blocking hooks and validators may participate at proposal, pre-execution, and pr
 
 ### 8.3 Denial Is In-Band
 
+Anchor: `run.denial-is-in-band`
+
 A denied capability call does not crash the run by default.
 
 The executor records a denial result linked to the proposal. The model or programmatic executor sees the denial as normal execution input and may ask the user, choose a different path, narrow scope, or stop.
@@ -373,6 +435,8 @@ The executor records a denial result linked to the proposal. The model or progra
 Policy may still terminate the run immediately for high-risk cases.
 
 ## 9. Tool Calls
+
+Anchor: `run.tool-calls`
 
 Tool calls are one form of capability invocation.
 
@@ -393,6 +457,8 @@ Cross-capability composition happens at a higher layer: the model may emit one o
 
 ## 10. Tool Surface
 
+Anchor: `run.tool-surface`
+
 ### 10.1 Definition
 
 Each run has a tool surface: the capability subset visible to the executing model or programmatic unit.
@@ -400,6 +466,8 @@ Each run has a tool surface: the capability subset visible to the executing mode
 The tool surface is a prompt and availability strategy, not a security boundary. Policy still governs every call.
 
 ### 10.2 Zones
+
+Anchor: `run.zones`
 
 The tool surface has three zones:
 
@@ -412,6 +480,8 @@ Borrowed tools are scoped to the current run turn or execution unit unless a lat
 The zone model defines execution semantics, not a fixed product policy. Users must be able to customize which tools or capability groups appear in each zone, including aggressive policies such as always-loaded primary tools and conservative policies such as mostly-deferred loading.
 
 ### 10.3 Routing Influence
+
+Anchor: `run.routing-influence`
 
 If `RunIntent` includes a tool-surface strategy, execution respects it:
 
@@ -444,6 +514,8 @@ The best default should remain disciplined and efficient, but the system must no
 
 ## 11. Approval During Execution
 
+Anchor: `run.approval-during-execution`
+
 Execution uses the shared capability policy system. There is no agent-specific approval mechanism.
 
 Capabilities declare a permission tier. The canonical tiers are `Denied`, `ReadOnly`, `WorkspaceWrite`, `UserApproval`, `Unrestricted`. `Denied` means the capability cannot be auto-approved by any lease; the only path to execution is `typed-confirmation` (below) or an equivalent policy-defined override path. Tiers compose with leases: a lease can lower friction within a tier (a `UserApproval` capability with an `AlwaysAllow` lease for the granted scope runs without prompting) but cannot escalate above the capability's declared tier or below `Denied`. The capability's permission tier and reversibility class (§8.2) together drive the default approval policy template.
@@ -471,6 +543,8 @@ Model-mediated policy evaluation must not silently replace explicit user approva
 
 ## 12. Streaming and Partial Execution
 
+Anchor: `run.streaming-partial-execution`
+
 Execution may stream:
 
 - model text deltas
@@ -497,6 +571,8 @@ Capabilities whose input is itself a content payload (full-replace file create o
 
 ## 13. Model Steps
 
+Anchor: `run.model-steps`
+
 Model steps are execution units, not the whole execution model.
 
 A model step may:
@@ -515,6 +591,8 @@ The runtime owns orchestration, policy, retries, concurrency, persistence, and m
 Models own semantic judgment, synthesis, open-ended planning, extraction, and natural-language interaction.
 
 ## 14. Programmatic Execution
+
+Anchor: `run.programmatic-execution`
 
 Programmatic execution is first-class.
 
@@ -543,6 +621,8 @@ Programmatic execution must still use the same run, ledger, capability, policy, 
 
 ## 15. Parallelism
 
+Anchor: `run.parallelism`
+
 ### 15.1 Rule
 
 Parallelism is allowed when ownership and merge semantics are explicit.
@@ -569,6 +649,8 @@ The executor must preserve stable result ordering even when work finishes out of
 
 ### 15.3 Failure in Parallel Work
 
+Anchor: `run.failure-in-parallel-work`
+
 Parallel failure must preserve useful work unless policy requires immediate abort.
 
 Default behavior:
@@ -583,6 +665,8 @@ Capabilities can opt into sibling abort by declaring `sibling_abort_on_failure: 
 Silent absence is forbidden.
 
 ### 15.4 Mutation Rule
+
+Anchor: `run.mutation-rule`
 
 Concurrent mutation of the same resource is forbidden unless a capability explicitly owns a safe merge protocol.
 
@@ -599,6 +683,8 @@ For `SelfParallel` read capabilities and idempotent reads with deterministic res
 
 ## 16. Child Runs and Multi-Agent Work
 
+Anchor: `run.child-runs-multi-agent-work`
+
 ### 16.1 Definition
 
 A child run is a run created by another run.
@@ -614,6 +700,8 @@ Child runs are used for:
 - delegated domain execution
 
 ### 16.2 Isolation
+
+Anchor: `run.isolation`
 
 Each child run must declare:
 
@@ -642,6 +730,8 @@ An inline child run's mutations land in the parent's pending-operations buffer (
 
 ### 16.4 Merge
 
+Anchor: `run.merge`
+
 Child run outputs do not automatically mutate parent state.
 
 They must return through one of:
@@ -658,7 +748,11 @@ The parent run decides how to incorporate the output according to the declared m
 
 ## 17. Interruption, Pause, and Cancellation
 
+Anchor: `run.interruption-pause-cancellation`
+
 ### 17.1 User Intervention
+
+Anchor: `run.user-intervention`
 
 The user may intervene during execution.
 
@@ -679,6 +773,8 @@ External changes the user makes outside the run's observation surface (an edit i
 
 ### 17.2 Pause and Resume
 
+Anchor: `run.pause-resume`
+
 A paused run must preserve enough state to resume safely or explain why it cannot resume.
 
 Resumption must revalidate:
@@ -691,6 +787,8 @@ Resumption must revalidate:
 - user-visible assumptions
 
 ### 17.3 Cancellation
+
+Anchor: `run.cancellation`
 
 Cancellation must support both cooperative stop and forceful termination.
 
@@ -746,6 +844,8 @@ Runs that were `running` or `cancelling` at process restart become `failed` with
 
 ## 18. Task Promotion and Task Updates
 
+Anchor: `run.task-promotion-task-updates`
+
 Task promotion happens through explicit capability invocation.
 
 Execution may create or update a task when the work benefits from explicit structure, including:
@@ -767,9 +867,13 @@ Task updates must be revision-safe. A task update carries the revision it was ba
 
 ## 19. Retry, Reroute, and Branch
 
+Anchor: `run.retry-reroute-branch`
+
 Retry, reroute, and branch must not interfere with a prior in-flight run. The default is to leave the prior run executing in parallel while creating the new run as a linked parallel attempt; both remain accessible as distinct versions. This behavior is configurable at the general and per-action level — users may instead require cancellation of the prior run, prompting, or other resolutions. Explicit cancellation is always available as a separate action regardless of this setting.
 
 ### 19.1 Retry
+
+Anchor: `run.retry`
 
 A retry creates a new run or execution branch linked to the prior attempt.
 
@@ -793,6 +897,8 @@ Retry may change:
 
 ### 19.2 Reroute
 
+Anchor: `run.reroute`
+
 Mid-execution reroute is allowed when current execution lacks the right surface, model route, capability family, policy scope, or domain runtime.
 
 Reroute happens at a safe boundary:
@@ -814,6 +920,8 @@ The new run receives the reroute reason and prior run link. It does not inherit 
 
 ### 19.3 Branch
 
+Anchor: `run.branch`
+
 Branching is required when two plausible execution paths should be preserved rather than overwritten.
 
 Branching applies to:
@@ -826,7 +934,11 @@ Branching applies to:
 
 ## 20. Error Handling, Recovery, and Stuck Detection
 
+Anchor: `run.error-handling`
+
 ### 20.1 Boundary Rule
+
+Anchor: `run.boundary-rule`
 
 Execution coordinates errors; it does not absorb every subsystem's internal policy.
 
@@ -841,6 +953,8 @@ Capability failures produce typed result objects whenever the run can continue. 
 Budget exhaustion preserves partial outputs. Before a non-fatal hard stop, execution should surface a typed budget-warning input to the active model or deterministic unit so it can summarize, request extension, or hand off useful partial work.
 
 ### 20.2 Recovery
+
+Anchor: `run.recovery`
 
 Recovery is first-class execution behavior.
 
@@ -859,6 +973,8 @@ Required recovery strategies:
 
 ### 20.3 Stuck Detection
 
+Anchor: `run.stuck-detection`
+
 The runtime must detect obvious stuck states, including:
 
 - repeated identical tool calls without progress
@@ -873,6 +989,8 @@ Stuck detection must escalate in-band before hard-stopping. On detection, the ex
 The runtime may also use a model-mediated stuck detector as an opt-in option, where a designated model evaluates the stuck signal and decides whether to continue, warn, or stop. This carries an extra model call and is off by default; users may enable it globally or per pattern when the higher cost is justified by the lower false-positive rate.
 
 ## 21. Budgets and Limits
+
+Anchor: `run.budgets-limits`
 
 Runs must support configurable budgets.
 
@@ -895,6 +1013,8 @@ Before a non-fatal budget limit is reached, execution should emit a budget warni
 
 ## 22. Termination
 
+Anchor: `run.termination`
+
 A run may terminate because:
 
 - it produced the requested answer
@@ -906,18 +1026,22 @@ A run may terminate because:
 - configured budget was reached
 - execution was superseded by edit, retry, or reroute
 
-A successful completion requires accepted output and:
+A successful completion requires accepted output and satisfaction of every active requirement of the run's latest authorized `RunCompletionContract` (§2.7):
 
 - any postconditions declared on the executed capabilities have been validated and recorded in the ledger;
-- the run has at least one ledger entry beyond the model's textual claim of success when the run contract required action (a forgery guard — a run with no recorded capability executions, no committed artifact revisions, and no model-step outputs beyond plain text cannot terminate as `completed` if its contract required action).
+- the run has at least one ledger entry beyond the model's textual claim of success when the contract required action (a forgery guard — a run with no recorded capability executions, no committed artifact revisions, and no model-step outputs beyond plain text cannot terminate as `completed` if its contract required action).
 
-A fluent assistant response is not sufficient when the run contract required artifact mutation, validation, approval, or evidence capture.
+A fluent assistant response is not sufficient when the contract required artifact mutation, validation, approval, or evidence capture. The contract verified at completion is the latest authorized revision; a revision that weakened or removed a requirement is honored only if it passed the authority-gated, ledgered revision path of §2.7, so completion cannot be reached by first weakening the contract.
 
 These checks are deterministic and impose no extra model call. Beyond them, a configurable completion-verification hook surface (§23.3) is available for users who want stronger semantic checks on whether a run satisfied the user's request. The hook surface accepts both deterministic checks (capability postconditions, structured output validators, evidence-set comparators) and model-mediated checks (a designated model evaluating whether the run's outputs meet a per-task expected outcome). It runs at user-configured cadence (every N model steps, in parallel as a background observer, sequentially before completion, or only at explicit `verify_now` invocations) and supports per-task, per-surface, and per-profile configuration. Default ships disabled — the deterministic forgery guard above is the canonical termination floor; the hook surface is the opt-in extension for users who want richer verification at the cost of additional checks or model calls.
 
 ## 23. Ledger, Events, and Commits
 
+Anchor: `run.ledger-events-commits`
+
 ### 23.1 Execution Ledger
+
+Anchor: `run.execution-ledger`
 
 The execution ledger is the durable source of consequential execution history.
 
@@ -928,7 +1052,7 @@ It records:
 - execution unit starts and finishes
 - capability proposals
 - approvals, denials, leases, and policy decisions
-- model calls, including provider, model identifier, role (router, responder, critic, validator, and so on), prompt tokens, completion tokens, cache creation tokens, cache read tokens, and cost estimate (per-call cost is computed from per-model pricing, not stored as an unkeyed scalar — cf. File 01 §8 invariant)
+- model calls, including provider, model identifier, role (router, responder, critic, validator, and so on), prompt tokens, completion tokens, cache creation tokens, cache read tokens, and cost estimate (per-call cost is computed from per-model pricing, not stored as an unkeyed scalar — cf. `core.explicit-rejections` (File 01 §8) invariant)
 - tool calls and tool results
 - observations
 - validation results
@@ -942,6 +1066,8 @@ The list above is a minimum, not an exhaustive schema. The ledger must record fu
 The ledger enforces a forgery guard at status transition: a transition from `running` to `completed` is rejected if the run has no recorded capability executions, no committed artifact revisions, and no model-step outputs beyond plain text — when the run contract required action. The forgery guard is the storage-side counterpart to §22's run-completion contract.
 
 ### 23.2 Event Stream
+
+Anchor: `run.event-stream`
 
 The event stream is the live projection channel.
 
@@ -960,6 +1086,8 @@ Every event carries the canonical envelope defined by File 10. At execution leve
 Events may be transient. Consequential events must also be represented in the ledger.
 
 ### 23.3 Hook Integration
+
+Anchor: `run.hook-integration`
 
 The event stream is also the execution hook surface.
 
@@ -980,6 +1108,8 @@ Quality control validators, logging, plugin hooks, user hooks, policy gates, and
 
 ### 23.4 Version Commits
 
+Anchor: `run.version-commits`
+
 Version commits are meaningful history boundaries, not every ledger event.
 
 Typical commit boundaries:
@@ -998,6 +1128,8 @@ During a turn-like run, pending block and artifact operations accumulate in a pe
 The ledger explains how a commit was produced. The version graph records the accepted durable state.
 
 ## 24. Output Semantics
+
+Anchor: `run.output-semantics`
 
 Runs may produce:
 
@@ -1019,6 +1151,8 @@ Important outputs should become artifacts or typed durable objects. Transcript t
 Large outputs should be stored as referenced artifacts or blobs, not forced into the transcript or model context.
 
 ## 25. Presentation
+
+Anchor: `run.presentation`
 
 Execution presentation is a projection.
 
@@ -1048,6 +1182,8 @@ The UI must be able to show:
 
 ## 26. Automation and Reuse
 
+Anchor: `run.automation-reuse`
+
 Successful runs should be eligible for reuse.
 
 The runtime may propose:
@@ -1073,6 +1209,8 @@ Promotion to automation must preserve:
 Automation uses the same run model when executed.
 
 ## 27. Settings
+
+Anchor: `run.settings`
 
 Execution behavior must be configurable through settings.
 
@@ -1116,6 +1254,8 @@ Settings define intended product variation. They must not become hidden hardcode
 
 ## 28. Explicit Rejections
 
+Anchor: `run.explicit-rejections`
+
 The following shapes are wrong for this layer:
 
 - treating chat message generation as the whole execution model
@@ -1144,6 +1284,8 @@ The following shapes are wrong for this layer:
 - requiring or imposing model-mediated checks where the deterministic floor is sufficient, and conversely silently relying on deterministic checks where the user has configured semantic verification
 
 ## 29. Consequences for Later Specs
+
+Anchor: `run.consequences-for-later-specs`
 
 Later specs must follow these rules:
 

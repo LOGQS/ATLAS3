@@ -41,6 +41,8 @@ Resolved design:
 
 ## 1. Purpose
 
+Anchor: `routing.purpose`
+
 Routing decides how a new request should enter the runtime.
 
 It does not produce the final answer. It decides:
@@ -55,6 +57,8 @@ It does not produce the final answer. It decides:
 The canonical output of routing is `RunIntent`.
 
 ## 2. Routing Is a First-Class Dispatch Step
+
+Anchor: `routing.routing-is-first-class-dispatch-step`
 
 Routing is a first-class dispatch step in request handling.
 
@@ -78,6 +82,8 @@ The canonical concern is that every new run passes through routing before downst
 
 ### 2.1 Trigger Kinds and Routing
 
+Anchor: `routing.trigger-kinds-routing`
+
 Routing applies to every trigger kind enumerated in the run spec: user request, retry, edit reroute, continuation, child run, automation, external event, and user-invoked action. The pipeline shape is the same for all trigger kinds; trigger-kind-specific rules govern which fields the trigger pre-fills and which the router still decides.
 
 - automation triggers may pin primary surface, capability families, model route, or the full `RunIntent` at save time; the routing pass respects pinned fields and fills only the unpinned ones
@@ -90,6 +96,8 @@ Pre-filling and inheritance constrain routing the same way an explicit user over
 
 ## 3. Dispatch Pipeline
 
+Anchor: `routing.dispatch-pipeline`
+
 For each new user request, dispatch proceeds in this order:
 
 1. Build the routing frame.
@@ -100,9 +108,11 @@ For each new user request, dispatch proceeds in this order:
 6. Persist the route result and attach it to the request.
 7. Hand off to downstream execution.
 
-The seven-step pipeline is the canonical logical contract. Implementations may compose additional steps — extension prechecks, validators, observers, gates — through the actions and events hook architecture (per File 04 §23.3) without changing the canonical step order or the routing decision contract.
+The seven-step pipeline is the canonical logical contract. Implementations may compose additional steps — extension prechecks, validators, observers, gates — through the actions and events hook architecture (per `run.hook-integration`, File 04 §23.3) without changing the canonical step order or the routing decision contract.
 
 ### 3.1 Routing Frame
+
+Anchor: `routing.routing-frame`
 
 The routing frame is the structured input the routing layer reasons over. It must contain enough state for the router to produce a valid `RunIntent` while staying cheap enough for the active router context policy. File 13 owns assembly of the router's model request; this file owns the meaning of the routing frame and routing result.
 
@@ -200,6 +210,8 @@ After the router returns, the runtime:
 
 ### 3.5 Route Record
 
+Anchor: `routing.route-record`
+
 The route result is recorded durably as part of the run record. The record must preserve enough information to:
 
 - reconstruct the routing decision (the resolved `RunIntent` plus `routing_metadata`)
@@ -210,6 +222,8 @@ The route result is recorded durably as part of the run record. The record must 
 The record references the policy snapshot, capability snapshot, and world snapshot in effect at routing time; snapshot identities live in the storage and version specs. Every precheck that fired (with its verdict) and every pre-routing transformation that altered trigger content (§3.1) must be present in the record.
 
 ## 4. `RunIntent`
+
+Anchor: `routing.run-intent`
 
 ### 4.1 Definition
 
@@ -364,6 +378,8 @@ Routing may inform them, but it does not own them as backend truth.
 
 ## 5. Continuity Attachment
 
+Anchor: `routing.continuity-attachment`
+
 ### 5.1 Rule
 
 Each new request attaches to exactly one primary intent thread.
@@ -392,6 +408,8 @@ Common cases:
 Routing must not create intent threads mechanically for every message.
 
 ## 6. Routing Summaries
+
+Anchor: `routing.routing-summaries`
 
 ### 6.1 Purpose
 
@@ -432,6 +450,8 @@ They are compact router-side continuity aids used by richer router context polic
 
 ## 7. Model Routing
 
+Anchor: `routing.model-routing`
+
 ### 7.1 Principle
 
 Model routing is part of dispatch, but it is not the whole router.
@@ -470,6 +490,8 @@ Model routing may be implemented as a single decision or as an ordered chain of 
 
 ### 7.4 Capability Awareness
 
+Anchor: `routing.capability-awareness`
+
 Model routing must be capability-aware.
 
 Examples:
@@ -480,6 +502,8 @@ Examples:
 - non-streaming models must not break the runtime because they are non-streaming
 
 ## 8. Surface and Capability Selection
+
+Anchor: `routing.surface-capability-selection`
 
 ### 8.1 Domains Are Not Hard Fences
 
@@ -504,6 +528,8 @@ This is stronger than one-domain routing and simpler than full execution plannin
 
 ### 8.3 Tool Surface Strategy
 
+Anchor: `routing.tool-surface-strategy`
+
 Routing chooses a tool-surface strategy for the request and records it in the `tool_surface_strategy` field of `RunIntent` (§4.2, §4.3).
 
 Allowed strategies:
@@ -515,6 +541,8 @@ Allowed strategies:
 The full mechanics of borrowing and deferred loading belong in later capability and tool specs.
 
 ## 9. Fast Path
+
+Anchor: `routing.fast-path`
 
 ### 9.1 Definition
 
@@ -562,6 +590,8 @@ Fast-path failure must not silently discard the route or request.
 
 ## 10. User Visibility and Override
 
+Anchor: `routing.user-visibility-override`
+
 ### 10.1 Visibility
 
 Each routing decision must be linked to the triggering user message and be inspectable in the UI.
@@ -569,6 +599,8 @@ Each routing decision must be linked to the triggering user message and be inspe
 It does not need to be rendered as a normal transcript message.
 
 ### 10.2 Minimum Visible Information
+
+Anchor: `routing.minimum-visible-information`
 
 The UI must be able to show:
 
@@ -594,6 +626,8 @@ The UI exposes overrides progressively — common overrides surface as primary c
 
 ## 11. Retry and Edit Rules
 
+Anchor: `routing.retry-edit-rules`
+
 ### 11.1 Retry
 
 Retry of the same request preserves the prior route by default.
@@ -605,6 +639,8 @@ It does not automatically rerun route selection unless:
 - the runtime detects that route inputs materially changed
 
 ### 11.2 Edit
+
+Anchor: `routing.edit`
 
 Editing a prior user message invalidates the prior route for that message.
 
@@ -631,6 +667,8 @@ When a prior run produced partial failure (some execution units succeeded, other
 If the user moves the triggering message to a different intent thread, the prior route is invalid. The reattached request must be rerouted with the new intent thread as the routing-frame attachment.
 
 ## 12. Mid-Execution Reroute
+
+Anchor: `routing.mid-execution-reroute`
 
 ### 12.1 Definition
 
@@ -667,6 +705,8 @@ This section defines the routing interface for mid-execution reroute requests. F
 
 ## 13. Settings
 
+Anchor: `routing.settings`
+
 Every routing mechanism described in this file must be configurable through settings. Settings are scoped through the canonical settings system; user profiles compose them.
 
 At minimum, settings must support:
@@ -687,9 +727,11 @@ At minimum, settings must support:
 
 Settings whose mechanism depends on optional provider capability — accurate token counting, cost reporting, native tool-call streaming, and similar — must degrade gracefully when the capability is absent and must surface the degraded state to the user. They must not silently disable themselves, fail closed without notice, or block routing on a missing capability whose absence is recoverable.
 
-Users must be able to customize routing without changing the core runtime shape. Settings define intended product variation; they must not become hidden hardcoded branches (per File 01 §7.6).
+Users must be able to customize routing without changing the core runtime shape. Settings define intended product variation; they must not become hidden hardcoded branches (per `core.typed-configuration-failure`, File 01 §7.6).
 
 ## 14. Explicit Rejections
+
+Anchor: `routing.explicit-rejections`
 
 The following shapes are wrong for this layer:
 
@@ -707,6 +749,8 @@ The following shapes are wrong for this layer:
 - bypassing routing for automation, child-run, external-event, or user-invoked-action triggers
 
 ## 15. Consequences for Later Specs
+
+Anchor: `routing.consequences-for-later-specs`
 
 Later specs must follow these rules:
 

@@ -36,6 +36,8 @@ Resolved design:
 
 ## 1. Chosen Model
 
+Anchor: `intent.chosen-model`
+
 ATLAS should use five distinct interaction objects:
 
 - `Conversation`
@@ -55,6 +57,8 @@ They exist at different levels:
 This keeps normal chat fluid while still supporting long-running, parallel, and structured work.
 
 ## 2. Conversation
+
+Anchor: `intent.conversation`
 
 ### 2.1 Definition
 
@@ -86,6 +90,8 @@ Important outputs do not live only as transcript content. Significant outputs be
 
 ### 2.3 Conversation State
 
+Anchor: `intent.conversation-state`
+
 A conversation has a coarse-grained activity state, computed as a priority-ordered reduction over its active runs:
 
 - `streaming`: at least one run is producing user-visible output
@@ -104,6 +110,8 @@ Compaction is non-destructive and may run concurrently with any activity state. 
 Conversation activity state is distinct from per-run execution state; later execution specs define run states.
 
 ## 3. Message
+
+Anchor: `intent.message`
 
 ### 3.1 Definition
 
@@ -160,6 +168,8 @@ Pre-dispatch processing is non-destructive, must not mutate prior messages or bl
 
 ## 4. RunIntent
 
+Anchor: `intent.run-intent`
+
 ### 4.1 Definition
 
 `RunIntent` is the per-request dispatch decision.
@@ -203,6 +213,8 @@ Fast path may skip unnecessary downstream orchestration, but it must not skip:
 
 ## 5. IntentThread
 
+Anchor: `intent.intent-thread`
+
 ### 5.1 Definition
 
 `IntentThread` is a persisted ongoing work line inside a conversation.
@@ -222,6 +234,8 @@ It is used to group together work that belongs to the same continuing line, incl
 - zero or more tasks
 
 ### 5.3 Creation
+
+Anchor: `intent.creation`
 
 An intent thread is not required for every message.
 
@@ -267,6 +281,8 @@ Mid-execution input must not silently abandon in-flight runs and must not silent
 
 ## 6. Task
 
+Anchor: `intent.task`
+
 ### 6.1 Definition
 
 `Task` is a promoted structured work object inside an intent thread.
@@ -293,6 +309,8 @@ Later specs may extend the task schema, but these fields are required.
 
 ### 6.3 Promotion Rule
 
+Anchor: `intent.promotion-rule`
+
 Task promotion is appropriate when the work needs:
 
 - explicit multi-step structure
@@ -313,6 +331,8 @@ Promotion may be initiated by the user explicitly creating a task, by the agent 
 A task carries a current driver — the actor responsible for the next action. The driver may be the user, the agent, or shared between multiple actors under explicit coordination rules. Driver transitions must be explicit and recorded; silent transitions are forbidden. Later specs define the mechanics of driver handoff, multi-driver coordination, and the relationship between a task's driver and the drivers of its runs.
 
 ## 7. Parallel Work
+
+Anchor: `intent.parallel-work`
 
 ### 7.1 Allowed Shapes
 
@@ -346,6 +366,8 @@ This file does not define full concurrency mechanics, but it does require:
 Later specs must define run objects, the exact identifier schema, revision-safe task update mechanics, and write-collision handling explicitly.
 
 ## 8. Presentation
+
+Anchor: `intent.presentation`
 
 ### 8.1 Principle
 
@@ -388,6 +410,8 @@ Presentation is customizable per profile, per workspace, and per conversation. P
 
 ## 9. Explicit Rejections
 
+Anchor: `intent.explicit-rejections`
+
 The following shapes are wrong for this layer:
 
 - treating conversation as the only durable work model
@@ -404,6 +428,8 @@ The following shapes are wrong for this layer:
 - hardcoding any conversation lifecycle state, intent-thread creation rule, task promotion criterion, or presentation shape that meaningful user variation should configure
 
 ## 10. Consequences for Later Specs
+
+Anchor: `intent.consequences-for-later-specs`
 
 Later specs must follow these rules:
 

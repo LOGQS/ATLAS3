@@ -45,6 +45,8 @@ Resolved design:
 
 ## 1. Chosen Model
 
+Anchor: `context.chosen-model`
+
 ATLAS3 has two cooperating context services.
 
 `ContextAssemblyService` is read-only. It turns active runtime state into a structured model request for a specific invocation. It reads blocks, materialized views, retrieval outputs, tool-surface snapshots, instruction sources, memory outputs, world-state snapshots, settings, and provider/model descriptors. It never mutates blocks, lifecycle state, indexes, or versions.
@@ -56,6 +58,8 @@ The services communicate through durable state and typed pressure signals. Assem
 Every model-bound invocation uses `ContextAssemblyService`. There is no separate instruction assembler, router request assembler, per-surface private request builder, or ad-hoc concatenation path.
 
 ## 2. Model Request
+
+Anchor: `context.model-request`
 
 ### 2.1 Definition
 
@@ -93,6 +97,8 @@ Each part must carry:
 
 ### 2.3 Authority Classes
 
+Anchor: `context.authority-classes`
+
 Authority is per assembly part.
 
 Allowed authority classes:
@@ -123,6 +129,8 @@ Assembly must fail safely when policy cannot decide whether a sensitive part may
 
 ## 3. Semantic Regions
 
+Anchor: `context.semantic-regions`
+
 Semantic regions are structural buckets used to budget and order assembly parts. They are not authority boundaries, storage tables, or frontend panes.
 
 The canonical region set:
@@ -143,6 +151,8 @@ Region order is policy-selected. The default should preserve cache-stable and se
 
 ## 4. Context Policies
 
+Anchor: `context.context-policies`
+
 `ContextPolicy` is the fidelity and selection policy for an invocation.
 
 Canonical policy families:
@@ -158,6 +168,8 @@ Policies are configurable through settings and profiles. They may differ by invo
 Policies choose inclusion, ordering, budget allocation, summarization preference, retrieval scope, duplicate handling, cache-marker preference, and overflow behavior. They do not change source authority, sensitivity policy, capability approval rules, or routing semantics.
 
 ## 5. Router Context Assembly
+
+Anchor: `context.router-context-assembly`
 
 File 03 defines routing semantics and `RunIntent`. This file defines how the model request for a router invocation is assembled.
 
@@ -182,6 +194,8 @@ Router context policies are user-configurable. Valid implementations may offer c
 
 ## 6. Assembly Algorithm
 
+Anchor: `context.assembly-algorithm`
+
 Each assembly invocation proceeds in this order:
 
 1. Resolve invocation kind, target model/profile, provider capabilities, active settings, and policy snapshots.
@@ -199,6 +213,8 @@ Assembly is deterministic for the same durable inputs, settings snapshot, provid
 
 ## 7. Current Input and Oversize Handling
 
+Anchor: `context.current-input-oversize-handling`
+
 Current input has special protection because it is the user's immediate request.
 
 The retention priority is:
@@ -214,6 +230,8 @@ When the current input itself is too large to carry directly, assembly must pres
 Attachments follow the same principle. Large attachments become referenced, searchable, and readable sources rather than silent omissions. The model receives enough metadata to know what exists, how to request more, and what was not directly included.
 
 ## 8. Duplicate and Overlap Handling
+
+Anchor: `context.duplicate-overlap-handling`
 
 Before dispatch or assembly, the system may detect when a pending input duplicates content already present in the active context.
 
@@ -238,6 +256,8 @@ The decision is recorded with the triggering input. Duplicate handling must not 
 
 ## 9. Budget and Overflow
 
+Anchor: `context.budget-overflow`
+
 Assembly treats the context window as a shared budget across all rendered parts and reserved output.
 
 `BudgetReport` must describe:
@@ -249,12 +269,15 @@ Assembly treats the context window as a shared budget across all rendered parts 
 - policy decisions that materially affected inclusion
 - token-counting accuracy class
 - cache-marker candidate summary
+- cache impact of fitting and reordering decisions: a `cache_impact` classification (`none`, `preserved_prefix`, `changed_tool_surface_only`, `changed_instruction_or_region_order`, or `full_cache_break_likely`) per §11, aligned with the tool-surface `auto_shrink_record` classification (`surface.auto-shrink-non-destructive`, File 07 §8.3)
 
 Overflow is non-destructive. Assembly reports pressure; it does not compact, delete, mutate, or silently discard durable content.
 
 Budget values, warning thresholds, region floors, region ceilings, reserved-output strategy, and overflow behavior are settings/profile concerns. This file defines the required behavior, not numeric defaults.
 
 ## 10. Token Counting
+
+Anchor: `context.token-counting`
 
 Token counting is a provider/model capability consumed by assembly.
 
@@ -275,6 +298,8 @@ Provider-specific tokenizer libraries, endpoint names, and model-family exceptio
 
 ## 11. Cache Marker Candidates
 
+Anchor: `context.cache-marker-candidates`
+
 Assembly may produce logical cache-marker candidates because it sees the full model-request structure and stable prefixes.
 
 A cache-marker candidate records:
@@ -288,11 +313,13 @@ A cache-marker candidate records:
 
 Provider adapters decide whether and how candidates become provider-native cache controls. Assembly does not define provider syntax, minimum lengths, retention duration, billing behavior, or cache APIs.
 
-Cache preservation is a strong default preference when it does not harm correctness, but it is not absolute. Users and profiles may choose orderings or inclusion policies that reduce cache efficiency. The system should surface the consequence when a policy meaningfully harms caching.
+Cache preservation is a strong default preference when it does not harm correctness, but it is not absolute. Users and profiles may choose orderings or inclusion policies that reduce cache efficiency. Assembly should preserve stable ordering and cacheable prefixes when fitting under the budget; fitting within the context budget wins over cache preservation, but the resulting `cache_impact` must be recorded on the `BudgetReport` (§9) and the `AssemblySnapshot` (§19) using the closed classification `none`, `preserved_prefix`, `changed_tool_surface_only`, `changed_instruction_or_region_order`, or `full_cache_break_likely`. The system should surface the consequence when a fitting decision or policy meaningfully harms caching.
 
 Sensitive or secret content is cache-ineligible unless policy explicitly allows caching at the appropriate sensitivity level.
 
 ## 12. Compaction
+
+Anchor: `context.compaction`
 
 Compaction reduces active context by committing versioned operations. It is not prompt trimming, hidden deletion, or an assembly side effect.
 
@@ -311,6 +338,8 @@ Compaction operations must be revision-safe. A compaction pass declares the view
 
 ## 13. Virtual Paging
 
+Anchor: `context.virtual-paging`
+
 Virtual paging is a compaction policy, not a separate archive store.
 
 `context.archive` applies `Drop` to the target blocks, removing them from active assembly. `context.recall` applies `Recover`, restoring them to active assembly.
@@ -320,6 +349,8 @@ Because dropped blocks are excluded from default active retrieval, a VirtualPagi
 Virtual paging introduces no new lifecycle state, no parallel retrieval mechanism, and no private archive database.
 
 ## 14. Continuity Summaries
+
+Anchor: `context.continuity-summaries`
 
 Continuity summaries preserve semantic continuity when raw blocks leave active context.
 
@@ -335,6 +366,8 @@ A continuity summary should preserve:
 Continuity summaries are durable blocks linked to the compacted source blocks. They may be superseded incrementally as work continues. They are included by policy like any other context source and remain subject to authority, sensitivity, and budget rules.
 
 ## 15. Context Pressure
+
+Anchor: `context.context-pressure`
 
 Context pressure is the typed coordination boundary between execution, tool surfaces, retrieval, provider handling, and compaction.
 
@@ -353,6 +386,8 @@ Time-based triggers are optional user-configured conveniences, not correctness m
 
 ## 16. Instruction Sources and Workspace Files
 
+Anchor: `context.instruction-sources-workspace-files`
+
 Instruction sources may come from user settings, workspace files, project files, plugin metadata, committed `InstructionSource` blocks, or runtime policy.
 
 `ATLAS.md` is the default workspace instruction-file name. The name, lookup order, enablement, and inclusion policy are settings. When a resolved workspace instruction file is active, it participates in `InstructionSources` with `user_instruction` or other policy-resolved authority, source attribution, sensitivity metadata, and budget governance.
@@ -361,6 +396,8 @@ File 12 may index the same file as knowledge for retrieval and provenance. Index
 
 ## 17. Tool-Surface Coordination
 
+Anchor: `context.tool-surface-coordination`
+
 Callable declarations consume context budget.
 
 File 07 owns surface composition and loading. This file owns how the resolved surface enters the model request, how much budget it consumes, and how context pressure is reported back to the tool-surface layer.
@@ -368,6 +405,8 @@ File 07 owns surface composition and loading. This file owns how the resolved su
 Under pressure, assembly may request shrinkage, deferred loading, borrowable-catalog reduction, or reference-only descriptions according to File 07. Tool-surface shrinkage must not remove a callable that the execution contract requires unless policy explicitly permits reroute, pause, or failure.
 
 ## 18. Capabilities
+
+Anchor: `context.capabilities`
 
 Context assembly and compaction expose capabilities through the canonical Capability Registry.
 
@@ -398,11 +437,32 @@ Expected event families:
 - cache-marker candidates produced
 - router context assembled
 
-Durable records must reference assembly snapshots rather than storing raw prompt dumps by default. A snapshot stores enough to reconstruct what was sent: part ids, source refs, policy snapshot, provider/model descriptor identity, budget report, omission/redaction metadata, sensitivity-safe hashes, and rendered content references where retention policy allows.
+Durable records must reference `AssemblySnapshot`s rather than storing raw prompt dumps by default. An `AssemblySnapshot` records or references enough to reconstruct what was sent without re-querying any live source:
 
-Transient streaming and UI inspection are not the source of truth. The ledger, block graph, version graph, and referenced assembly snapshots are.
+- the included assembly parts
+- the omitted and redacted parts with their reasons
+- the token counts used for fitting
+- the token-count source identity (the `TokenSource` and tokenizer identity per File 17)
+- retrieval hits, or immutable references to the retrieval result set used
+- the memory outputs used
+- the tool-surface snapshot consumed (per `surface.required-outputs`, File 07 §2.3)
+- the settings snapshot
+- the model/provider descriptor snapshot (provider/model descriptor identity)
+- the world/runtime-state snapshot (per File 18)
+- the ephemeral facts that were included
+- policy snapshot, budget report, sensitivity-safe hashes, and rendered content references where retention policy allows
+
+Replay determinism:
+
+Anchor: `context.assembly-replay-snapshot`
+
+For replay, audit, and deterministic reconstruction, context assembly consumes the recorded `AssemblySnapshot`. Replay must not re-derive inclusion, omission, ranking, token counts, memory outputs, retrieval results, tool-surface contents, or runtime/world facts from live mutable sources. Live assembly may consult current services (retrieval, memory, world model, token-counting endpoints); historical replay uses the recorded snapshot and immutable source references only. Where a live input is mutable, ephemeral, or non-reproducible, it is reconstructable at replay only because it was captured in the `AssemblySnapshot` or referenced through a durable snapshot.
+
+Transient streaming and UI inspection are not the source of truth. The ledger, block graph, version graph, and referenced `AssemblySnapshot`s are.
 
 ## 20. Persistence and Settings
+
+Anchor: `context.persistence-settings`
 
 Durable state includes:
 
@@ -441,6 +501,8 @@ Settings use File 15's model: durable global/workspace/conversation scopes, acti
 
 ## 21. Explicit Rejections
 
+Anchor: `context.explicit-rejections`
+
 The following shapes are wrong for this layer:
 
 - mutating blocks, indexes, lifecycle state, or versions during assembly
@@ -462,6 +524,8 @@ The following shapes are wrong for this layer:
 - treating `ATLAS.md` or any workspace file as hidden prompt text without source attribution and policy control
 
 ## 22. Consequences for Later Specs
+
+Anchor: `context.consequences-for-later-specs`
 
 Later specs must follow these rules:
 

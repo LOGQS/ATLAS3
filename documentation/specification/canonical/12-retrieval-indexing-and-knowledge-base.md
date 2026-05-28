@@ -39,6 +39,8 @@ Resolved design:
 
 ## 1. Core Model
 
+Anchor: `retrieval.core-model`
+
 Retrieval has four layers:
 
 - source records: blocks, materialized files, observations, knowledge entities, graph entities, external resources, and capability-produced records
@@ -51,6 +53,8 @@ Indexes are projections. They may be rebuilt from canonical source records, acti
 Retrieval is source-aware. A file search result, knowledge result, web result, MCP result, memory result, and graph result may have different hit payloads, but all normalize into `RetrievalHit` so execution, context assembly, UI, and evaluation do not need private result formats.
 
 ## 2. Retrieval Index
+
+Anchor: `retrieval.retrieval-index`
 
 ### 2.1 Definition
 
@@ -115,6 +119,8 @@ Retrieval during replay must use indexes compatible with the replayed version or
 
 ## 3. Namespaces
 
+Anchor: `retrieval.namespaces`
+
 ### 3.1 Definition
 
 An `IndexNamespace` scopes entries by purpose and access boundary.
@@ -155,6 +161,8 @@ Sensitive entries can be indexed only in namespaces whose scope matches the sour
 
 ## 4. Source Records
 
+Anchor: `retrieval.source-records`
+
 ### 4.1 Canonical Source Families
 
 Retrieval sources include:
@@ -193,6 +201,8 @@ External adapters may share underlying fetchers, caches, parsers, ranking servic
 
 ## 5. Chunking and Excerpts
 
+Anchor: `retrieval.chunking-excerpts`
+
 ### 5.1 Chunking Strategy
 
 Chunking turns source records into derived index entries. Canonical strategy families:
@@ -216,6 +226,8 @@ If a chunk or excerpt must become durable conversation context, evidence, or use
 When a hit comes from text-like content, it should carry a source span when the source supports stable location. Source spans allow citation, highlighting, excerpt promotion, and audit without copying whole source payloads into the transcript.
 
 ## 6. Embeddings and Model Identity
+
+Anchor: `retrieval.embeddings-model-identity`
 
 ### 6.1 Embedding Identity
 
@@ -244,6 +256,8 @@ Canonical backend classes:
 Backend class is not a library choice. Model strategy and provider specs decide which implementations are available, preferred, throttled, or failed over.
 
 ## 7. Query Contract
+
+Anchor: `retrieval.query-contract`
 
 ### 7.1 Retrieval Query
 
@@ -303,6 +317,8 @@ Specific numeric values are settings/profile choices, not canonical constants.
 
 ## 8. Retrieval Pipeline
 
+Anchor: `retrieval.retrieval-pipeline`
+
 ### 8.1 Standard Pipeline
 
 The standard retrieval pipeline:
@@ -351,6 +367,8 @@ Live web search, web fetch, MCP retrieval, and remote plugin retrieval are expli
 Cached external snapshots can be searched locally through their namespace when policy allows. Cache expiry is an optimization, not a correctness condition; source fingerprints and fetch snapshots define freshness.
 
 ## 9. Retrieval Result
+
+Anchor: `retrieval.retrieval-result`
 
 ### 9.1 Result Envelope
 
@@ -405,6 +423,8 @@ Canonical hit kinds:
 A redacted hit may reveal that a relevant source exists only when policy permits safe disclosure. It must not include secret payload, credential material, or restricted snippets.
 
 ## 10. Knowledge Base
+
+Anchor: `retrieval.knowledge-base`
 
 ### 10.1 Definition
 
@@ -490,6 +510,8 @@ Proposal expiry, auto-archival, and cleanup are user-policy choices. Time-based 
 
 ## 11. Sensitivity
 
+Anchor: `retrieval.sensitivity`
+
 ### 11.1 Core Rule
 
 Secret payload never enters an index.
@@ -505,6 +527,8 @@ Sensitive content may be indexed only inside the source's allowed scope. Retriev
 If a source has field-level sensitivity, indexers must exclude Secret fields and may index Public or Sensitive fields according to their scopes. A chunk that crosses into Secret material must be split or rejected; it must not carry the Secret segment.
 
 ## 12. Indexing Pipeline
+
+Anchor: `retrieval.indexing-pipeline`
 
 ### 12.1 Commit Path
 
@@ -534,6 +558,8 @@ Rebuild must be deterministic over the same canonical source state, settings pro
 If an index is missing, stale, corrupted, or incompatible with the active version, retrieval must either rebuild, degrade with a typed warning, or fail with a typed error. Silent partial retrieval is forbidden.
 
 ## 13. Capability Surface
+
+Anchor: `retrieval.capability-surface`
 
 ### 13.1 Capability Families
 
@@ -576,6 +602,8 @@ The same rule applies to local retrieval, file search, command palette search, k
 
 ## 14. Ingestion
 
+Anchor: `retrieval.ingestion`
+
 ### 14.1 Definition
 
 Ingestion converts external or workspace content into canonical source records, knowledge entries, graph records, and index entries.
@@ -612,6 +640,8 @@ Plugin updates must preserve user-forked or user-edited entries unless the user 
 
 ## 15. Workspace Instruction Files and ATLAS.md
 
+Anchor: `retrieval.workspace-instruction-files-atlas-md`
+
 Workspace-local instruction files such as `ATLAS.md` are portable user-authored sources. `ATLAS.md` is the default lookup name; the name, lookup order, enablement, and inclusion behavior are configurable.
 
 File 12 owns indexing these files as source records and workspace-scoped knowledge entries when configured. Indexing makes them retrievable, inspectable, citeable, and provenance-preserving.
@@ -619,6 +649,8 @@ File 12 owns indexing these files as source records and workspace-scoped knowled
 File 13 owns whether a resolved workspace instruction file is included in the model request as an instruction source. Knowledge indexing alone does not grant instruction authority, and instruction inclusion must still carry source attribution, authority, sensitivity, and budget metadata.
 
 ## 16. Events, Ledger, and Telemetry
+
+Anchor: `retrieval.events-ledger-telemetry`
 
 ### 16.1 Custom Events
 
@@ -646,6 +678,8 @@ Telemetry is not the source of truth for content. Source records and index proje
 
 ## 17. Settings
 
+Anchor: `retrieval.settings`
+
 Retrieval and knowledge behavior is configurable through the canonical settings system.
 
 Settings must cover:
@@ -668,6 +702,8 @@ Specific numbers are settings/profile values, not canonical constants.
 
 ## 18. Maintenance and Freshness
 
+Anchor: `retrieval.maintenance-freshness`
+
 Freshness is determined by source fingerprints, version anchors, provider identities, and policy state.
 
 Timed sweeps, TTLs, and scheduled cleanup are allowed only as configurable maintenance aids. They must not be required for correctness and must not silently delete user-visible content.
@@ -675,6 +711,8 @@ Timed sweeps, TTLs, and scheduled cleanup are allowed only as configurable maint
 Expired cache entries become stale. They do not become false. Retrieval may refetch, warn, degrade, or ask for approval depending on policy and capability settings.
 
 ## 19. Replay and Debugging
+
+Anchor: `retrieval.replay-debugging`
 
 Retrieval must be inspectable.
 
@@ -693,6 +731,8 @@ Replay must be able to reconstruct either the same result or a typed explanation
 
 ## 20. Extension Rules
 
+Anchor: `retrieval.extension-rules`
+
 Subsystems may register:
 
 - custom index kinds
@@ -706,6 +746,8 @@ Subsystems may register:
 Extensions must use the shared capability, policy, event, block, version, and settings systems. They must not introduce parallel registries or bypass retrieval sensitivity enforcement.
 
 ## 21. Explicit Rejections
+
+Anchor: `retrieval.explicit-rejections`
 
 The following are rejected:
 
@@ -725,6 +767,8 @@ The following are rejected:
 - silently returning stale or partial retrieval results without typed warning
 
 ## 22. Consequences for Later Specs
+
+Anchor: `retrieval.consequences-for-later-specs`
 
 Later specs covering context assembly, memory, model strategy, providers, plugins, MCP integrations, web, coder, teacher, data processing, UI presentation, evaluation, telemetry, storage, sync, security, and packaging must consume this retrieval contract instead of defining incompatible search, index, graph, or knowledge primitives.
 

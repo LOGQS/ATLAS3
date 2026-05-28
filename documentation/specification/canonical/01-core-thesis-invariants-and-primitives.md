@@ -37,6 +37,8 @@ Resolved design:
 
 ## 1. Product Thesis
 
+Anchor: `core.product-thesis`
+
 ATLAS is a local-first intent operating environment.
 
 The user expresses intent. The system interprets that intent in context, attaches it to existing ongoing work or creates new ongoing work, selects the right capabilities, optionally materializes the right surfaces, executes and validates actions, produces durable outputs, and preserves enough structure for continuation, inspection, and reuse.
@@ -59,6 +61,8 @@ Conversation is always available, but it is not the root durable model.
 
 ## 2. System Layers
 
+Anchor: `core.system-layers`
+
 ATLAS has four architectural layers and one cross-cutting design lens.
 
 ### 2.1 Control Rails
@@ -78,6 +82,8 @@ Boundary:
 Control rails initiate or steer work. They are not themselves the work model.
 
 ### 2.2 Participation Levels / Postures
+
+Anchor: `core.participation-levels-postures`
 
 Definition:
 The degree and shape of user involvement in a running experience. A participation level is a presentation and interaction choice over the same underlying runtime.
@@ -120,6 +126,8 @@ Work surfaces own user-facing workflows and specialized views. They do not own p
 
 ### 2.4 Substrate Services
 
+Anchor: `core.substrate-services`
+
 Definition:
 Always-on or cross-cutting services that support all work surfaces and control rails.
 
@@ -158,6 +166,8 @@ Examples:
 
 ## 3. Workspace Model
 
+Anchor: `core.workspace-model`
+
 ### 3.1 Workspace
 
 Definition:
@@ -174,6 +184,8 @@ Boundary:
 A user-visible workspace is a system capability, not a mandatory UX doorway. A chat's durable scoped context may be exposed as a visible workspace, or may remain latent while the user stays entirely in chat.
 
 ## 4. Canonical Abstractions
+
+Anchor: `core.canonical-abstractions`
 
 ### 4.1 IntentThread
 
@@ -213,6 +225,8 @@ Not every intent thread needs a task immediately. A task should exist when expli
 
 ### 4.3 Artifact
 
+Anchor: `core.artifact`
+
 Definition:
 A durable output worth keeping, rendering, exporting, versioning, feeding into later work, or citing.
 
@@ -232,6 +246,8 @@ Boundary:
 Artifacts are not file-only. Files are one artifact form.
 
 ### 4.4 Evidence
+
+Anchor: `core.evidence`
 
 Definition:
 The support structure behind decisions, claims, and outputs.
@@ -295,6 +311,8 @@ Boundary:
 RunIntent is not "pick one domain." It is the runtime's decision envelope for how to proceed.
 
 ## 5. Current Major-Area Classification
+
+Anchor: `core.current-major-area-classification`
 
 This section classifies the current major areas so later specs do not drift on taxonomy.
 
@@ -384,6 +402,8 @@ These coordinate or support every work surface and should not drift into per-sur
 
 ## 6. Primitive Set
 
+Anchor: `core.primitive-set`
+
 Every later spec must build on these primitives.
 
 ### 6.1 Rust Service Layer
@@ -422,6 +442,8 @@ Keep safety, approval, and allowed scope out of per-surface bespoke logic.
 
 ### 6.4 Execution Ledger
 
+Anchor: `core.execution-ledger`
+
 Definition:
 A durable append-oriented record of execution facts.
 
@@ -458,6 +480,8 @@ Flat isolated block rows are insufficient as the long-term model.
 
 ### 6.7 World Model
 
+Anchor: `core.world-model`
+
 Definition:
 The structured live model of what the system and user are currently interacting with.
 
@@ -475,6 +499,8 @@ Screenshot-driven self-perception is fallback, not foundation.
 
 ### 6.8 Settings System
 
+Anchor: `core.settings-system`
+
 Definition:
 Centralized typed configuration governing intended product variation.
 
@@ -489,6 +515,8 @@ Rules:
 
 ### 6.9 Typed Errors
 
+Anchor: `core.typed-errors`
+
 Definition:
 Typed cross-boundary failure values used across backend, UI, and provider boundaries.
 
@@ -497,6 +525,8 @@ Failure must drive behavior, not only display.
 
 ### 6.10 Versioned Durable State
 
+Anchor: `core.versioned-durable-state`
+
 Definition:
 Versionable and reconstructable durable state for context and artifact-related history.
 
@@ -504,6 +534,8 @@ Purpose:
 Undo, branching, inspection, and deterministic reconstruction.
 
 ### 6.11 Projection
+
+Anchor: `core.projection`
 
 Definition:
 A read-optimized derived view of canonical state, required for responsive UI and query workloads.
@@ -549,6 +581,8 @@ There is no single universal model choice that should handle all requests the sa
 
 ### 6.14 Extension Planes
 
+Anchor: `core.extension-planes`
+
 Definition:
 The dimensions across which the system is extensible.
 
@@ -562,7 +596,54 @@ Rules:
 - a single capability definition is the source for all invocation paths: command palette, shortcuts, voice, agent tools, automation triggers, and external protocol exposure
 - extensions must not be able to override security-critical system state (environment variables controlling paths, linkers, or interpreters; credential storage; policy kernels)
 
+### 6.15 Canonical Encoding
+
+Anchor: `core.canonical-encoding`
+
+Definition:
+A `CanonicalEncoding` is a declared, storage-independent byte encoding of a typed value, used wherever a value must hash, compare, deduplicate, sync, or reconstruct identically across devices, processes, and time.
+
+A `CanonicalEncoding` must define:
+
+- field order
+- enum tag encoding
+- optional-field representation
+- null-versus-omitted semantics
+- integer, string, and boolean encoding
+- map key ordering
+- collection ordering
+- a schema/version tag carried inside the encoded payload
+
+Ordering rule:
+
+- order-insensitive collections must be sorted by a stable key before encoding
+- order-sensitive sequences must preserve their order and must be explicitly declared as order-sensitive
+
+Boundary:
+Physical storage encoding is a separate concern. Storage may use JSON, CBOR, MessagePack, Protobuf, row tuples, columnar formats, or any other layout. A `CanonicalEncoding` is never defined by, and never inferred from, the physical storage representation.
+
+### 6.16 Closed Canonical Set
+
+Anchor: `core.closed-canonical`
+
+Definition:
+A closed canonical set is a fixed enumeration — of kinds, variants, vocabulary, or states — that is closed for runtime interoperability within the current canonical specification version.
+
+A closed canonical set may evolve only through:
+
+- declared `Custom` or extension variants where the set explicitly permits them
+- a future canonical specification revision
+- explicit migration and compatibility rules when durable state is affected
+
+Rule:
+Implementations must not add ad-hoc variants outside a declared extension path. "Closed" constrains implementations, not the specification's own future revisions.
+
+Boundary:
+Closing a set is an interoperability guarantee, not a permanent freeze. Where a set is closed, a later spec that needs a new variant either uses the declared extension path or revises the canonical set explicitly with migration rules for any affected durable state.
+
 ## 7. Invariants
+
+Anchor: `core.invariants`
 
 Only load-bearing rules belong here. Definitions, taxonomy choices, and examples belong in earlier sections.
 
@@ -576,6 +657,8 @@ The user and the agent invoke the same underlying capability system through diff
 
 ### 7.3 Durable History, Transient Coordination
 
+Anchor: `core.durable-history-transient-coordination`
+
 Durable history and live coordination are separate concerns. Execution history is durable; streaming/event coordination is not the source of truth.
 
 ### 7.4 Context Interoperability
@@ -588,6 +671,8 @@ Presentation shape may vary by surface, participation posture, and request compl
 
 ### 7.6 Typed Configuration and Failure
 
+Anchor: `core.typed-configuration-failure`
+
 Intended product variation belongs in typed settings and policy. Cross-boundary failures must be typed and behaviorally meaningful.
 
 ### 7.7 Service-Layer Ownership
@@ -595,6 +680,8 @@ Intended product variation belongs in typed settings and policy. Cross-boundary 
 Business logic belongs to the backend service layer, not to UI components or command wrappers.
 
 ### 7.8 Local Extensibility
+
+Anchor: `core.local-extensibility`
 
 New surfaces, tools, and subsystems must be addable without broad rewrites across existing ones.
 
@@ -616,15 +703,31 @@ Runs, child-run trees, processes, sandboxes, tool calls, and other long-running 
 
 ### 7.12 Evidence and Provenance
 
+Anchor: `core.evidence-provenance`
+
 Important outputs should preserve evidence of how they were produced. Artifacts, recommendations, and automations should be traceable to the sources, tool results, observations, and validations that informed them. The degree of provenance depends on the output's significance — not every chat response requires a citation chain, but outputs the user may reuse, share, or build on should carry enough lineage to be trustworthy and reviewable. Later specs define where and how provenance applies per domain.
 
 ### 7.13 Non-Destructive by Default
+
+Anchor: `core.non-destructive-by-default`
 
 Operations on user content, context, artifacts, execution history, and system state must be non-destructive by default. Compaction changes view state, not data. Edits create siblings, not mutations. Version switching is always available. Irreversible operations are explicit exceptions that later specs must justify.
 
 Non-destructive does not mean unbounded storage. The system must track what storage it has consumed — workspaces, artifacts, execution history, cached data, version trees — and expose this as structured data the backend serves and the frontend renders. The user must be able to inspect, manage, and reclaim storage at every granularity: full reset, per-category cleanup, per-workspace, per-task, and per-artifact. Retention policies, quotas, and expiry rules are settings, not hardcoded limits.
 
+### 7.14 Canonical Hashing
+
+Anchor: `core.canonical-hash`
+
+Every hash used for identity, integrity, deduplication, sync, replay, cache validation, or audit is computed over a declared `CanonicalEncoding` (§6.15), never over a physical storage encoding. Physical storage may use JSON, CBOR, MessagePack, Protobuf, SQLite rows, or another format; storage encoding is not hash encoding.
+
+This applies without exception, including `content_hash`, `diff_hash`, `expected_view_hash`, block and content-address hashes, audit-chain hashes, snapshot and integrity hashes, and any future canonical hash.
+
+Order-insensitive collections are sorted by a stable key before hashing; order-sensitive sequences preserve their order and are declared order-sensitive (§6.15). Two peers may rely on hash equality only when they share the same `CanonicalEncoding` version. Cross-device hash equality is an optimization for deduplication and duplicate-suppression, never the correctness basis for sync.
+
 ## 8. Explicit Rejections
+
+Anchor: `core.explicit-rejections`
 
 The following are architecturally invalid:
 
@@ -642,6 +745,8 @@ The following are architecturally invalid:
 
 ## 9. Stack Commitments
 
+Anchor: `core.stack-commitments`
+
 Locked enough to design around:
 
 - Rust backend
@@ -655,8 +760,25 @@ Everything else at this layer remains subordinate to the abstractions above.
 
 ## 10. Consequences for Later Specs
 
+Anchor: `core.consequences-for-later-specs`
+
 Any later spec is wrong if it:
 
 - contradicts the definitions in sections 2 through 6
 - violates any invariant in section 7
 - reintroduces a rejected shape from section 8
+
+## 11. Canonical Rule Anchors
+
+Anchor: `core.canonical-rule-anchors`
+
+Load-bearing canonical rules carry a stable semantic anchor in addition to their section number. An anchor is a lowercase dotted-namespace identifier (`core.canonical-hash`, `policy.effective-tier-resolution`) that names the rule independently of where it sits in the document.
+
+Rules:
+
+- a rule's anchor is stable across spec revisions; section numbers may be renumbered, anchors may not
+- cross-references should prefer the anchor (`see core.canonical-hash`) and may cite the section number secondarily (`File 01 §7.14`)
+- an anchor names exactly one canonical rule; two rules never share an anchor
+- anchors are introduced as rules are formalized; a rule without an anchor is referenced by section number until one is assigned
+
+Anchors defined or referenced by this specification series include `core.canonical-hash`, `core.canonical-encoding`, `core.closed-canonical`, `block.content-hash`, `version.diff-hash`, `version.expected-view-hash`, `context.assembly-replay-snapshot`, `policy.effective-tier-resolution`, `run.completion-contract`, `secret.backend-boundary`, and `provider.token-source`.

@@ -46,6 +46,8 @@ Resolved design:
 
 ## 1. Model Strategy Layer
 
+Anchor: `model.model-strategy-layer`
+
 ATLAS3 has one Model Strategy layer between routing/execution and providers.
 
 It answers:
@@ -68,6 +70,8 @@ The initial `RunIntent.model_route` governs the first model-bound step of a run.
 
 ## 2. Provider Inputs Consumed by Model Strategy
 
+Anchor: `model.provider-inputs-consumed-by-model-strategy`
+
 Model Strategy consumes three categories of provider-derived information.
 
 `ModelCapabilityDescriptor`
@@ -85,6 +89,8 @@ Runtime facts reported by the Provider Layer: temporary unavailability, rate-lim
 This split is load-bearing. A model can be vision-capable even when the user's account cannot access it, a model can be low-cost under one provider and expensive under another, and a normally fast model can be slow under current provider load. Selection must see all of those facts without pretending they are the same kind of data.
 
 ## 3. `ModelCapabilityDescriptor`
+
+Anchor: `model.model-capability-descriptor`
 
 ### 3.1 Definition
 
@@ -189,6 +195,8 @@ Those facts are provider offering, provider runtime, accounting, or profile/poli
 
 ### 3.4 Normalization and Refresh
 
+Anchor: `model.normalization-refresh`
+
 Provider adapters normalize provider-native capability data into `ModelCapabilityDescriptor`.
 
 Normalization may use:
@@ -204,6 +212,8 @@ Unknown facts remain explicitly unknown. The adapter must not invent default cap
 Descriptor refresh is event-driven: provider registration, provider reconnection, adapter update, explicit user action, provider capability-change signal where available, or local descriptor edit. Optional scheduled maintenance refresh may exist as a user setting, but it is not a correctness condition and has no canonical interval. Stale descriptors may remain usable only with visible provenance/staleness diagnostics.
 
 ## 4. `ModelProfile`
+
+Anchor: `model.model-profile`
 
 ### 4.1 Definition
 
@@ -276,6 +286,8 @@ File 16 must not define a second source stack for profiles. Invocation overlays,
 
 ## 5. `ModelWorkloadRequirements`
 
+Anchor: `model.model-workload-requirements`
+
 ### 5.1 Definition
 
 `ModelWorkloadRequirements` is the typed description of what one model-bound step needs.
@@ -339,6 +351,8 @@ Confidence scores, if used internally by a custom strategy, are diagnostic. They
 
 ## 6. `ModelRegistry`
 
+Anchor: `model.model-registry`
+
 ### 6.1 Definition
 
 `ModelRegistry` is a computed, read-optimized projection over:
@@ -371,6 +385,8 @@ Registry-relevant events may report descriptor changes, profile registration/upd
 Provider health, rate-limit counters, retry-after values, credential state, and provider connection state remain Provider Layer state.
 
 ## 7. Model Selection Algorithm
+
+Anchor: `model.model-selection-algorithm`
 
 ### 7.1 Inputs
 
@@ -443,6 +459,8 @@ Recovery options should be concrete: select another model, enable provider, rela
 
 ## 8. `ModelSelectionRecord`
 
+Anchor: `model.model-selection-record`
+
 Every selection invocation produces a durable `ModelSelectionRecord`.
 
 It must record:
@@ -466,6 +484,8 @@ It must record:
 The record stores enough to replay and inspect the decision without dumping raw provider/account secrets or full prompt contents. Route records and ledger entries reference the selection record rather than duplicating the full decision.
 
 ## 9. Fallback Policy
+
+Anchor: `model.fallback-policy`
 
 ### 9.1 Definition
 
@@ -525,6 +545,8 @@ If compatibility cannot be preserved, fallback surfaces the issue instead of sil
 
 ## 10. Behavioral Intent and Parameter Resolution
 
+Anchor: `model.behavioral-intent-parameter-resolution`
+
 ### 10.1 Purpose
 
 Different providers expose different parameter names and constraints. Model Strategy defines provider-invariant behavioral intents; File 17 serializes them.
@@ -565,6 +587,8 @@ If reasoning is required and unsupported, selection must reselect or fail with t
 
 ## 11. Cost and Budget Selection
 
+Anchor: `model.cost-budget-selection`
+
 Cost-aware selection consumes effective accounting projections from File 17 and settings. It does not read pricing from `ModelCapabilityDescriptor`.
 
 Cost projections may include:
@@ -584,6 +608,8 @@ Cost class may exist as a user-facing projection for settings and UI, but its de
 
 ## 12. Cache Semantics
 
+Anchor: `model.cache-semantics`
+
 Prompt caching affects model selection only through provider-invariant inputs:
 
 - descriptor cache-candidate support
@@ -596,6 +622,8 @@ File 16 does not define provider cache syntax, cache retention duration, cache m
 Cache continuity may be a tie-breaker after hard requirements, policy, data boundary, and budget are satisfied. It must not cause selection to violate correctness.
 
 ## 13. Multi-Model Selection Plans
+
+Anchor: `model.multi-model-selection-plans`
 
 A `ModelSelectionPlan` is allowed only when the caller requests a topology that needs multiple model selections: comparison, best-of-N, arena, mixture-of-agents, critic-selector, validator/responder split, or explicit multi-agent work.
 
@@ -611,6 +639,8 @@ The plan must declare:
 Multi-model fan-out is not a hidden automatic fallback. It is an explicit execution structure consumed by File 04.
 
 ## 14. Settings
+
+Anchor: `model.settings`
 
 Model-strategy behavior must be configurable through File 15 settings.
 
@@ -635,6 +665,8 @@ Provider health backoff, descriptor refresh mechanics, rate-limit windows, retry
 
 ## 15. Explicit Rejections
 
+Anchor: `model.explicit-rejections`
+
 The following shapes are wrong for this layer:
 
 - hardcoded model-name branching outside provider adapter normalization
@@ -657,6 +689,8 @@ The following shapes are wrong for this layer:
 - hidden automatic multi-model fan-out
 
 ## 16. Consequences for Later Specs
+
+Anchor: `model.consequences-for-later-specs`
 
 Later specs must follow these rules:
 

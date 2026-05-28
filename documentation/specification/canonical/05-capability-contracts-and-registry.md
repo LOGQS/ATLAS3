@@ -47,13 +47,15 @@ Resolved design:
 
 ## 1. Chosen Model
 
+Anchor: `capability.chosen-model`
+
 ATLAS3 has one Capability Registry. Every operation the system can perform — file read, shell exec, web fetch, browser click, memory recall, image generation, MCP-server tool, plugin tool, user-authored Wasm tool, external-API endpoint, automation invocation, sub-agent spawn, capability-discovery call — is declared as a `Capability` and registered in that registry.
 
 A `Capability` exists in three layered views:
 
 - `CapabilityDeclaration` — the durable, source-authored contract; identity, schemas, touched-resource expressions, permission-tier declaration, execution-semantic metadata (including replay class), validation paths, source attribution, observability declarations
 - `RegisteredCapability` — the live registry entry that pairs a declaration with mutable registry state: resolved backend binding, source-instance reference, trust state, enable state, platform availability, lifecycle state, registration timestamp, diagnostics, alias activations, collision resolution
-- `CapabilityInvocation` — the per-call record produced when the executor dispatches a capability through the File 04 §8.2 pipeline; resolved tier, resolved touched resources, resolved model-mediated classifications, selected backend binding instance, policy decision, ledger linkage, call outcome
+- `CapabilityInvocation` — the per-call record produced when the executor dispatches a capability through the `run.call-pipeline` (File 04 §8.2) pipeline; resolved tier, resolved touched resources, resolved model-mediated classifications, selected backend binding instance, policy decision, ledger linkage, call outcome
 
 The same declaration drives:
 
@@ -74,6 +76,8 @@ The `Capability` declaration defined here supersedes the `Action` interface in `
 Capabilities and policy compose: every declaration carries enough metadata for the policy layer to evaluate without re-inspecting the implementation. Capabilities and surfaces compose: every capability is identifiable by a stable id that the surface layer can load, hide, or borrow without changing the declaration.
 
 ## 2. `Capability`
+
+Anchor: `capability.capability`
 
 ### 2.1 Definition
 
@@ -100,7 +104,7 @@ Every `CapabilityDeclaration` must have:
 - a touched-resource declaration as machine-parseable expressions (§6)
 - a permission-tier declaration (§5)
 - a capability class declaration (§3.5)
-- the execution-semantic metadata declared in File 04 §8.2 plus the per-field `classification_mode` directive (§3.6, §7)
+- the execution-semantic metadata declared in `run.call-pipeline` (File 04 §8.2) plus the per-field `classification_mode` directive (§3.6, §7)
 - a `replay_class` declaration (§3.6, §7.3)
 - a validation path (§8)
 - a declared source (§9.1)
@@ -117,6 +121,8 @@ A capability whose handler implementation needs to choose between input variants
 
 ## 3. Capability Declaration — Field Set
 
+Anchor: `capability.declaration`
+
 The declaration is the durable, source-authored contract. Every field is required unless explicitly marked optional. Field semantics are defined in the sections below.
 
 The declaration is immutable for a given `(id, version)`. Updates go through `version` increment (§13.4). Registry-state mutations (enable/disable, source-collision shadowing, trust override, backend rebinding) live on the registered entry (§10), never on the declaration.
@@ -130,11 +136,13 @@ The declaration is immutable for a given `(id, version)`. Updates go through `ve
 
 ### 3.2 Display Fields
 
+Anchor: `capability.display-fields`
+
 Display fields use a localizable descriptor: a literal default carries the canonical text; an optional i18n key and translation reference enable localization. Built-in declarations should provide an i18n key alongside the literal default; dynamic declarations (MCP, plugin, external API, user-defined) must always provide safe literal defaults so the surface and discovery layers can render even before localization is wired.
 
 - `name`: required default human-readable name
 - `description`: required default model-facing and user-facing description
-- `short_description`: required one-line default for compact discovery and the borrowable surface zone (per File 04 §10.2)
+- `short_description`: required one-line default for compact discovery and the borrowable surface zone (per `run.zones`, File 04 §10.2)
 - `i18n_key`: optional i18n key resolving to translated `name`/`description`/`short_description`
 - `translations`: optional translation map or source localization reference
 - `family`: capability family identifier (§13.2)
@@ -156,15 +164,19 @@ Display fields are declarative only. Surface presentation is owned by File 07 an
 
 ### 3.5 Permission and Policy Fields
 
+Anchor: `capability.permission-policy-fields`
+
 - `permission_tier`: `TierResolver::Static(Tier)` or `TierResolver::Dynamic(resolver_id)` (§5)
 - `permission_floor`: optional minimum tier that global settings cannot lower (§5.4)
 - `capability_class`: `InternalAnalysis`, `ActionExternal`, `UserArtifact`, or `Unknown`; policy-critical class consumed by File 06 for default template selection and trust escalation. Tags may mirror this value for discovery, but tags are not the source of truth.
 - `approval_template_id`: optional identifier for the default approval-policy template used when policy escalates (template definitions live in File 06)
-- `data_sensitivity`: default sensitivity class for events and outputs the capability emits (`Public`, `Sensitive`, `Secret`); per File 04 §23.2
+- `data_sensitivity`: default sensitivity class for events and outputs the capability emits (`Public`, `Sensitive`, `Secret`); per `run.event-stream` (File 04 §23.2)
 
 ### 3.6 Execution-Semantic Fields
 
-These fields are declared in File 04 §8.2 and referenced here as part of the declaration:
+Anchor: `capability.execution-semantic-fields`
+
+These fields are declared in `run.call-pipeline` (File 04 §8.2) and referenced here as part of the declaration:
 
 - `concurrency`: `ConcurrencySafe`, `SelfParallel`, `Exclusive`
 - `reversibility_class`: `none`, `compensable`, `reversible`
@@ -195,6 +207,8 @@ Trust state and registration timestamp are not declaration fields; they live on 
 
 ### 3.9 Availability Fields
 
+Anchor: `capability.availability-fields`
+
 - `availability_predicate`: declarative requirements and blockers evaluated against world-model state (§15.2)
 - `platforms`: optional platform constraint list (`windows`, `macos`, `linux`, `mobile`, etc.); a capability whose platforms list omits the current platform is catalogued as `availability_status: unavailable_platform` on the registered entry rather than absent (§9.4, §10)
 - `prerequisite_capabilities`: optional list of scoped prerequisites that must have been invoked previously before this capability becomes invocable (§15.3)
@@ -202,6 +216,8 @@ Trust state and registration timestamp are not declaration fields; they live on 
 The `enabled` flag is registry state, not a declaration field; it lives on the registered entry (§10). The settings system scopes enable state per workspace, conversation, or globally without mutating the declaration.
 
 ### 3.10 Composition Fields
+
+Anchor: `capability.composition-fields`
 
 - `dependent_capabilities`: optional list of capability ids this capability may invoke internally — for transparency to policy and surface layers (§17.1). Declaration is not an execution bypass; declared dependents are still invoked through the shared capability-call pipeline.
 - `output_block_kinds`: declared block kinds the capability produces (§17.2)
@@ -213,6 +229,8 @@ The `enabled` flag is registry state, not a declaration field; it lives on the r
 - `telemetry_schema`: declared event types the capability emits beyond the canonical execution events; the future storage spec extends the schema, the canonical declaration names the minimum
 
 ### 3.12 Backend Descriptor
+
+Anchor: `capability.backend-descriptor`
 
 - `backend`: serializable backend descriptor — kind plus the parameters the registry needs to resolve a live binding at registration (`ServiceMethod { service_id, method_name }`, `Wasm { module_id, entry_point }`, `Shell { program, args, cwd, env_overlay }`, `McpProxy { server_id, remote_tool_name }`, `HttpEndpoint { url_template, method, auth_ref }`, `Closure { closure_id }`)
 
@@ -226,7 +244,11 @@ The declaration is wire-stable through `schema_version`. Where a registry encoun
 
 ## 4. Schemas
 
+Anchor: `capability.schemas`
+
 ### 4.1 `input_schema`
+
+Anchor: `capability.input-schema`
 
 `input_schema` is a JSON Schema describing the capability's input arguments. Required:
 
@@ -261,25 +283,31 @@ Capabilities whose output is principally one or more durable blocks (file edits,
 
 ### 4.3 `error_vocabulary`
 
+Anchor: `capability.error-vocabulary`
+
 `error_vocabulary` declares the typed errors the capability may produce. Each variant has:
 
 - a stable kind identifier (string)
 - declared structured fields (typed)
-- a `recoverable` boolean — whether the agent loop should attempt recovery in-band (per File 04 §8.3 in-band denial)
+- a `recoverable` boolean — whether the agent loop should attempt recovery in-band (per `run.denial-is-in-band`, File 04 §8.3 in-band denial)
 - a `retryable` classification — whether the same call may be retried as-is, retried with a backoff, or must not be retried
 - a human-readable message template
 
-Errors that flow as in-band tool results to the agent loop must conform to this vocabulary. Errors that escape the capability boundary as `AppError` cross-boundary failures (per File 01 §6.9) must map to declared variants in `error_vocabulary` plus the system's typed-error envelope.
+Errors that flow as in-band tool results to the agent loop must conform to this vocabulary. Errors that escape the capability boundary as `AppError` cross-boundary failures (per `core.typed-errors`, File 01 §6.9) must map to declared variants in `error_vocabulary` plus the system's typed-error envelope.
 
 A capability must not emit ad-hoc error kinds; every produced error must correspond to a declared variant. Adding an error kind requires a registry update and follows the versioning rules in §13.4.
 
 ## 5. Permission-Tier Declaration
 
+Anchor: `capability.permission-tier-declaration`
+
 ### 5.1 Tier Set
 
-The permission-tier set is canonical (File 04 §11): `Denied`, `ReadOnly`, `WorkspaceWrite`, `UserApproval`, `Unrestricted`, with the `typed-confirmation` mode as a variant of `UserApproval`.
+The permission-tier set is canonical (`run.approval-during-execution`, File 04 §11): `Denied`, `ReadOnly`, `WorkspaceWrite`, `UserApproval`, `Unrestricted`, with the `typed-confirmation` mode as a variant of `UserApproval`.
 
 ### 5.2 `TierResolver`
+
+Anchor: `capability.tier-resolver`
 
 `permission_tier` is declared as one of:
 
@@ -294,9 +322,11 @@ The resolver declaration belongs to the declaration. The resolved tier for a giv
 
 ### 5.3 Tier Composition With Leases
 
-The capability's declared tier is the baseline. The policy layer may grant a `Lease` that lowers per-call friction (an `AlwaysAllow` lease for a `UserApproval` capability auto-resolves the next call within the lease scope). Leases cannot escalate above the declared tier, cannot bypass `Denied`, and cannot lift `typed-confirmation`. Tier composition follows the lease-scope hierarchy in File 04 §11; contradictions across scope levels surface as policy errors, not silent wins.
+The capability's declared tier is the baseline. The policy layer may grant a `Lease` that lowers per-call friction (an `AlwaysAllow` lease for a `UserApproval` capability auto-resolves the next call within the lease scope). Leases cannot escalate above the declared tier, cannot bypass `Denied`, and cannot lift `typed-confirmation`. Tier composition follows the lease-scope hierarchy in `run.approval-during-execution` (File 04 §11); contradictions across scope levels surface as policy errors, not silent wins.
 
 ### 5.4 `permission_floor`
+
+Anchor: `capability.permission-floor`
 
 A capability may declare a `permission_floor` — a minimum tier that global settings (including `agent.unrestricted_mode`) cannot lower. Used for capabilities whose risk is high enough that no global toggle should make them frictionless: account deletion, destructive publish, force-push to a protected branch, system shutdown, credential export, irreversible publishing operations.
 
@@ -307,6 +337,8 @@ A capability may declare a `permission_floor` — a minimum tier that global set
 The declaration carries tiers, floors, and resolvers. The policy layer evaluates them against active leases, scope-level overrides, source trust, and approval templates, and returns the runtime decision. File 05 owns the declaration and the registered trust state; File 06 owns the evaluation.
 
 ## 6. `touched_resources`
+
+Anchor: `capability.touched-resources`
 
 ### 6.1 Required Shape
 
@@ -340,11 +372,15 @@ These cover the resource kinds the canonical execution, policy, isolation, setti
 
 ### 6.3 Extension Resource Classes
 
+Anchor: `capability.extension-resource-classes`
+
 Subsystems and plugins may register additional resource classes through a registered subsystem-extension capability (per §16.2 runtime mutation). An extension class entry carries an `extension_id` namespacing the class, a structured scope grammar, and a containment predicate so policy can decide lease-scope inclusion without inspecting subsystem internals. Examples a subsystem might register: `video-feed` for a vision subsystem, `ble-device` for an IoT plugin, `vector-index` for a retrieval subsystem.
 
 Extension classes are first-class once registered: leases, audit, conflict detection, and routing reason about them the same way they reason about canonical classes. The registration itself is a capability call and is subject to policy and proposal-first rules (§16.2).
 
 ### 6.4 Resource Expressions
+
+Anchor: `capability.resource-expressions`
 
 Expressions are structured terms over the input schema and registered ambient values (workspace root, current process group id, run id, conversation id, current credential vault keys). Indicative shapes:
 
@@ -371,19 +407,23 @@ Touched-resource declarations must be honest and complete. A capability that qui
 
 ### 6.6 Boundary
 
-The declaration names what the capability may touch. The policy layer resolves expressions against arguments to produce the concrete resource set per call (§11). The runtime sandbox enforces what is actually touched (per File 04 §16). A declared scope that the runtime cannot enforce is still the contract; the runtime catches violations and emits typed errors.
+The declaration names what the capability may touch. The policy layer resolves expressions against arguments to produce the concrete resource set per call (§11). The runtime sandbox enforces what is actually touched (per `run.child-runs-multi-agent-work`, File 04 §16). A declared scope that the runtime cannot enforce is still the contract; the runtime catches violations and emits typed errors.
 
 ## 7. Execution-Semantic Metadata
 
-The fields named in §3.6 are settled in File 04 §8.2 and are part of the declaration. This section names declaration-owned additions:
+Anchor: `capability.execution-semantic-metadata`
+
+The fields named in §3.6 are settled in `run.call-pipeline` (File 04 §8.2) and are part of the declaration. This section names declaration-owned additions:
 
 ### 7.1 `terminates_sequence`
 
 A capability may declare `terminates_sequence: true` when its execution is known to invalidate any in-flight sibling calls within the same dispatch batch. Browser-state-changing actions (navigation, click on a link), sandbox-state-changing operations, and other capabilities that change the world the siblings observe must declare this flag.
 
-The executor honors `terminates_sequence` by aborting queued siblings in the same batch when the capability completes. Combined with the runtime detection mechanisms in File 04 §15.3, this provides defense-in-depth against silent corruption from out-of-order parallel execution.
+The executor honors `terminates_sequence` by aborting queued siblings in the same batch when the capability completes. Combined with the runtime detection mechanisms in `run.failure-in-parallel-work` (File 04 §15.3), this provides defense-in-depth against silent corruption from out-of-order parallel execution.
 
 ### 7.2 `classification_mode`
+
+Anchor: `capability.classification-mode`
 
 For declaration fields where a single static value is not meaningful (a `shell.exec` cannot declare one `reversibility_class` for all bash commands), the declaration carries a per-field `classification_mode`:
 
@@ -396,6 +436,8 @@ The declaration names the mode. The per-call resolved value (the tier returned b
 
 ### 7.3 `replay_class`
 
+Anchor: `capability.replay-class`
+
 Every declaration carries a `replay_class`:
 
 - `deterministic_replayable` — same inputs and same referenced state produce same result; pure local reads and pure transforms qualify
@@ -403,7 +445,7 @@ Every declaration carries a `replay_class`:
 - `effect_replayable_with_policy` — the call causes external effects (sending an email, calling a payment API, mutating a database) and may be reissued only through policy; the contract names the policy hook the replay must consult before reissuing
 - `not_replayable` — cannot be reproduced across process/device/session boundaries; closure-backed capabilities, capabilities depending on transient runtime handles, and inherently uncontrolled side-effects fall here
 
-The author classifies based on the call shape, not on per-call state — whether the file referenced by `args.path` still exists at replay time is a snapshot/policy concern, not a declaration concern. The replay layer (per File 04 §23.1 and File 10) consumes `replay_class` to decide what evidence to record, what to require for replay, and what to refuse to reproduce.
+The author classifies based on the call shape, not on per-call state — whether the file referenced by `args.path` still exists at replay time is a snapshot/policy concern, not a declaration concern. The replay layer (per `run.execution-ledger`, File 04 §23.1 and File 10) consumes `replay_class` to decide what evidence to record, what to require for replay, and what to refuse to reproduce.
 
 Closure-backed declarations (§3.12) must declare `replay_class: not_replayable`. Declaring otherwise is an Explicit Rejection (§19).
 
@@ -413,14 +455,18 @@ These fields drive execution behavior. They are declared by the capability autho
 
 ## 8. Validation and Postconditions
 
+Anchor: `capability.validation-postconditions`
+
 ### 8.1 `input_validators`
+
+Anchor: `capability.input-validators`
 
 Beyond schema validation against `input_schema`, a capability may declare additional pre-execution input validators:
 
 - structural validators (parsed-AST checks for shell commands, regex pattern compilation for grep tools, JSON-schema verification for capabilities whose input contains a sub-schema)
 - workspace-boundary validators (path normalization, symlink resolution, workspace-root containment)
 - argument-coercion steps (string-to-number, empty-string-to-null, alias-name resolution) declared as part of the input contract for tolerance to LLM output noise
-- registered hook validators (the quality-control validators in File 04 §23.3 attach at the `ToolCallProposed` boundary; the capability declares which hook categories it expects)
+- registered hook validators (the quality-control validators in `run.hook-integration` (File 04 §23.3) attach at the `ToolCallProposed` boundary; the capability declares which hook categories it expects)
 
 Validators run in declared order. A validator may return `valid`, `invalid_with_correction`, or `invalid`. The executor honors corrections (where the validator supplies a normalized argument), records the correction in the ledger, and proceeds. An `invalid` result without correction halts dispatch and produces a typed validation error in-band to the agent.
 
@@ -432,15 +478,15 @@ A capability may declare structural postconditions: deterministic checks the run
 
 - declared output-schema conformance — a structural validation of the produced output against `output_schema`
 - declared resource-state checks — for capabilities that promised to produce a file, the existence of the file at the declared path; for capabilities that promised to write to a database, the row count delta
-- declared ledger evidence — referenced through File 04 §22's deterministic forgery guard; a capability whose contract required action cannot terminate `completed` without ledger evidence of action
+- declared ledger evidence — referenced through `run.termination` (File 04 §22)'s deterministic forgery guard; a capability whose contract required action cannot terminate `completed` without ledger evidence of action
 
-Postconditions are deterministic by default. The configurable completion-verification hook surface in File 04 §22 supports model-mediated semantic checks (whether the run satisfied the user's intent) at user-configured cadence; the deterministic floor declared in `postconditions` is the canonical minimum.
+Postconditions are deterministic by default. The configurable completion-verification hook surface in `run.termination` (File 04 §22) supports model-mediated semantic checks (whether the run satisfied the user's intent) at user-configured cadence; the deterministic floor declared in `postconditions` is the canonical minimum.
 
 A failing postcondition produces a typed postcondition-failure variant in `error_vocabulary` and may trigger declared compensation (per `reversibility_class`).
 
 ### 8.3 `stale_state_revalidation`
 
-For capabilities whose mutation depends on a prior observation (file edit after a read, GUI click after a tree snapshot, browser action after a page snapshot), the declaration carries the stale-state revalidation pattern from File 04 §8.2:
+For capabilities whose mutation depends on a prior observation (file edit after a read, GUI click after a tree snapshot, browser action after a page snapshot), the declaration carries the stale-state revalidation pattern from `run.call-pipeline` (File 04 §8.2):
 
 - the prior-observation metadata the capability records (file mtime and content hash, accessibility-tree fingerprint, DOM snapshot id)
 - the `expected_*` fields the capability accepts on its input schema (the caller must supply the recorded observation metadata)
@@ -450,24 +496,30 @@ The executor enforces nothing additional; the capability author is responsible f
 
 ### 8.4 Boundary
 
-Validation belongs to the capability and the registered validator hooks. Approval belongs to the policy layer. Postcondition reporting belongs to the ledger (per File 04 §23 and File 10). Capability authors do not implement their own approval flow; they implement validation and rely on the shared policy layer.
+Validation belongs to the capability and the registered validator hooks. Approval belongs to the policy layer. Postcondition reporting belongs to the ledger (per `run.ledger-events-commits`, File 04 §23 and File 10). Capability authors do not implement their own approval flow; they implement validation and rely on the shared policy layer.
 
 ## 9. Sourcing
 
+Anchor: `capability.sourcing`
+
 ### 9.1 `CapabilitySource`
+
+Anchor: `capability.capability-source`
 
 Every declaration names its source. The source is one of:
 
 - `Builtin` — compiled into the application binary; ships with every install; cannot be unregistered without an update
 - `Subsystem { subsystem_id }` — owned by a registered subsystem (work surface or substrate service such as Memory, Routing, Context Assembly, Knowledge Indexing, Settings, Policy); registered when the subsystem registers; loaded as part of the subsystem. A subsystem is any registered work surface or substrate service that owns capabilities. New subsystems may be added or removed through the subsystem-registration capability (proposal-first per §16.2), so subsystem composition itself is first-class and customizable.
-- `Plugin { plugin_id, plugin_version }` — bundled in a plugin (per File 01 §6.14 extension planes; see the future Extension and Plugin System spec); registered when the plugin loads; unregistered when the plugin unloads
+- `Plugin { plugin_id, plugin_version }` — bundled in a plugin (per `core.extension-planes`, File 01 §6.14 extension planes; see the future Extension and Plugin System spec); registered when the plugin loads; unregistered when the plugin unloads
 - `McpServer { server_id, server_uuid, server_version }` — sourced from an external Model Context Protocol server; registered when the server connects; unregistered when the server disconnects
 - `Api { api_name, api_definition_path }` — sourced from a user-authored external-API TOML or equivalent declarative definition; registered when the definition file is loaded
-- `UserDefined { backend, scope }` — registered at runtime by the user or, with explicit user approval, by the agent through a capability-registration capability; backend is `Wasm` or `Shell` (per File 04 §17 self-modification); scope is `conversation`, `workspace`, or `global`
+- `UserDefined { backend, scope }` — registered at runtime by the user or, with explicit user approval, by the agent through a capability-registration capability; backend is `Wasm` or `Shell` (per `run.interruption-pause-cancellation`, File 04 §17 self-modification); scope is `conversation`, `workspace`, or `global`
 
 A capability has exactly one source. A capability cannot be both built-in and plugin-bundled; a plugin that wishes to override a built-in capability must register a distinct id and the user must explicitly select the override (§14).
 
 ### 9.2 Trust and Source-Approval Flow
+
+Anchor: `capability.trust-source-approval-flow`
 
 Trust is registry state, not a declaration field. The declared source carries source-version identifiers; the registered entry (§10) holds:
 
@@ -480,6 +532,8 @@ Trust does not rewrite declared fields. A capability declaring `permission_tier:
 When a source registers (plugin install, MCP server connect, external-API definition load, user-defined capability registration) the runtime surfaces the declared permission tiers, declared touched resources, declared replay class, declared trust hint, source provenance, and computed source-risk summary before activation when policy requires review. The user accepts declared defaults, configures policy, denies the source, explicitly defers source-level policy to per-call fallback, or cancels registration. Review triggering is risk-summary based; declared tier is one input, not the whole rule. The exact trigger and fallback behavior are owned by File 06 and user settings.
 
 ### 9.3 Sourcing Equivalence
+
+Anchor: `capability.sourcing-equivalence`
 
 Capabilities from every source enter the same registry through the same contract. Once registered, the source distinction surfaces as metadata: the agent sees the same agent-tool list whether the underlying source is `Builtin` or `McpServer`. The policy layer reads the same declaration fields. The ledger records the resolved capability id with its source attached.
 
@@ -494,6 +548,8 @@ A surface or discovery layer may hide unavailable capabilities from default view
 A capability that is registered as `Available` on Windows must not throw `PlatformUnsupported` on Linux; the executor never has to discover the mismatch by crashing a handler. The registered entry on Linux is `unavailable_platform` from registration onward.
 
 ## 10. `RegisteredCapability` — Registry State
+
+Anchor: `capability.registered-capability`
 
 ### 10.1 Definition
 
@@ -523,10 +579,12 @@ Disabled, shadowed, and `unavailable_platform` entries remain in the registry as
 
 ### 10.4 Backend Binding Lifecycle
 
+Anchor: `capability.backend-binding-lifecycle`
+
 The declaration carries the serializable backend descriptor (§3.12). The registered entry carries the resolved live binding. Each backend kind has its own resolution and lifecycle rules:
 
 - `ServiceMethod` — resolved against the Rust service registry (static-typed services compile-time wired; dynamic services runtime-registered for plugin-loaded capabilities); persists across restarts when the service persists
-- `Wasm` — resolved against the loaded Wasm module registry; module sandboxed per File 04 §16; persists across restarts when the module is re-loaded
+- `Wasm` — resolved against the loaded Wasm module registry; module sandboxed per `run.child-runs-multi-agent-work` (File 04 §16); persists across restarts when the module is re-loaded
 - `Shell` — resolved against a configured subprocess invocation; sandboxed per the shell-operations spec
 - `McpProxy` — resolved against the active MCP client pool; client invokes the remote tool through MCP and adapts the response; deregisters when the MCP server disconnects, re-resolves on reconnect
 - `HttpEndpoint` — resolved against the HTTP client; auth comes from the credential vault by reference (never inline secrets)
@@ -536,7 +594,9 @@ The declaration is the contract. The binding is registry state. Diagnostics abou
 
 ## 11. `CapabilityInvocation` — Per-Call Record
 
-A `CapabilityInvocation` is the per-call record produced when the executor dispatches a capability through the File 04 §8.2 pipeline. The invocation record is owned by File 04 (proposal/execution) and File 10; File 05 names the schema only to draw the layer boundary and to identify which facts are per-call resolved (and therefore not declaration fields).
+Anchor: `capability.invocation-record`
+
+A `CapabilityInvocation` is the per-call record produced when the executor dispatches a capability through the `run.call-pipeline` (File 04 §8.2) pipeline. The invocation record is owned by File 04 (proposal/execution) and File 10; File 05 names the schema only to draw the layer boundary and to identify which facts are per-call resolved (and therefore not declaration fields).
 
 Per-call resolved facts that are not declaration fields:
 
@@ -550,9 +610,11 @@ Per-call resolved facts that are not declaration fields:
 - proposal id, ledger entry id, event sequence
 - call outcome (typed result, typed error, blocks produced, events emitted)
 
-The invocation record is durable in the ledger (per File 04 §23.1). Replay reads `(declaration_version, resolved_backend_binding_id_at_time)` from the invocation record; it does not infer them from current registry state.
+The invocation record is durable in the ledger (per `run.execution-ledger`, File 04 §23.1). Replay reads `(declaration_version, resolved_backend_binding_id_at_time)` from the invocation record; it does not infer them from current registry state.
 
 ## 12. Capability Registry
+
+Anchor: `capability.capability-registry`
 
 ### 12.1 Operations
 
@@ -570,9 +632,11 @@ The Capability Registry must support:
 - `subscribe(events) -> Stream<RegistryEvent>` — registry mutation event stream
 - `resolve_for_invocation(id, args, world_state) -> Result<InvocationDescriptor, ResolutionError>` — resolve identity, version, alias, source-collision active winner, and prepare the invocation descriptor the executor consumes
 
-The registry resolves; the executor invokes. The registry owns: registration, lookup, version resolution, alias resolution, source-collision active-entry selection, declaration validation, availability projection, and backend-binding resolution. The executor (File 04 §8.2) owns: proposal, approval, tool-call execution, hooks, cancellation, streaming, ledger entries, and result blocks. The registry does not own an `execute` primitive; convenience facades that combine the two are explicit delegations to the execution runtime, not registry-owned execution.
+The registry resolves; the executor invokes. The registry owns: registration, lookup, version resolution, alias resolution, source-collision active-entry selection, declaration validation, availability projection, and backend-binding resolution. The executor (`run.call-pipeline`, File 04 §8.2) owns: proposal, approval, tool-call execution, hooks, cancellation, streaming, ledger entries, and result blocks. The registry does not own an `execute` primitive; convenience facades that combine the two are explicit delegations to the execution runtime, not registry-owned execution.
 
 ### 12.2 Events
+
+Anchor: `capability.events`
 
 Registration emits `CapabilityRegistered`, unregistration emits `CapabilityUnregistered`, update emits `CapabilityUpdated`, enable/disable emits `CapabilityEnabledChanged`, registry-state mutations (binding rebound, trust override applied, collision resolved, availability changed) emit `CapabilityRegistryStateChanged`. Subscribers (surfaces, settings, the action-discovery projection for agents) react to these events.
 
@@ -595,7 +659,11 @@ Unregistration runs in reverse: emit pre-unregister event, transition lifecycle 
 
 ## 13. Identity, Namespacing, Versioning
 
+Anchor: `capability.identity-namespacing-versioning`
+
 ### 13.1 `id`
+
+Anchor: `capability.id`
 
 A capability id is a stable, namespaced, lowercase, dotted string. The first segment names the source class; the remaining segments name the family and operation:
 
@@ -608,6 +676,8 @@ A capability id is a stable, namespaced, lowercase, dotted string. The first seg
 Ids are case-insensitive at lookup (registered case is preserved for display) and may not contain whitespace, slashes, or characters that conflict with the namespace separators (`.`, `:`, `__`). The registry rejects ids that do not conform.
 
 ### 13.2 `family`
+
+Anchor: `capability.family`
 
 `family` is a free-form identifier that groups related capabilities for surface organization, routing, and policy templating. Common families: `file`, `shell`, `web`, `browser`, `memory`, `data`, `gui`, `system`, `code`, `image`, `audio`, `video`, `agent`, `plugin`, `mcp`. Capabilities in the same family may share approval-policy templates and surface presentation defaults.
 
@@ -626,6 +696,8 @@ Each alias entry carries the alias string, the version range during which the al
 The `aliases` field is for identity compatibility only. Declaring a separate registered capability whose handler delegates to another capability is a distinct mechanism, the adapter capability (§17.4), and uses its own declaration.
 
 ### 13.4 `version`
+
+Anchor: `capability.version`
 
 `version` is a semantic version of the capability declaration. Increments follow standard semver semantics:
 
@@ -648,6 +720,8 @@ ATLAS3 is in initial development; no third-party persisted declarations exist ye
 Identity is stable across runs; `version` is the explicit mutation knob. Renames go through aliases. Replacement is `update()` with a new declaration whose `version` honors semver semantics. Wholesale id reuse for unrelated operations is forbidden — it produces silent reproducibility breakage.
 
 ## 14. Override Resolution and Conflicts
+
+Anchor: `capability.override-resolution-conflicts`
 
 ### 14.1 Identifier Collisions
 
@@ -680,6 +754,8 @@ Multiple sources commonly contribute non-colliding capabilities to the same fami
 
 ## 15. Discovery
 
+Anchor: `capability.discovery`
+
 ### 15.1 Lookup Surface
 
 The registry exposes lookup along several axes:
@@ -696,16 +772,20 @@ All lookup surfaces honor `availability_status` and `enabled` from the registere
 
 ### 15.2 `availability_predicate`
 
+Anchor: `capability.availability-predicate`
+
 `availability_predicate` declares when the capability is invocable. Required parts:
 
 - `requires`: a typed declaration of state the capability needs (active surface, focused element class, selection presence, present capability prerequisites, present credentials, present provider with required model capability)
 - `blocked_by`: a typed declaration of state that prevents invocation (a destructive capability blocked while a prior destructive call is still committing; a publish-capability blocked while the workspace has unsaved changes)
 
-The state-awareness service evaluates predicates against the current world-model snapshot and produces the available-capability list (per File 01 §6.7 World Model). Surfaces consume that list — the command palette shows the available subset; the agent sees the available subset filtered further by surface-loading rules in File 07.
+The state-awareness service evaluates predicates against the current world-model snapshot and produces the available-capability list (per `core.world-model`, File 01 §6.7 World Model). Surfaces consume that list — the command palette shows the available subset; the agent sees the available subset filtered further by surface-loading rules in File 07.
 
 Predicates are declarative. A capability whose availability rule cannot be expressed as a typed declaration must extend the predicate vocabulary through registered availability checks (a named function that the registry evaluates). Ad-hoc procedural availability is rejected.
 
 ### 15.3 `prerequisite_capabilities`
+
+Anchor: `capability.prerequisite-capabilities`
 
 A capability may declare `prerequisite_capabilities` — a list of scoped prerequisites. Each prerequisite entry names a capability id and a `scope`:
 
@@ -722,13 +802,17 @@ The registry encodes the dependency declaration with its scope. The detailed pre
 
 ### 15.4 Runtime Discovery Capabilities
 
-Discovery is itself a capability surface. The canonical built-in discovery capabilities (per File 04 §10.3) — `tool.search`, `tool.borrow`, `mcp.search`, `extensions.search_registry` — are first-class registered capabilities. The agent invokes them through the same call pipeline, and their outputs flow as typed blocks that the agent loop consumes.
+Discovery is itself a capability surface. The canonical built-in discovery capabilities (per `run.routing-influence`, File 04 §10.3) — `tool.search`, `tool.borrow`, `mcp.search`, `extensions.search_registry` — are first-class registered capabilities. The agent invokes them through the same call pipeline, and their outputs flow as typed blocks that the agent loop consumes.
 
 The built-in discovery capability set is canonical; surface tools and presentations may add subsystem-specific or family-specific discovery shortcuts. Discovery capabilities themselves declare `ReadOnly` permission tiers and declare the registry projections they read.
 
 ## 16. Lifecycle
 
+Anchor: `capability.lifecycle`
+
 ### 16.1 Startup Registration
+
+Anchor: `capability.startup-registration`
 
 At application startup, the registry is populated in declared phases:
 
@@ -737,13 +821,15 @@ At application startup, the registry is populated in declared phases:
 3. Plugin capabilities register as plugins load (per the future Extension and Plugin System spec)
 4. MCP-sourced capabilities register as configured MCP servers connect (per the future MCP and External Integrations spec)
 5. External-API capabilities register as TOML definitions are loaded
-6. User-defined capabilities register from their persisted declarations (per File 04 §17 self-modification storage and the future user-defined capability storage spec)
+6. User-defined capabilities register from their persisted declarations (per `run.interruption-pause-cancellation`, File 04 §17 self-modification storage and the future user-defined capability storage spec)
 
 The phases are sequenced because later phases may register capabilities that override or alias earlier ones; the registry reaches a stable state when all phases complete.
 
 A capability that fails to register (handler unresolved, declaration invalid, source unavailable) is recorded as registration-failed in the registry diagnostics; later sources may proceed. Startup does not abort on a single failed registration.
 
 ### 16.2 Runtime Mutation
+
+Anchor: `capability.runtime-mutation`
 
 Capabilities may register, update, and unregister at runtime:
 
@@ -752,7 +838,7 @@ Capabilities may register, update, and unregister at runtime:
 - a user invocation of `tools.register_custom` adds a user-defined capability; the call requires `UserApproval` regardless of other approvals; registration scope (`conversation`, `workspace`, `global`) is declared in the call
 - a subsystem extension capability registers a new subsystem (or removes one), by the same proposal-first approval rules
 
-Registration is a capability call. Capability registration, plugin installation, MCP connection, external-API definition import, user-script registration, and subsystem registration are themselves capabilities. They flow through the File 04 §8.2 execution pipeline and the policy layer like any other call. Runtime registration APIs are not privileged side doors; the agent cannot self-promote registration without user approval.
+Registration is a capability call. Capability registration, plugin installation, MCP connection, external-API definition import, user-script registration, and subsystem registration are themselves capabilities. They flow through the `run.call-pipeline` (File 04 §8.2) execution pipeline and the policy layer like any other call. Runtime registration APIs are not privileged side doors; the agent cannot self-promote registration without user approval.
 
 Registration proposals preview source, declared permissions, declared touched resources, declared replay class, declared trust hint, persistence scope, and backend kind so the user can make an informed accept/configure/deny decision. The exact proposal shape and approval mode is configurable per source class. The default behavior must keep ATLAS3 safe; users can override the default per source (auto-approve trusted sources, prompt-each-time for untrusted, deny outright) so customizability and safety co-exist.
 
@@ -766,7 +852,7 @@ Use cases for disable rather than unregister:
 - a plugin is suspected of misbehaving; disabling its capabilities is reversible while diagnosis proceeds
 - the plugin is being upgraded; old capabilities are disabled while new ones register, then the disabled capabilities are unregistered atomically
 
-`enabled` may be scoped: a capability may be globally enabled but disabled within a specific workspace or conversation. The settings system (per File 01 §6.8) holds the scoped enable state.
+`enabled` may be scoped: a capability may be globally enabled but disabled within a specific workspace or conversation. The settings system (per `core.settings-system`, File 01 §6.8) holds the scoped enable state.
 
 ### 16.4 Update Mechanics
 
@@ -786,11 +872,13 @@ Unregistering a built-in capability is forbidden (the binary defines what built-
 
 ### 16.6 Restart Behavior
 
-Capabilities whose registrations are persisted (built-in, subsystem, installed plugin, configured MCP server, loaded API definition, user-defined with persistent scope) re-register on restart. Capabilities that were enabled before restart remain enabled. In-flight calls that did not complete before restart follow the orphan-run rules in File 04 §17.3 (default `process_restart_orphan`; capabilities declaring `resume_on_restart: true` may resume per their handler).
+Capabilities whose registrations are persisted (built-in, subsystem, installed plugin, configured MCP server, loaded API definition, user-defined with persistent scope) re-register on restart. Capabilities that were enabled before restart remain enabled. In-flight calls that did not complete before restart follow the orphan-run rules in `run.cancellation` (File 04 §17.3) (default `process_restart_orphan`; capabilities declaring `resume_on_restart: true` may resume per their handler).
 
 The registry's restart sequence is deterministic: the same set of declarations registered in the same priority order, producing the same registry state, modulo new plugin updates and MCP-server availability changes. Determinism is required for replay and reproducibility.
 
 ## 17. Composition Primitives at the Contract Level
+
+Anchor: `capability.contract-composition`
 
 ### 17.1 `dependent_capabilities`
 
@@ -800,9 +888,11 @@ A capability whose handler internally invokes other capabilities declares `depen
 - the audit layer to attribute internal calls to the outer capability invocation
 - the surface layer to display capability composition transparently to the user
 
-`dependent_capabilities` is honest. Declaration is not an execution bypass: a capability that declares a dependent must invoke that dependent through the shared capability-call pipeline so policy, leases, resource checks, hooks, cancellation, and ledger recording all apply. Direct hidden delegation is invalid even when the dependency is declared. A capability that quietly delegates to another capability without declaring it is an Explicit Rejection (§19). Internal sub-mode dispatch within a single capability (per File 04 §9) is not a dependent-capability call and need not be declared.
+`dependent_capabilities` is honest. Declaration is not an execution bypass: a capability that declares a dependent must invoke that dependent through the shared capability-call pipeline so policy, leases, resource checks, hooks, cancellation, and ledger recording all apply. Direct hidden delegation is invalid even when the dependency is declared. A capability that quietly delegates to another capability without declaring it is an Explicit Rejection (§19). Internal sub-mode dispatch within a single capability (per `run.tool-calls`, File 04 §9) is not a dependent-capability call and need not be declared.
 
 ### 17.2 `output_block_kinds` and `output_event_kinds`
+
+Anchor: `capability.output-kinds`
 
 A capability declares the block kinds it produces and the event kinds it emits. Block kinds are drawn from the canonical block catalogue (per File 08); event kinds are drawn from the canonical event catalogue (per File 10). The declarations enable:
 
@@ -814,7 +904,7 @@ A capability that emits an undeclared block or event kind is an Explicit Rejecti
 
 ### 17.3 Cross-Capability Programmatic Composition
 
-Cross-capability composition is one of three shapes (per File 04 §9, §14):
+Cross-capability composition is one of three shapes (per `run.tool-calls` (File 04 §9), `run.programmatic-execution` (File 04 §14)):
 
 - the model emits multiple capability calls in one turn; they execute concurrently subject to declared concurrency rules (§7)
 - programmatic execution (`code.execute_with_tools` or equivalent) chains capability calls deterministically within a single execution unit, passing one call's output as the next call's input; each call still goes through the full pipeline (validation, policy, dispatch, ledger)
@@ -823,6 +913,8 @@ Cross-capability composition is one of three shapes (per File 04 §9, §14):
 None of these shapes require new contract field set: they are runtime composition of capabilities whose declarations are already present. The declaration supplies what each call needs; the executor handles the composition.
 
 ### 17.4 Adapter Capabilities
+
+Anchor: `capability.adapter-capabilities`
 
 A registered declaration may be an adapter capability — a separate registered capability that delegates to a target capability while changing presentation, defaults, constraints, or surface ownership. The adapter declares its own id, display, and any narrowed input/output schema, plus an `adapter_capability` field naming the target capability id and version. The adapter's handler invokes the target through the shared capability-call pipeline (so policy, leases, resource checks, hooks, and ledger all apply to the inner call as well as the outer adapter).
 
@@ -836,9 +928,11 @@ Composition primitives at the contract level make capability use inspectable. Th
 
 ## 18. Settings
 
+Anchor: `capability.settings`
+
 ### 18.1 Configurable Dimensions and Layer Ownership
 
-Every capability mechanism in this file must be configurable through settings (per File 01 §6.8). File 05 names the dimensions and the layer that owns the resolution algorithm; resolution algorithms themselves live in their owning layers.
+Every capability mechanism in this file must be configurable through settings (per `core.settings-system`, File 01 §6.8). File 05 names the dimensions and the layer that owns the resolution algorithm; resolution algorithms themselves live in their owning layers.
 
 Dimensions and ownership:
 
@@ -858,13 +952,17 @@ Dimensions and ownership:
 
 ### 18.2 Settings-Key Convention
 
+Anchor: `capability.settings-key-convention`
+
 Capability-related configuration follows File 15's namespaced dotted-key convention: `capabilities.<id>.enabled`, `capabilities.<id>.permission_tier`, `registry.collision_policy`, `registry.source_approval_threshold`, `sources.<source_id>.trust_override`, etc. Plugin-supplied capabilities register their own settings keys at plugin install time per the future Extension and Plugin System spec.
 
 ### 18.3 Boundary
 
-File 05 stores the declared and registry state for every configurable capability mechanism. Policy and surface specs resolve runtime behavior from those values. Settings whose mechanism depends on optional provider or platform capability must degrade gracefully when the capability is absent (per File 03 §13). Settings define intended product variation; they must not become hidden hardcoded branches.
+File 05 stores the declared and registry state for every configurable capability mechanism. Policy and surface specs resolve runtime behavior from those values. Settings whose mechanism depends on optional provider or platform capability must degrade gracefully when the capability is absent (per `routing.settings`, File 03 §13). Settings define intended product variation; they must not become hidden hardcoded branches.
 
 ## 19. Explicit Rejections
+
+Anchor: `capability.explicit-rejections`
 
 The following shapes are wrong for this layer:
 
@@ -880,7 +978,7 @@ The following shapes are wrong for this layer:
 - runtime registration that bypasses the user's approval — the user must explicitly approve the registration capability invocation; the agent cannot self-promote without that approval
 - capability ids that conflict with the namespace separators or the source-prefix conventions
 - declaring a closure-backed capability with `replay_class` above `not_replayable` — closures are not portable across processes and breaking that invariant breaks reproducibility
-- coalescing internal sub-mode dispatch into separate capability registrations (a `file.read` that internally branches on text vs binary remains one capability, not two — per File 04 §28)
+- coalescing internal sub-mode dispatch into separate capability registrations (a `file.read` that internally branches on text vs binary remains one capability, not two — per `run.explicit-rejections` (File 04 §28))
 - registry mechanisms that hardcode any of the variations in §18 settings instead of exposing them as configuration
 - capability declarations whose `output_schema` returns inline content for outputs that should be durable blocks — durable outputs reference blocks; inline returns are reserved for short structured data
 - allowing settings, leases, or trust upgrades to lower irreversible high-blast-radius operations below their declared `permission_floor` — a `permission_floor` for account deletion, destructive publish, force-push to a protected branch, system shutdown, or credential export is the absolute lower bound; no toggle, lease, or trust override may pierce it
@@ -892,6 +990,8 @@ The following shapes are wrong for this layer:
 - preserving `Action` as a parallel registry, adapter layer, or alias for `Capability` — `Action` has been superseded; legacy `Action` shapes map into the declaration field set (per §1) and are not preserved as a second primitive
 
 ## 20. Consequences for Later Specs
+
+Anchor: `capability.consequences-for-later-specs`
 
 Every later spec that touches capabilities consumes the `CapabilityDeclaration` and the `RegisteredCapability` defined here as their operation primitive. Later specs covering capability policy and approvals, tool surfaces and capability loading, blocks and the block graph, artifacts and evidence, the execution ledger and event stream, version graph and projections, retrieval and indexing, context assembly and compaction, memory, model strategy and provider integration, world model and state awareness, settings and profiles, storage and persistence, sync and portability, security and credentials, sandboxes and isolation, workspaces and materialization, the per-surface specs (work surface contract, control rails, coder, web, data processor, teacher, GUI control, system agent), automation and triggers, workflows and templates, the extension and plugin system, MCP and external integrations, the UI shell and customization, quality control and validation, evaluation and benchmarking, telemetry and observability, runtime infrastructure and lifecycle, and packaging and distribution must:
 

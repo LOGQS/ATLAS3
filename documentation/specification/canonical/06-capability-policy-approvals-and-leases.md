@@ -12,12 +12,12 @@ This file defines:
 - effective tier resolution from declared `permission_tier`, `permission_floor`, source trust, settings, scope-level overrides, and active leases
 - the `Approval Router` — the dispatch component that gates capability invocation
 - approval flows: immediate allow, immediate deny, ask-user, typed-confirmation, batched approval, denial in-band as tool result, model-mediated `auto-decide`
-- the `Lease` primitive — durable approval grants with the scope hierarchy from File 04 §11
+- the `Lease` primitive — durable approval grants with the scope hierarchy from `run.approval-during-execution` (File 04 §11)
 - approval-policy templates — composable validator chains the policy evaluator consults per call
 - contradiction-checking across scope levels and the rules for resolving cross-scope conflicts
 - touched-resource matching against lease constraints, including extension-class containment
 - permission-floor enforcement and the carve-out for `Denied` via typed-confirmation
-- mid-execution policy re-evaluation, lease staleness, and the revoke-and-narrow recovery from File 04 §20.2
+- mid-execution policy re-evaluation, lease staleness, and the revoke-and-narrow recovery from `run.recovery` (File 04 §20.2)
 - the source-approval flow that runs when plugins, MCP servers, external APIs, or user-defined capabilities register
 - the approval UI surface contract — the data the policy layer exposes for the UI to render approval prompts, batched approvals, lease grants, and contradiction resolution
 - the policy event vocabulary emitted into the execution ledger and event stream
@@ -26,12 +26,12 @@ This file defines:
 This file does not define:
 
 - the Capability Contract field set itself — File 05 owns declaration
-- the registry's resolution, lookup, or backend-binding lifecycle — File 05 §10–§16 own those
+- the registry's resolution, lookup, or backend-binding lifecycle — `capability.registered-capability` (File 05 §10)–§16 own those
 - tool-surface zones, prompt visibility, deferred loading, or capability-borrowing UX — File 07 owns those
-- run lifecycle, execution graph, hook execution mechanics, or the typed hook-decision vocabulary — File 04 owns those (File 06 reuses File 04 §23.3's hook architecture)
+- run lifecycle, execution graph, hook execution mechanics, or the typed hook-decision vocabulary — File 04 owns those (File 06 reuses `run.hook-integration` (File 04 §23.3)'s hook architecture)
 - routing or `RunIntent` selection — File 03 owns those
 - block schema, artifact lifecycle, evidence model — Files 08 and 09 own those
-- ledger row format, event-stream wire format, and storage projections — File 04 §23 owns the contract; later ledger and storage specs own the schema
+- ledger row format, event-stream wire format, and storage projections — `run.ledger-events-commits` (File 04 §23) owns the contract; later ledger and storage specs own the schema
 - credential vault internals or trust-state cryptographic verification — the future Security, Credentials, and Trust Boundaries spec owns those
 - sandbox or process isolation primitives — the future Sandbox, Process Control, and Isolation spec owns those
 - specific provider rate-limit tracking, circuit breakers, or polling intervals — File 17 owns provider concerns; the future MCP/External Integrations spec owns MCP and external tool-provider concerns
@@ -51,25 +51,27 @@ Resolved design:
 
 ## 1. Chosen Model
 
+Anchor: `policy.chosen-model`
+
 ATLAS3 has one Capability Policy layer. Every consequential capability invocation passes through it — `Run`-internal model-emitted tool calls, user-invoked actions through the command palette or shortcuts, automation triggers, scheduled tasks, MCP-exposed external invocations, and capability registrations themselves.
 
 The policy layer reads:
 
-- the `CapabilityDeclaration` (File 05 §3) for `permission_tier`, `permission_floor`, `capability_class`, `approval_template_id`, `data_sensitivity`, `touched_resources` expressions, `replay_class`, and execution-semantic metadata
-- the `RegisteredCapability` (File 05 §10) for `effective_trust`, `enabled`, `availability_status`, `collision_state`, and active aliases
+- the `CapabilityDeclaration` (`capability.declaration`, File 05 §3) for `permission_tier`, `permission_floor`, `capability_class`, `approval_template_id`, `data_sensitivity`, `touched_resources` expressions, `replay_class`, and execution-semantic metadata
+- the `RegisteredCapability` (`capability.registered-capability`, File 05 §10) for `effective_trust`, `enabled`, `availability_status`, `collision_state`, and active aliases
 - the active execution context (active conversation, active intent thread, active task, active run, active workspace, active surface, active world-model snapshot, active model route, active provider rate-limit state, invoker kind, and invoker context)
 - the active settings cascade (per-capability overrides, per-source overrides, scope-level overrides, approval-posture preset)
 - the active lease set (matching by capability identity pattern, scope inclusion, and inherited-constraint containment)
 
 The policy layer produces:
 
-- a typed `ApprovalDecision` consumed by the executor as a `Continue`, `Substitute`, `Block`, or `RedirectSuggestion` hook decision (File 04 §23.3 vocabulary)
-- per-call resolved facts written onto the `CapabilityInvocation` record (File 05 §11): resolved tier, resolved touched resources, lease used, contradictions detected, classifier result if model-mediated
-- typed policy events into the execution ledger and event stream (File 04 §23.1, §23.2): policy decision, lease grant, lease revoke, contradiction detected, floor violated, source registration approved
+- a typed `ApprovalDecision` consumed by the executor as a `Continue`, `Substitute`, `Block`, or `RedirectSuggestion` hook decision (`run.hook-integration`, File 04 §23.3 vocabulary)
+- per-call resolved facts written onto the `CapabilityInvocation` record (`capability.invocation-record`, File 05 §11): resolved tier, resolved touched resources, lease used, contradictions detected, classifier result if model-mediated
+- typed policy events into the execution ledger and event stream (`run.execution-ledger` (File 04 §23.1), `run.event-stream` (File 04 §23.2)): policy decision, lease grant, lease revoke, contradiction detected, floor violated, source registration approved
 
 The `Approval Router` is the policy layer's dispatch shape. It registers as a single blocking hook subscriber on `ToolCallProposed` at convention priority `+100` (post-validation, pre-execution). It is not a parallel pipeline. Internally it composes named policy inspectors that emit intermediate verdicts; the router merges them and emits one hook decision.
 
-`Lease` is the canonical durable approval primitive. It is a single record shape used across the File 04 §11 scope hierarchy; the scope field discriminates. There is no separate "always-allow record," "approval policy entry," or "permission grant" type.
+`Lease` is the canonical durable approval primitive. It is a single record shape used across the `run.approval-during-execution` (File 04 §11) scope hierarchy; the scope field discriminates. There is no separate "always-allow record," "approval policy entry," or "permission grant" type.
 
 `Approval Policy Template` is the canonical reusable rule set. Templates are named, composable, registered, and consulted by the policy evaluator. Built-in templates seed common defaults; user-authored templates extend them through the same registration mechanism.
 
@@ -80,6 +82,8 @@ There is no per-subsystem or per-surface bespoke approval logic, no per-capabili
 The policy layer supersedes the per-tool ad-hoc gating shapes that earlier source material described as `goose mode`, `AskForApproval`, `auto-approve toggle`, `permission mode`, `YOLO classifier`, `participation level`, and equivalent terms. Those are vocabulary variants for one or more aspects of the system this file defines; the canonical names here are `approval-posture preset`, `approval mode`, `auto-decide`, and `Lease`.
 
 ## 2. Boundaries with Adjacent Layers
+
+Anchor: `policy.boundaries-with-adjacent-layers`
 
 ### 2.1 With File 05 (Capability Contracts and Registry)
 
@@ -99,25 +103,25 @@ File 06 owns:
 - the source-approval flow that runs at registration time
 - contradiction detection and resolution
 
-File 06 reads from declarations and registered state. It never mutates either. The per-call resolved tier, resolved touched resources, model-mediated classification result, lease used, and policy decision are written onto the invocation record (File 05 §11), not back onto the declaration or the registered entry.
+File 06 reads from declarations and registered state. It never mutates either. The per-call resolved tier, resolved touched resources, model-mediated classification result, lease used, and policy decision are written onto the invocation record (`capability.invocation-record`, File 05 §11), not back onto the declaration or the registered entry.
 
 ### 2.2 With File 04 (Execution and Run Model)
 
-File 04 §8.2 defines the capability-call pipeline. The approval router runs at step 5 ("Determine denial, approval need, persisted decision, or active lease"). File 04 §11 establishes the permission-tier hierarchy, the `Lease` definition with full scope hierarchy, the named `auto-decide` mode, scope-based batching, and contradiction-checking across scope levels. File 04 §23.3 establishes the typed hook decision vocabulary (`Continue`, `Substitute`, `Block`, `RedirectSuggestion`), priority convention, timeout-with-authority-based-fail-direction, and per-error-class retry behavior.
+`run.call-pipeline` (File 04 §8.2) defines the capability-call pipeline. The approval router runs at step 5 ("Determine denial, approval need, persisted decision, or active lease"). `run.approval-during-execution` (File 04 §11) establishes the permission-tier hierarchy, the `Lease` definition with full scope hierarchy, the named `auto-decide` mode, scope-based batching, and contradiction-checking across scope levels. `run.hook-integration` (File 04 §23.3) establishes the typed hook decision vocabulary (`Continue`, `Substitute`, `Block`, `RedirectSuggestion`), priority convention, timeout-with-authority-based-fail-direction, and per-error-class retry behavior.
 
 File 06 inherits all of those. It does not redefine the tier set, the lease scope hierarchy, the hook decision shape, or the hook timeout semantics. It specifies how each is applied in policy evaluation.
 
-The denial-in-band rule (File 04 §8.3) is a load-bearing invariant. A denied capability call produces a typed result block linked to the proposal; the agent loop receives it as ordinary execution input and decides what to do (ask the user, narrow scope, try an alternative, stop). File 06's typed errors and approval-decision events conform to this contract.
+The denial-in-band rule (`run.denial-is-in-band`, File 04 §8.3) is a load-bearing invariant. A denied capability call produces a typed result block linked to the proposal; the agent loop receives it as ordinary execution input and decides what to do (ask the user, narrow scope, try an alternative, stop). File 06's typed errors and approval-decision events conform to this contract.
 
 ### 2.3 With Cross-Cutting Substrate
 
-The approval router is a blocking subscriber on `ToolCallProposed` (per File 04 §23.3 and the canonical event-bus pattern). Other policy events emit through the same bus. The event envelope (`conversation_id`, `step_id`, `node_id`, `worktree_id`, `backend_id`, `sequence`, `timestamp`, `sensitivity`) carries enough context for policy decisions to attribute correctly across parallel runs and concurrent worktrees.
+The approval router is a blocking subscriber on `ToolCallProposed` (per `run.hook-integration`, File 04 §23.3 and the canonical event-bus pattern). Other policy events emit through the same bus. The event envelope (`conversation_id`, `step_id`, `node_id`, `worktree_id`, `backend_id`, `sequence`, `timestamp`, `sensitivity`) carries enough context for policy decisions to attribute correctly across parallel runs and concurrent worktrees.
 
-Settings are read through the settings system (per File 01 §6.8). The settings cascade is the canonical conversation → workspace → global → overlay → declared default order. File 06 does not introduce a parallel settings store.
+Settings are read through the settings system (per `core.settings-system`, File 01 §6.8). The settings cascade is the canonical conversation → workspace → global → overlay → declared default order. File 06 does not introduce a parallel settings store.
 
-Typed errors flow through the typed-error envelope (per File 01 §6.9). Policy denials, floor violations, contradiction errors, and lease-stale signals are typed variants the agent and UI consume by exhaustive pattern match.
+Typed errors flow through the typed-error envelope (per `core.typed-errors`, File 01 §6.9). Policy denials, floor violations, contradiction errors, and lease-stale signals are typed variants the agent and UI consume by exhaustive pattern match.
 
-State awareness is consulted for context: the active surface, focused element, primary panel, ui-mode, and the available-capability set produced by `availability_predicate` evaluation (File 05 §15.2) all participate in policy decisions. State changes that affect lease validity (workspace switch, panel change, ui-mode transition) trigger lease revalidation per §10.
+State awareness is consulted for context: the active surface, focused element, primary panel, ui-mode, and the available-capability set produced by `availability_predicate` evaluation (`capability.availability-predicate`, File 05 §15.2) all participate in policy decisions. State changes that affect lease validity (workspace switch, panel change, ui-mode transition) trigger lease revalidation per §10.
 
 ### 2.4 Boundary
 
@@ -125,16 +129,18 @@ File 06 is the runtime evaluation layer. It owns no storage schema, no UI render
 
 ## 3. The Approval Router
 
+Anchor: `policy.approval-router`
+
 ### 3.1 Definition
 
 The `Approval Router` is the canonical dispatch component of the Capability Policy layer. It is a single blocking hook subscriber on the `ToolCallProposed` event at convention priority `+100`. It receives the proposed capability invocation, consults declaration metadata, registered state, active leases, settings, world-model snapshot, and policy templates, and emits one typed `ApprovalDecision` to the executor.
 
 ### 3.2 Position in the Capability-Call Pipeline
 
-The router sits at File 04 §8.2 step 5 of the capability-call pipeline:
+The router sits at `run.call-pipeline` (File 04 §8.2) step 5 of the capability-call pipeline:
 
 1. Resolve capability (File 05 registry)
-2. Validate input (File 05 §8.1 validators)
+2. Validate input (`capability.input-validators`, File 05 §8.1 validators)
 3. Produce proposal
 4. Run validators and policy checks
 5. **Determine denial, approval need, persisted decision, or active lease — the Approval Router** *(this section)*
@@ -148,11 +154,13 @@ The router runs after structural validators (priority `0`) so its evaluation see
 
 ### 3.3 Internal Composition — Policy Inspectors
 
+Anchor: `policy.internal-composition-policy-inspectors`
+
 The router internally composes named `policy inspectors`, each emitting an intermediate verdict. The router merges verdicts and produces the final decision. Inspector composition is a registry-managed list; built-in inspectors register at startup, plugins and extensions register additional inspectors at load time through the same registration mechanism (subject to the source-approval flow per §9).
 
 Required built-in inspectors:
 
-- `tier-resolution`: computes the effective tier from declared `permission_tier` (via `TierResolver` per File 05 §5.2), `permission_floor`, source trust, scope-level overrides, and active leases — produces `EffectiveTierDecision`
+- `tier-resolution`: computes the effective tier from declared `permission_tier` (via `TierResolver` per `capability.tier-resolver` (File 05 §5.2)), `permission_floor`, source trust, scope-level overrides, and active leases — produces `EffectiveTierDecision`
 - `template-evaluation`: consults the capability's `approval_template_id` and any active reusable-policy-rule leases; runs the template's validator chain — produces template verdicts (`Allow`, `Deny`, `Ask`, `Escalate`, `NoOpinion`)
 - `touched-resource-matching`: resolves declared `touched_resources` expressions against arguments and matches each against active lease constraints — produces matched-lease set or no-match
 - `contradiction-detection`: compares verdicts across scope levels and flags conflicts — produces `Vec<Contradiction>`
@@ -174,20 +182,20 @@ User-defined and plugin-defined inspectors register with explicit priority withi
 
 ### 3.4 Output
 
-The router emits one of four typed `ApprovalDecision` outcomes, mapped to the File 04 §23.3 hook decision vocabulary:
+The router emits one of four typed `ApprovalDecision` outcomes, mapped to the `run.hook-integration` (File 04 §23.3) hook decision vocabulary:
 
 - `Continue { reason, lease_used? }` — proceed with the proposed payload; emit `PolicyDecisionMade { decision: Continue, ... }`
 - `Substitute { new_payload, reason, substitution_kind }` — proceed with a router-modified payload; valid only for declared constraint narrowing, sensitivity-preserving redaction, sandbox narrowing, or transparent redirect to a safer equivalent capability. The policy event records original and substituted payloads with sensitivity redaction. Semantic target or action changes require ask-user, not silent substitution.
-- `Block { reason, error_kind }` — abort the proposed action; the executor records a denial and the typed reason flows in-band as a tool result per File 04 §8.3; emit `PolicyDecisionMade { decision: Block, ... }`
-- `RedirectSuggestion { capability_id, args, reason }` — abort the proposed action and signal that the agent should retry using a suggested capability (e.g., `shell.exec` with `find` redirected to `file.search` per CT.16's dedicated-tool preference); the agent loop consumes this as a typed retry signal per File 04 §23.3
+- `Block { reason, error_kind }` — abort the proposed action; the executor records a denial and the typed reason flows in-band as a tool result per `run.denial-is-in-band` (File 04 §8.3); emit `PolicyDecisionMade { decision: Block, ... }`
+- `RedirectSuggestion { capability_id, args, reason }` — abort the proposed action and signal that the agent should retry using a suggested capability (e.g., `shell.exec` with `find` redirected to `file.search` per CT.16's dedicated-tool preference); the agent loop consumes this as a typed retry signal per `run.hook-integration` (File 04 §23.3)
 
 The router never invents new contract semantics. Its decision is one of these four shapes. Any other outcome is an Explicit Rejection (§17).
 
 ### 3.5 Failure Mode
 
-The approval router is an authoritative blocking hook (per File 04 §23.3 fail-direction rules). A timeout or error fails closed: the synthesized decision is `Block { reason: "approval router timeout" | "approval router error" }`. The executor records the timeout, emits the standard `Block` event, and the agent receives the typed denial in-band.
+The approval router is an authoritative blocking hook (per `run.hook-integration`, File 04 §23.3 fail-direction rules). A timeout or error fails closed: the synthesized decision is `Block { reason: "approval router timeout" | "approval router error" }`. The executor records the timeout, emits the standard `Block` event, and the agent receives the typed denial in-band.
 
-Per-error-class retry behavior follows File 04 §23.3: transient infrastructure errors (typed as such in the policy-event vocabulary) may retry once within the configured timeout window before failing closed. Configuration errors (missing template, unresolved classifier model, missing inspector) do not retry; they fail closed immediately and produce a typed `PolicyConfigurationError` event for diagnostics.
+Per-error-class retry behavior follows `run.hook-integration` (File 04 §23.3): transient infrastructure errors (typed as such in the policy-event vocabulary) may retry once within the configured timeout window before failing closed. Configuration errors (missing template, unresolved classifier model, missing inspector) do not retry; they fail closed immediately and produce a typed `PolicyConfigurationError` event for diagnostics.
 
 The router's blocking timeout default is configurable per-error-class through settings. It is not a hardcoded constant.
 
@@ -197,6 +205,8 @@ The router consumes typed proposals from `ToolCallProposed` and produces typed d
 
 ## 4. Effective Tier Resolution
 
+Anchor: `policy.effective-tier-resolution`
+
 ### 4.1 Definition
 
 `Effective Tier Resolution` is the deterministic algorithm that produces the runtime tier for a given proposed call. It is the canonical input to the approval flow selection and the lease evaluation step.
@@ -205,9 +215,9 @@ The router consumes typed proposals from `ToolCallProposed` and produces typed d
 
 The resolution proceeds in fixed order:
 
-1. **Declared tier**. Resolve the capability's declared `permission_tier` (File 05 §5.2). For `TierResolver::Static(tier)`, the result is the static value. For `TierResolver::Dynamic(resolver_id)`, the registered argument-aware resolver evaluates the proposal arguments and the active world-model snapshot deterministically and returns a tier. The resolver's behavior is stable given the same inputs (per File 05 §5.2).
-2. **Floor enforcement**. The result is clamped from below by the capability's `permission_floor` (File 05 §5.4). If the resolver returned a tier weaker than the floor, the floor wins. The floor is never lowered by any subsequent step. Any later step that would produce a tier below the floor produces a `PolicyFloorViolated` event and the floor's tier is used instead.
-3. **Trust narrowing**. The registered entry's `effective_trust` (File 05 §9.2) applies a trust-driven minimum tier:
+1. **Declared tier**. Resolve the capability's declared `permission_tier` (`capability.tier-resolver`, File 05 §5.2). For `TierResolver::Static(tier)`, the result is the static value. For `TierResolver::Dynamic(resolver_id)`, the registered argument-aware resolver evaluates the proposal arguments and the active world-model snapshot deterministically and returns a tier. The resolver's behavior is stable given the same inputs (per `capability.tier-resolver`, File 05 §5.2).
+2. **Floor enforcement**. The result is clamped from below by the capability's `permission_floor` (`capability.permission-floor`, File 05 §5.4). If the resolver returned a tier weaker than the floor, the floor wins. The floor is never lowered by any subsequent step. Any later step that would produce a tier below the floor produces a `PolicyFloorViolated` event and the floor's tier is used instead.
+3. **Trust narrowing**. The registered entry's `effective_trust` (`capability.trust-source-approval-flow`, File 05 §9.2) applies a trust-driven minimum tier:
    - `System`, `Verified`, `User` — no trust-driven narrowing
    - `Community` — minimum effective tier is `UserApproval` (one-tier escalation from `WorkspaceWrite` or below)
    - `Unverified` — minimum effective tier is `UserApproval` and the first invocation of each such capability in a given conversation additionally requires per-call ask-user (no `AlwaysAllow` lease honored without an explicit user upgrade of the source's trust)
@@ -223,14 +233,14 @@ The resolution proceeds in fixed order:
    When multiple leases apply, narrower scope wins; among same-scope leases, deny-wins. A matching `AlwaysAllow` lease produces direct execution at the lease's tier (still bounded by the floor); a matching `AlwaysDeny` lease produces immediate `Block`.
 6. **Decision selection**. The resulting tier and the lease/template verdicts produce the terminal decision: direct execution, ask-user, typed-confirmation, deny, or model-mediated escalation per §5.
 
-The output of resolution is a typed `EffectiveTierDecision` carrying the resolved tier, the contributing scope level (conversation/workspace/global/lease/floor), the lease used (if any), the contradictions detected (if any), and the human-readable reason. This record flows onto the invocation record per File 05 §11.
+The output of resolution is a typed `EffectiveTierDecision` carrying the resolved tier, the contributing scope level (conversation/workspace/global/lease/floor), the lease used (if any), the contradictions detected (if any), and the human-readable reason. This record flows onto the invocation record per `capability.invocation-record` (File 05 §11).
 
 ### 4.3 Required Outcomes
 
 For every proposed capability invocation, effective tier resolution produces exactly one terminal outcome:
 
 - `direct_allow` — the call proceeds without user interaction; `PolicyDecisionMade` emitted with the contributing reason
-- `direct_deny` — the call produces a typed denial; the agent receives in-band per File 04 §8.3
+- `direct_deny` — the call produces a typed denial; the agent receives in-band per `run.denial-is-in-band` (File 04 §8.3)
 - `ask_user` — the approval UI surface contract is invoked (§13); the call awaits user response
 - `typed_confirmation` — the typed-confirmation flow is invoked (§7); cannot be skipped or auto-resolved
 - `model_mediated` — the auto-decide classifier is invoked (§8); the result either resolves to `direct_allow`, `direct_deny`, or escalates to `ask_user` per the classifier's output and confidence
@@ -242,7 +252,7 @@ The tier-to-outcome mapping is canonical:
 - `WorkspaceWrite` with proposal contained within the active workspace → `direct_allow`
 - `WorkspaceWrite` with proposal escaping the workspace → effective tier escalates to `UserApproval` and the rule re-applies
 - `UserApproval` → `direct_allow` if a matching `AlwaysAllow` lease is active; `direct_deny` if a matching `AlwaysDeny` lease is active; `model_mediated` if `auto-decide` is configured for this capability and active; otherwise `ask_user`
-- `Unrestricted` → `direct_allow` only when the relevant invoker/settings context enables `agent.unrestricted_mode`; otherwise the rule for `UserApproval` applies (per File 04 §11). `Unrestricted` is still policy-governed: it emits events, honors source trust, floors, typed-confirmation, touched-resource constraints, and user narrowing.
+- `Unrestricted` → `direct_allow` only when the relevant invoker/settings context enables `agent.unrestricted_mode`; otherwise the rule for `UserApproval` applies (per `run.approval-during-execution`, File 04 §11). `Unrestricted` is still policy-governed: it emits events, honors source trust, floors, typed-confirmation, touched-resource constraints, and user narrowing.
 - typed-confirmation variant of `UserApproval` → `typed_confirmation` always; `auto-decide` and `AlwaysAllow` leases never lift it
 
 The mapping is deterministic. Any policy decision that produces an outcome outside this set is an Explicit Rejection (§17).
@@ -252,6 +262,8 @@ The mapping is deterministic. Any policy decision that produces an outcome outsi
 Tier resolution is purely a function of declared metadata, registered state, settings, leases, and the world-model snapshot. It does not call out to external services beyond what is already required by `TierResolver::Dynamic` resolvers and the model-mediated classifier. Tier resolution must remain fast enough to run on every proposed call; expensive or speculative decisions live in the classifier mediation step (§8) and are off by default.
 
 ## 5. Approval Flows
+
+Anchor: `policy.approval-flows`
 
 ### 5.1 Definition
 
@@ -276,7 +288,7 @@ Required steps:
 6. Emit `ApprovalGranted` or `ApprovalDenied` and the corresponding `PolicyDecisionMade`
 7. Return the typed `ApprovalDecision` (`Continue` or `Block`) to the executor through the hook bus
 
-The `ApprovalResponse` payload allows the user to narrow the lease's `inherited_constraints` from the defaults derived from the capability's declared touched resources. For example, an `AlwaysAllow` for `file.edit` defaults to "files within the active workspace"; the user may narrow to "files under `src/` within the active workspace." Narrowed constraints are typed and machine-checkable per File 05 §6.
+The `ApprovalResponse` payload allows the user to narrow the lease's `inherited_constraints` from the defaults derived from the capability's declared touched resources. For example, an `AlwaysAllow` for `file.edit` defaults to "files within the active workspace"; the user may narrow to "files under `src/` within the active workspace." Narrowed constraints are typed and machine-checkable per `capability.touched-resources` (File 05 §6).
 
 ### 5.3 Typed-Confirmation Flow
 
@@ -287,6 +299,8 @@ The `typed-confirmation` flow executes when the capability's approval template r
 The `auto-decide` flow executes when the capability or its capability family is configured for model-mediated approval and the configuration is active in the current scope. Per §8.
 
 ### 5.5 Batched Approval Flow
+
+Anchor: `policy.batched-approval-flow`
 
 When a natural execution boundary already has multiple ask-user decisions pending, the policy layer presents them as one batched `BatchApprovalRequest` (§13.3) where possible. Natural boundaries include one model response, one programmatic step, one script or workflow step, one child-run spawn group, or one executor dispatch batch. The user resolves each item independently or accepts/denies the batch.
 
@@ -300,15 +314,17 @@ Approval flows produce typed decisions through the same hook bus. The user-facin
 
 ## 6. Touched-Resource Matching Against Lease Scope
 
+Anchor: `policy.touched-resource-matching-against-lease-scope`
+
 ### 6.1 Definition
 
 `Touched-Resource Matching` is the algorithm that determines whether a proposed call's resolved touched resources fall within an active lease's `inherited_constraints`. A lease applies to a call only when match succeeds.
 
 ### 6.2 Resolution
 
-The capability's declared `touched_resources` (File 05 §6) are typed expressions referencing input-schema field paths (`args.path`, `args.command`, `args.url`, etc.). The policy layer resolves each expression against the proposed call's arguments to produce a concrete set of touched resources, each carrying its `class`, `access`, and resolved scope (concrete path, host, port, env-var name, settings key/scope, process group, credential vault key, sub-agent type id, etc.).
+The capability's declared `touched_resources` (`capability.touched-resources`, File 05 §6) are typed expressions referencing input-schema field paths (`args.path`, `args.command`, `args.url`, etc.). The policy layer resolves each expression against the proposed call's arguments to produce a concrete set of touched resources, each carrying its `class`, `access`, and resolved scope (concrete path, host, port, env-var name, settings key/scope, process group, credential vault key, sub-agent type id, etc.).
 
-For extension classes registered per File 05 §6.3, the registered containment predicate is invoked to produce the resolved scope.
+For extension classes registered per `capability.extension-resource-classes` (File 05 §6.3), the registered containment predicate is invoked to produce the resolved scope.
 
 ### 6.3 Containment
 
@@ -337,7 +353,7 @@ When multiple leases match a proposed call, the policy layer selects the active 
 2. Among same-scope matches, `AlwaysDeny` wins over `AlwaysAllow`. This is the deny-wins rule.
 3. Among same-scope, same-decision matches, the most-recently-granted lease wins.
 
-The selected lease's identity is recorded on the invocation record as `lease_used` per File 05 §11.
+The selected lease's identity is recorded on the invocation record as `lease_used` per `capability.invocation-record` (File 05 §11).
 
 ### 6.5 No-Match Fallthrough
 
@@ -345,13 +361,17 @@ When no lease matches a proposed call, tier resolution falls through to the defa
 
 ### 6.6 Boundary
 
-Touched-resource matching is deterministic given the resolved arguments and the active lease set. The expression grammar lives in File 05 §6.4 (current illustrative shapes) or the future capability-schema appendix; File 06 specifies the matching algorithm and the containment semantics. Extension-class registration includes a containment predicate per the extension's declaration; missing or unparseable predicates make leases referencing the extension class invalid (the registration fails per File 05 §6.3's proposal-first rule).
+Touched-resource matching is deterministic given the resolved arguments and the active lease set. The expression grammar lives in `capability.resource-expressions` (File 05 §6.4) (current illustrative shapes) or the future capability-schema appendix; File 06 specifies the matching algorithm and the containment semantics. Extension-class registration includes a containment predicate per the extension's declaration; missing or unparseable predicates make leases referencing the extension class invalid (the registration fails per `capability.extension-resource-classes` (File 05 §6.3)'s proposal-first rule).
 
 ## 7. Permission Floor and Typed-Confirmation
 
+Anchor: `policy.permission-floor-typed-confirmation`
+
 ### 7.1 Permission Floor
 
-The `permission_floor` declared on a capability (File 05 §5.4) is the absolute minimum tier. It is the canonical floor for irreversible high-blast-radius operations: account deletion, destructive publish, force-push to a protected branch, system shutdown, credential export, irreversible publishing operations, system file edits, machine-scope registry mutation, plus any user-marked operation per settings.
+Anchor: `policy.permission-floor`
+
+The `permission_floor` declared on a capability (`capability.permission-floor`, File 05 §5.4) is the absolute minimum tier. It is the canonical floor for irreversible high-blast-radius operations: account deletion, destructive publish, force-push to a protected branch, system shutdown, credential export, irreversible publishing operations, system file edits, machine-scope registry mutation, plus any user-marked operation per settings.
 
 The floor never lowers. Settings cannot lower it. Leases cannot bypass it. Trust upgrades cannot lower it. `agent.unrestricted_mode` does not lower it. Cross-scope policy overrides cannot lower it. Any attempt to lower it produces a `PolicyFloorViolated` event and the floor wins.
 
@@ -370,6 +390,8 @@ Typed-confirmation:
 - the typed-confirmation prompt template carries the confirmation-string pattern, the human-readable warning, and the rendered preview of what the call will do
 
 ### 7.4 The `Denied` Carve-Out
+
+Anchor: `policy.denied-carve-out`
 
 A capability with effective tier `Denied` is not invocable by default. The only path through `Denied` is the typed-confirmation override: the capability's approval template may declare `denied_override_via_typed_confirmation: Required`, which enables a one-time override per invocation. The user types the exact confirmation string and the call proceeds; this is recorded as a `Denied`-override event in the policy ledger and is single-proposal scope (no `AlwaysAllow` lease can be created from a `Denied`-override flow).
 
@@ -390,9 +412,11 @@ Typed-confirmation is a policy-flow shape. The actual rendering of the typed-con
 
 ## 8. Auto-Decide Mode
 
+Anchor: `policy.auto-decide-mode`
+
 ### 8.1 Definition
 
-`Auto-Decide` is the model-mediated approval mode named in File 04 §11. A designated classifier model evaluates a proposed call against a configured policy prompt and returns a typed `ClassifierResult` carrying decision, confidence, and reasoning. Auto-decide is opt-in per capability or per family and never the default.
+`Auto-Decide` is the model-mediated approval mode named in `run.approval-during-execution` (File 04 §11). A designated classifier model evaluates a proposed call against a configured policy prompt and returns a typed `ClassifierResult` carrying decision, confidence, and reasoning. Auto-decide is opt-in per capability or per family and never the default.
 
 ### 8.2 Configuration
 
@@ -416,7 +440,7 @@ When auto-decide is active for a proposed call:
 4. If `confidence >= confidence_threshold` and the decision is `Allow` or `Deny`, the result is honored; emit `AutoDecideClassification { request_id, decision, confidence, reasoning, fell_back: false }` and produce the corresponding `Continue` or `Block`
 5. If `confidence < confidence_threshold` or the decision is `Ask` or `Escalate`, fall through per `escalation_path`
 6. Apply the consecutive-denial-fallback and consecutive-approval-check-in counters per capability per scope; on threshold, fall through to ask-user
-7. The classifier result is always recorded on the invocation record per File 05 §11; below-threshold results are recorded as well (with `fell_back: true`) for offline policy tuning
+7. The classifier result is always recorded on the invocation record per `capability.invocation-record` (File 05 §11); below-threshold results are recorded as well (with `fell_back: true`) for offline policy tuning
 
 ### 8.4 Properties
 
@@ -432,9 +456,11 @@ Auto-decide composes with the rest of the policy machinery. It does not replace 
 
 ## 9. The Source-Approval Flow
 
+Anchor: `policy.source-approval-flow`
+
 ### 9.1 Definition
 
-The `Source-Approval Flow` runs when a capability source registers — a plugin loads, an MCP server connects, an external-API definition is loaded, or a user-defined capability is added through the runtime-registration capability path (File 05 §16.2). The flow surfaces the source's declared metadata to the user before its capabilities become invocable, lets the user accept declared defaults, customize per capability or source, deny outright, defer source-level policy, or cancel registration.
+The `Source-Approval Flow` runs when a capability source registers — a plugin loads, an MCP server connects, an external-API definition is loaded, or a user-defined capability is added through the runtime-registration capability path (`capability.runtime-mutation`, File 05 §16.2). The flow surfaces the source's declared metadata to the user before its capabilities become invocable, lets the user accept declared defaults, customize per capability or source, deny outright, defer source-level policy, or cancel registration.
 
 ### 9.2 Trigger Threshold
 
@@ -447,8 +473,8 @@ When triggered, the policy layer constructs a `SourceRegistrationProposal` carry
 - source identity: kind (`Plugin`, `McpServer`, `Api`, `UserDefined`, `Subsystem`), id, version, install path or remote URL, declared author, declared trust hint
 - declared capabilities: each capability's id, display name, description, declared `permission_tier` (with `TierResolver` shape if dynamic), declared `permission_floor`, declared `capability_class`, declared `touched_resources`, declared `replay_class`, declared `data_sensitivity`, declared `approval_template_id`
 - source risk summary: the computed review trigger facts and why review is or is not required
-- registered-entry trust state: source-authored trust hint, verification evidence when present, user trust override when present, and `effective_trust` (computed per File 05 §9.2)
-- backend kind summary: which `backend_kind` values appear (per File 05 §10.4)
+- registered-entry trust state: source-authored trust hint, verification evidence when present, user trust override when present, and `effective_trust` (computed per `capability.trust-source-approval-flow` (File 05 §9.2))
+- backend kind summary: which `backend_kind` values appear (per `capability.backend-binding-lifecycle`, File 05 §10.4)
 - policy extension summary: any policy inspectors, templates, settings, or source-level rules the source attempts to register, including inspector authority classes
 - optional: a registered linkage to a pre-existing source-approval-policy lease (e.g., a previously-approved version of the same source — the user can choose to inherit the prior decisions or review fresh)
 
@@ -469,7 +495,7 @@ The user resolves the flow by choosing one of:
 
 User decisions persist as:
 
-- user trust override on the registered entry per File 05 §10
+- user trust override on the registered entry per `capability.registered-capability` (File 05 §10)
 - reusable-policy-rule leases (per §11) for any per-capability pre-approvals or denials
 - capability-specific tier overrides through the settings cascade
 - per-source default-behavior selection through the settings cascade
@@ -477,6 +503,8 @@ User decisions persist as:
 The user may revisit and edit any of these through settings or through the capability registry's source-management surface (the future UI specs render the management surface). Edits emit the same `LeaseGranted`/`LeaseRevoked`/`SourceRegistrationApproved` events for audit consistency.
 
 ### 9.6 Trust Mapping Defaults
+
+Anchor: `policy.trust-mapping-defaults`
 
 The default trust-driven escalation for sources whose risk summary requires review is:
 
@@ -492,9 +520,11 @@ The source-approval flow is itself a capability invocation: `policy.review_sourc
 
 ### 9.8 Boundary
 
-The flow's UI rendering (the source-approval modal, the per-capability customization controls, the trust override toggle, the deny-outright button) is owned by the future UI specs. File 06 specifies the data contract — the proposal shape, the user's response shape, the persisted lease shape — and the resolution algorithm. The flow's actual capability registration mechanics (admit declaration, resolve backend binding, emit `CapabilityRegistered`) are owned by File 05 §10 and §16; File 06 gates whether registration completes, not how it executes.
+The flow's UI rendering (the source-approval modal, the per-capability customization controls, the trust override toggle, the deny-outright button) is owned by the future UI specs. File 06 specifies the data contract — the proposal shape, the user's response shape, the persisted lease shape — and the resolution algorithm. The flow's actual capability registration mechanics (admit declaration, resolve backend binding, emit `CapabilityRegistered`) are owned by `capability.registered-capability` (File 05 §10) and `capability.lifecycle` (File 05 §16); File 06 gates whether registration completes, not how it executes.
 
 ## 10. Mid-Execution Policy Re-Evaluation
+
+Anchor: `policy.mid-execution-policy-re-evaluation`
 
 ### 10.1 Lease Lifecycle States
 
@@ -543,13 +573,15 @@ When a lease transitions to `Stale`:
 - the next invocation that would have used the lease produces ask-user (or typed-confirmation if the original lease's tier required it) with the staleness reason surfaced as part of the `ApprovalRequest` reason payload
 - the user's response options include re-grant at the same scope, re-grant at a narrower scope, revoke fully, or `AllowOnce` for this call only without re-granting
 
-This is the canonical implementation of the revoke-and-narrow-lease recovery from File 04 §20.2. The lease is not silently revoked; the staleness is surfaced so the user can decide whether the original grant intent still holds.
+This is the canonical implementation of the revoke-and-narrow-lease recovery from `run.recovery` (File 04 §20.2). The lease is not silently revoked; the staleness is surfaced so the user can decide whether the original grant intent still holds.
 
 ### 10.5 Boundary
 
 Re-evaluation is event-driven. The policy layer does not poll. The trigger set is closed; new triggers register through the same mechanism that registers revocation conditions (a typed declaration of which condition kinds the trigger affects). Lease state mutations are durable and emit standard policy events.
 
 ## 11. The `Lease` Primitive
+
+Anchor: `policy.lease-primitive`
 
 ### 11.1 Definition
 
@@ -561,7 +593,7 @@ A `Lease` must carry at minimum:
 
 - `lease_id` — stable identifier for revocation reference
 - `capability_match` — the capability identity pattern the lease applies to: exact `(id, version)`, exact id with version-pinning policy (`latest`, `compatible`, `pinned`), capability family glob, or a registered match expression
-- `scope` — one of `single_proposal`, `run`, `intent_thread`, `task`, `conversation`, `workspace`, `global`, `reusable_policy_rule` (per File 04 §11)
+- `scope` — one of `single_proposal`, `run`, `intent_thread`, `task`, `conversation`, `workspace`, `global`, `reusable_policy_rule` (per `run.approval-during-execution`, File 04 §11)
 - `invoker_kind` — optional constraint over the invoker class (`user_direct`, `model_agent`, `automation`, `scheduled_trigger`, `plugin_runtime`, `mcp_external`, `subagent`, `system_internal`)
 - `invoker_context` — optional matching data for source id, run id, parent run id, automation id, plugin id, external client id, and surface id when applicable
 - `decision` — one of `AlwaysAllow`, `NarrowedAllow { constraints }`, `AlwaysDeny`
@@ -599,6 +631,8 @@ A `single_proposal` lease never affects a future call; its scope is one decision
 
 ### 11.5 Built-In Reusable Policy Rules
 
+Anchor: `policy.built-in-reusable-policy-rules`
+
 The system ships built-in reusable policy rules as system defaults with stable ids. They project to effective reusable-policy-rule leases at evaluation time, after durable user override records are applied. This avoids ambiguity on restart: defaults re-register, then user disables, narrows, widens, prompt edits, replacements, and restore-default actions are applied as separate audit-visible records.
 
 Built-in default rules include:
@@ -615,6 +649,8 @@ Built-in rules are user-customizable: the user may disable, narrow, widen, repla
 
 ### 11.6 Persistence
 
+Anchor: `policy.persistence`
+
 Leases are durable. They survive process restarts. The storage schema is the future Storage and Persistence spec's concern; File 06 specifies the field set the storage schema must support, the lease event vocabulary the storage receives, and the resolution rules the runtime applies on read.
 
 A lease's state changes (grant, narrow, revoke, transition to Stale) are recorded as policy events with full envelope. The lease itself is the projection over those events; the events are the source of truth.
@@ -627,9 +663,11 @@ Leases are an evaluation primitive owned by File 06. Their persistence schema, s
 
 ## 12. Approval-Policy Templates
 
+Anchor: `policy.approval-policy-templates`
+
 ### 12.1 Definition
 
-An `Approval-Policy Template` is a named, registered, composable validator chain consulted by the policy evaluator's `template-evaluation` inspector during effective tier resolution. A capability declaration's `approval_template_id` (File 05 §3.5) names the default template applied when policy evaluates that capability.
+An `Approval-Policy Template` is a named, registered, composable validator chain consulted by the policy evaluator's `template-evaluation` inspector during effective tier resolution. A capability declaration's `approval_template_id` (`capability.permission-policy-fields`, File 05 §3.5) names the default template applied when policy evaluates that capability.
 
 ### 12.2 Required Properties
 
@@ -676,7 +714,7 @@ Built-in templates are settings-overridable per scope. The user may disable any 
 
 ### 12.5 User-Authored Templates
 
-Users may register templates through the runtime-registration capability (File 05 §16.2) under the source-approval flow (§9). User-authored templates carry the same field set as built-ins; they enter the registry as `UserDefined { scope }` and are subject to the same evaluation pipeline.
+Users may register templates through the runtime-registration capability (`capability.runtime-mutation`, File 05 §16.2) under the source-approval flow (§9). User-authored templates carry the same field set as built-ins; they enter the registry as `UserDefined { scope }` and are subject to the same evaluation pipeline.
 
 User-authored templates may not override the floor-enforcement step (§4.2 step 2). A user-authored template that attempts to grant `Allow` for a `Denied`-floor capability produces a `PolicyFloorViolated` event and the floor wins. The template is recorded as registered but is policy-inert for that capability.
 
@@ -689,6 +727,8 @@ A capability invocation may have multiple templates applicable: the capability's
 Templates are policy-evaluation declarations. Their storage schema, version evolution, and import/export behavior are owned by the future Storage and Persistence and Sync specs. Their UI presentation (the template editor, the validator-chain visualizer, the prompt-template preview) is owned by the future UI specs. File 06 specifies the field set, the validator verdict semantics, and the composition order.
 
 ## 13. Approval UI Surface Contract
+
+Anchor: `policy.approval-ui-surface-contract`
 
 ### 13.1 Definition
 
@@ -784,9 +824,11 @@ The contract is the policy layer's exposed surface. The policy layer never invok
 
 ## 14. Contradiction-Checking Across Scope Levels
 
+Anchor: `policy.contradiction-checking-across-scope-levels`
+
 ### 14.1 Definition
 
-`Contradiction-Checking` is the policy layer's resolver for cross-scope conflicts in the lease, settings, and template state. The canonical rule from File 04 §11 — contradictions across scope levels surface as policy errors, not silent wins — is enforced here.
+`Contradiction-Checking` is the policy layer's resolver for cross-scope conflicts in the lease, settings, and template state. The canonical rule from `run.approval-during-execution` (File 04 §11) — contradictions across scope levels surface as policy errors, not silent wins — is enforced here.
 
 ### 14.2 Resolution Rules
 
@@ -822,6 +864,8 @@ Contradiction-checking is policy-layer logic. The UI's role is to render the con
 
 ## 15. Risk Classification and Trust Interaction
 
+Anchor: `policy.risk-classification-trust-interaction`
+
 ### 15.1 Three-Class Capability Taxonomy
 
 Capabilities classify into three canonical capability classes, drawn from the CT.20 taxonomy:
@@ -848,13 +892,15 @@ A capability whose class is `Unknown` is treated as if it were `ActionExternal` 
 
 ### 15.4 Per-Call Model-Mediated Risk Classification
 
-When a capability declares `classification_mode: ModelMediated` for relevant fields (per File 05 §7.2), the per-call classifier produces typed values for those fields. The policy layer consumes the classified values during effective tier resolution: a `shell.exec` whose call is classified as `reversibility_class: none` and `partial_output_meaningful: false` resolves at a higher tier than the same capability classified as `reversibility_class: compensable`. The classifier's confidence threshold and fallback rules apply per §8.
+When a capability declares `classification_mode: ModelMediated` for relevant fields (per `capability.classification-mode`, File 05 §7.2), the per-call classifier produces typed values for those fields. The policy layer consumes the classified values during effective tier resolution: a `shell.exec` whose call is classified as `reversibility_class: none` and `partial_output_meaningful: false` resolves at a higher tier than the same capability classified as `reversibility_class: compensable`. The classifier's confidence threshold and fallback rules apply per §8.
 
 ### 15.5 Boundary
 
 Risk classification is one input to effective tier resolution. The classification itself comes from the capability declaration (`capability_class`, declared `replay_class`, declared `reversibility_class`) plus the registered trust state plus the per-call model-mediated classification when active. File 06 specifies how classification feeds into resolution; it does not invent a separate risk-scoring mechanism.
 
 ## 16. Settings Resolution for Policy
+
+Anchor: `policy.settings-resolution-for-policy`
 
 ### 16.1 Configurable Dimensions and Layer Ownership
 
@@ -895,6 +941,8 @@ Posture presets are starting points, not prescriptive. The user always retains e
 
 ### 16.4 Agent Exposure of Policy Settings
 
+Anchor: `policy.agent-exposure-policy-settings`
+
 Per the canonical settings exposure rules:
 
 - approval-posture preset, current `effective_trust` per source, per-capability tier overrides — `OnRequest` exposure (the agent can read these on request through the read-only settings tool); the agent never sees per-call ask-user history beyond what the conversation context already carries
@@ -907,12 +955,14 @@ Settings resolution is owned by File 15. File 06 specifies which dimensions are 
 
 ## 17. Explicit Rejections
 
+Anchor: `policy.explicit-rejections`
+
 The following shapes are wrong for this layer:
 
 - a parallel approval pipeline beside the canonical hook bus — every approval decision flows through the `ToolCallProposed` blocking hook subscriber and the typed event-bus contract; capabilities, plugins, MCP servers, and subsystem extensions never invent their own approval mechanism
-- per-capability custom approval logic baked into capability handlers — capability authors implement the operation; the policy layer evaluates approval; mixing the two creates "capability leakage" and is rejected per File 05 §17 / §19 and re-rejected here
+- per-capability custom approval logic baked into capability handlers — capability authors implement the operation; the policy layer evaluates approval; mixing the two creates "capability leakage" and is rejected per `capability.contract-composition` (File 05 §17) / `capability.explicit-rejections` (File 05 §19) and re-rejected here
 - silent approval: any direct-execution path must emit `PolicyDecisionMade` with the contributing reason; no capability call may execute without a recorded policy decision event
-- silent denial: a denied call always produces a typed `PermissionDenied`-class result block in-band per File 04 §8.3 plus a `PolicyDecisionMade` event; the agent or user must always have the chance to react
+- silent denial: a denied call always produces a typed `PermissionDenied`-class result block in-band per `run.denial-is-in-band` (File 04 §8.3) plus a `PolicyDecisionMade` event; the agent or user must always have the chance to react
 - silent contradiction resolution: cross-scope conflicts are surfaced as typed events and resolved through the user-facing flow; the runtime never picks a winner that weakens an outer deny or pierces a `permission_floor`
 - floor-piercing: settings, leases, trust upgrades, scope-level overrides, `agent.unrestricted_mode`, and approval-policy templates can never lower an effective tier below `permission_floor`; `PolicyFloorViolated` events record any attempt and the floor wins
 - bypassing typed-confirmation: leases, settings, trust upgrades, `auto-decide`, batched approval, and `agent.unrestricted_mode` can never lift a typed-confirmation requirement; the only path through `Denied` is the explicit typed-confirmation override per §7.4
@@ -923,7 +973,7 @@ The following shapes are wrong for this layer:
 - silent semantic substitution: `Substitute` may only perform declared narrowing or transparent redirects; changing the target/action semantics requires ask-user
 - ad-hoc procedural revocation conditions: leases revoke through declared typed predicates only; runtime closures are not eligible because closure-backed conditions cannot be inspected, replayed across devices, or evaluated against persisted state
 - registering a lease whose `capability_match` references a missing or unregistered capability — the lease is rejected at grant time; the user is informed; the lease never silently activates if the capability later registers with a matching id
-- treating trust state as a declaration: source trust is registered-entry state per File 05 §9.2; any policy mechanism that mutates a declaration field based on trust is rejected; trust narrowing is policy-side
+- treating trust state as a declaration: source trust is registered-entry state per `capability.trust-source-approval-flow` (File 05 §9.2); any policy mechanism that mutates a declaration field based on trust is rejected; trust narrowing is policy-side
 - a single global "approval policy" that overrides per-capability templates and per-scope overrides — policy is composed, not monolithic; built-in defaults plus templates plus leases plus settings compose deterministically; no single setting silently overrides the composition
 - routing approval decisions through unrelated services or sidecars (logging service, telemetry service, automation service) — the approval router is the canonical decision point; logging and telemetry observe but never decide
 - requiring the user to type a confirmation string the system computes from arguments without disclosing the string — the typed-confirmation prompt always shows the required string in the prompt; the user types it as a deliberate-intent check, not as a guess
@@ -936,13 +986,15 @@ The following shapes are wrong for this layer:
 
 ## 18. Consequences for Later Specs
 
+Anchor: `policy.consequences-for-later-specs`
+
 Every later spec that touches capability invocation, capability registration, automation, runtime behavior, UI presentation, storage, sync, telemetry, or evaluation consumes the Capability Policy layer as defined here.
 
 The canonical principles later specs must follow:
 
 - read approval decisions from the policy layer through the typed event-bus contract; never invent a parallel approval mechanism, never inline policy logic into a capability handler or UI component
 - read effective tiers, lease state, and contradiction state through the policy layer's read interface; never compute these values independently from capability declarations
-- record per-call resolved facts on the `CapabilityInvocation` record per File 05 §11 and the policy events emitted by File 06; never on the declaration or on the registered entry
+- record per-call resolved facts on the `CapabilityInvocation` record per `capability.invocation-record` (File 05 §11) and the policy events emitted by File 06; never on the declaration or on the registered entry
 - treat `Lease` as the durable approval primitive; persisted approval state lives as `Lease` records and the events that produce them; never as a parallel "always-allow" or "permission grant" primitive
 - treat `Approval-Policy Template` as the canonical reusable rule set; user-authored safety rules, subsystem/surface-specific approval policies, and built-in safety patterns all register as templates; never as a parallel rule registry
 - treat `Source-Approval Flow` as the canonical capability-source onboarding mechanism; plugin install approval, MCP connection approval, external-API definition approval, and user-defined capability registration all flow through it; never as parallel install flows
@@ -953,7 +1005,7 @@ The canonical principles later specs must follow:
 - honor the contradiction-detection rule: tighter-narrower-allow under broader-deny surfaces as a typed contradiction; never silently weaken the broader deny
 - honor the trust-driven narrowing rule: `Community` and `Unverified` sources cause policy-side tier escalation; declarations are not mutated; effective tier is computed at evaluation time
 - emit policy events through the canonical event bus with the standard envelope; never emit policy decisions through telemetry side channels or out-of-band logs as the source of truth — the ledger is the source of truth, telemetry is a projection
-- consume the source-trust state from the registered entry per File 05 §9.2; never rebuild trust state from declarations or from out-of-band heuristics
+- consume the source-trust state from the registered entry per `capability.trust-source-approval-flow` (File 05 §9.2); never rebuild trust state from declarations or from out-of-band heuristics
 - consume the canonical `capability_class` taxonomy (`InternalAnalysis`, `ActionExternal`, `UserArtifact`, `Unknown`) for capability classification; extension classes register through the same capability-class extension mechanism when such a mechanism exists
 - consume the canonical revocation conditions and re-evaluation triggers; new conditions register through the typed-declaration mechanism with explicit trigger affinity
 - consume the canonical `ApprovalRequest` / `LeaseOption` / `ApprovalResponse` / `BatchApprovalRequest` / `ContradictionResolutionRequest` data contract for any user-facing approval surface; never invent a parallel approval data shape

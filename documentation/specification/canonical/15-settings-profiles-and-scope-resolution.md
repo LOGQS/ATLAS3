@@ -47,6 +47,8 @@ The resolved design:
 
 ## 1. Chosen Model
 
+Anchor: `settings.chosen-model`
+
 Every setting is declared by a `SettingDefinition`, resolved through one source stack, and read or written through one settings service. No subsystem reads settings storage directly, parses the TOML overlay directly, stores settings in browser local storage, invents per-domain config files, or creates a parallel settings hierarchy.
 
 The model has four distinct concepts:
@@ -59,6 +61,8 @@ The model has four distinct concepts:
 The service answers "why is this active?" for every resolved value. The answer includes the winning source, shadowed sources, active profile layers, local overlay participation, definition version, sensitivity/redaction state, and any validation or availability diagnostics.
 
 ## 2. Boundaries with Adjacent Layers
+
+Anchor: `settings.boundaries-with-adjacent-layers`
 
 ### 2.1 Core Invariants
 
@@ -77,6 +81,8 @@ Policy configuration is settings; policy evaluation is File 06. Tool-surface cus
 This file defines logical durability and resolution behavior. Physical tables, indexes, sync transport, import/export bundles, storage quotas, visualization, and cleanup UI belong to storage/sync/UI specs. Credential storage and cryptography belong to the security spec.
 
 ## 3. `SettingDefinition`
+
+Anchor: `settings.setting-definition`
 
 ### 3.1 Definition
 
@@ -136,6 +142,8 @@ Setting keys are globally unique among active definitions. Registration fails wh
 Unloading a plugin or extension does not delete user values by default. Values whose owning definition is unavailable become orphaned. Orphaned values are hidden from normal setting panels, inspectable in advanced management surfaces, exportable, removable by the user, and reclaimable if the owner returns with a compatible definition.
 
 ## 4. Types, Semantics, and Constraints
+
+Anchor: `settings.types-semantics-constraints`
 
 ### 4.1 `SettingType`
 
@@ -204,6 +212,8 @@ No closure-backed, handler-private, or prose-only constraint is valid. If a vali
 
 ## 5. Scopes, Profile Contexts, and Overlays
 
+Anchor: `settings.scopes-profile-contexts-overlays`
+
 ### 5.1 Durable Scopes
 
 Durable `SettingScope` values are:
@@ -236,6 +246,8 @@ Profile contexts influence settings by activating profile layers and by selectin
 Transient overlays are the correct home for run-specific, automation-specific, test-harness, or per-call configuration. They prevent fake conversation-scope rows for background work that is not naturally conversation-owned.
 
 ## 6. Source-Stack Resolution
+
+Anchor: `settings.source-stack-resolution`
 
 ### 6.1 Algorithm
 
@@ -278,6 +290,8 @@ Resolution is deterministic for the same setting definitions, explicit values, e
 
 ## 7. Profiles
 
+Anchor: `settings.profiles`
+
 ### 7.1 Definition
 
 A `Profile` is a named, composable settings-default layer or group of layers. Profiles let different local setups use different defaults in the same app without changing the underlying runtime, policy, or data model.
@@ -319,6 +333,8 @@ Profiles are settings-layer inputs. They do not grant permission, mutate capabil
 
 ## 8. Agent Exposure
 
+Anchor: `settings.agent-exposure`
+
 ### 8.1 Exposure Classes
 
 Every definition declares `agent_exposure`:
@@ -345,6 +361,8 @@ The agent may propose settings changes through the canonical capability surface.
 
 ## 9. Local TOML Overlay
 
+Anchor: `settings.local-toml-overlay`
+
 The TOML overlay is an optional local explicit layer for power users who want file-backed configuration. It is:
 
 - read-only from Atlas's side
@@ -360,7 +378,9 @@ Overlay reload is explicit or file-watch/event-driven. No time interval or polli
 
 ## 10. Secret Boundary
 
-Settings and secrets are separate concerns. Settings may store `SecretRef` values; the vault stores secret material.
+Anchor: `settings.secret-boundary`
+
+Settings and secrets are separate concerns. Settings may store `SecretRef` values; the vault stores secret material. This is the settings/TOML/sync enforcement of the cross-cutting backend secret boundary (`secret.backend-boundary`, File 17 §23.6).
 
 Required properties:
 
@@ -372,6 +392,8 @@ Required properties:
 Vault storage, keyring integration, encryption, fallback mechanics, and vault API shape belong to the security spec.
 
 ## 11. Definition Evolution and Stored Value Normalization
+
+Anchor: `settings.definition-evolution-stored-value-normalization`
 
 Settings definitions evolve. This file requires safe evolution behavior; it does not require migration machinery for a nonexistent current user base.
 
@@ -390,11 +412,15 @@ Adding a new setting, adding a new choice, adding a profile layer, or adding a w
 
 ## 12. Bootstrap Boundary
 
+Anchor: `settings.bootstrap-boundary`
+
 Bootstrap configuration is read before the settings service exists. It may locate the app home, primary storage, local overlay, logging baseline, or other startup-only infrastructure.
 
 Bootstrap configuration is not a runtime settings source. It does not override `ui.theme`, model preferences, policy settings, or other registered settings after startup. Exact bootstrap variable names, file locations, and discovery order belong to infrastructure.
 
 ## 13. Settings Over Constants
+
+Anchor: `settings.settings-over-constants`
 
 Intended product variation belongs in settings. A value should be a setting when it is meaningful for users, workspaces, conversations, profiles, policies, devices, plugins, or extensions to vary it.
 
@@ -410,6 +436,8 @@ Settings are not for:
 If a value affects user-visible behavior, safety posture, cost, privacy, performance, automation, model behavior, or cross-device behavior, it should be evaluated as a setting. The best overall behavior remains the default policy.
 
 ## 14. Events and Snapshots
+
+Anchor: `settings.events-snapshots`
 
 ### 14.1 Change Events
 
@@ -446,6 +474,8 @@ The settings service exposes subscription mechanisms for key-level, category-lev
 
 ## 15. Required Operations
 
+Anchor: `settings.required-operations`
+
 The settings service must provide operation families for:
 
 - resolving one setting
@@ -464,6 +494,8 @@ This file does not require Rust-style generic method signatures, receiver types,
 
 ## 16. Settings Capabilities
 
+Anchor: `settings.settings-capabilities`
+
 The settings subsystem exposes a canonical capability surface:
 
 - `settings.read` - returns an authorized resolved value or typed denial.
@@ -478,6 +510,8 @@ These are behavioral requirements. Exact capability declarations, permission tie
 Settings capabilities touch `setting` resources, not `env` resources. The resource expression must identify the key, key prefix, category, owner, scope, or profile context affected. Settings writes and resets pass through validation before commit and through policy before execution.
 
 ## 17. Logical Persistence
+
+Anchor: `settings.logical-persistence`
 
 The settings substrate must durably preserve:
 
@@ -497,6 +531,8 @@ Physical tables, indexes, timestamps, storage accounting, sync representation, c
 
 ## 18. Locality, Sync, and Export
 
+Anchor: `settings.locality-sync-export`
+
 Every definition declares locality:
 
 - `Syncable`
@@ -512,11 +548,15 @@ Exports must preserve provenance and redaction state. Importing settings from an
 
 ## 19. Settings for the Settings System
 
+Anchor: `settings.settings-for-settings-system`
+
 The settings subsystem may declare settings for its own behavior, such as whether the local overlay is enabled, whether settings-resolution metadata is shown by default, import/export preferences, management-surface visibility, and cleanup behavior.
 
 These self-settings are normal `SettingDefinition`s. Their exact keys and default policies are not canonical here. Overlay path discovery remains infrastructure/bootstrap, not an ordinary runtime setting unless a later infrastructure spec deliberately exposes it after boot.
 
 ## 20. Explicit Rejections
+
+Anchor: `settings.explicit-rejections`
 
 The following shapes are wrong for this layer:
 
@@ -540,6 +580,8 @@ The following shapes are wrong for this layer:
 - unkeyed model/provider-dependent settings values
 
 ## 21. Consequences for Later Specs
+
+Anchor: `settings.consequences-for-later-specs`
 
 Later specs must follow these rules:
 

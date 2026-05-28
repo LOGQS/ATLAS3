@@ -23,7 +23,7 @@ This file defines:
 - the boundary between `Block` and `Message` (the transcript anchor that points at one primary block, which may be composed)
 - cross-surface interoperability — one block pool, surface-specific projections
 - per-block scope (`run`, `intent_thread`, `task`, `conversation`, `workspace`, `global`, `reusable_policy_rule`) and the rules for scope promotion
-- the capability ↔ block declaration linkage (`output_block_kinds` from File 05 §17.2 draws from this catalogue)
+- the capability ↔ block declaration linkage (`output_block_kinds` from `capability.output-kinds` (File 05 §17.2) draws from this catalogue)
 - the persistence contract — what is durably stored, what is computed, what is reconstructable
 - settings dimensions consumed by block rendering, expansion, sensitivity-redaction, and retention
 
@@ -54,6 +54,8 @@ Resolved design:
 
 ## 1. Chosen Model
 
+Anchor: `block.chosen-model`
+
 ATLAS3 has one `Block` model and one `BlockGraph` over it. Every durable structured content the system produces — a user message, an accepted assistant turn, a tool call proposal, a tool result, a reasoning trace, a file attachment, a citation, a memory entry, a validation report, an artifact handle, a plan, an execution trace, a workflow step record, a structured observation, an evidence chain — is carried as a `Block`. The relations between blocks form the `BlockGraph`.
 
 Some block kinds are also higher-level entities. A message, artifact, memory, evidence record, tool call, or validation may be represented by one primary block while still having domain-specific lifecycle, UI, management, and export behavior owned by its later spec. The block is the durable context carrier; it does not erase the entity-level meaning.
@@ -61,17 +63,17 @@ Some block kinds are also higher-level entities. A message, artifact, memory, ev
 A `Block`:
 
 - is immutable after creation: identity, kind, content (`Inline` payload, `External` reference, or `Composed` children list), parent, content hash, source attribution, and creation timestamp are fixed at the moment the block is committed and never change
-- is typed: its `BlockKind` is drawn from the canonical closed catalogue (§3), with a `Custom { namespace, name }` extension for domain-specific kinds registered through the same extension plane as capabilities (File 01 §6.14)
+- is typed: its `BlockKind` is drawn from the canonical closed catalogue (§3), with a `Custom { namespace, name }` extension for domain-specific kinds registered through the same extension plane as capabilities (`core.extension-planes`, File 01 §6.14)
 - is composable: a `Composed` block has no `Inline` or `External` payload of its own; it carries an ordered list of `children_block_ids` that resolve at read time, and the composition itself is what the block represents
 - is durable: blocks persist across run boundaries, conversation archival, process restart, and version-graph rewrites; the only operation that destroys a block's storage is explicit user-initiated hard deletion
-- is addressable: it has a stable `block_id` used by the version graph, the execution ledger, the event stream (File 04 §23.2), capability invocations (File 05 §11), policy events (File 06 §12), and every surface presentation (File 07)
+- is addressable: it has a stable `block_id` used by the version graph, the execution ledger, the event stream (`run.event-stream`, File 04 §23.2), capability invocations (`capability.invocation-record`, File 05 §11), policy events (`policy.approval-policy-templates`, File 06 §12), and every surface presentation (File 07)
 
 A `Block` is not:
 
 - a UI element — the same block may be rendered differently in chat, in the inspector, in a workspace panel, in a comparison board, in an artifact preview, or in a voice transcript without changing the block
 - a row in any single store — storage and projection layers shape how blocks land on disk, but the canonical block model is independent of schema
-- a transcript line — a `Message` in the transcript (File 02 §3) is a presentation anchor over one primary block; that block may be `Composed` over attachments, mentions, tool calls, results, or other child blocks
-- a live coordination signal — those are `Event`s on the event stream (File 04 §23.2) and never carry the durable-history contract
+- a transcript line — a `Message` in the transcript (`intent.message`, File 02 §3) is a presentation anchor over one primary block; that block may be `Composed` over attachments, mentions, tool calls, results, or other child blocks
+- a live coordination signal — those are `Event`s on the event stream (`run.event-stream`, File 04 §23.2) and never carry the durable-history contract
 - mutable — every observable change is a new block in the same pool, with the prior block preserved and linked by a typed edge
 
 A `BlockGraph` is the typed directed graph formed by every registered block as a node and every structural or explicit edge as a labeled relation between blocks. The graph is:
@@ -87,6 +89,8 @@ There is no per-surface block registry, no per-capability private block format, 
 `Block` supersedes any earlier vocabulary in source material that named the same primitive: "chat block", "transcript block", "content block", "fragment", "chunk", "DAG node", "history entry", "node output", "session entry", "rich block", "typed block", "context entry", "memory row". Those words may persist as informal synonyms in surface vocabulary; the canonical noun is `Block`.
 
 ## 2. `Block`
+
+Anchor: `block.block`
 
 ### 2.1 Definition
 
@@ -115,13 +119,17 @@ For `Composed` content, the ordered child list lives only inside `BlockContent.C
 
 ### 2.3 Boundary
 
-The block defines durable substance. The version graph decides which blocks are active in any given view. The event stream (File 04 §23.2) coordinates the streaming that may precede a block's commit. The ledger records the policy decision and capability execution that produced the block. None of those layers may invent new block semantics; they consume what this file defines.
+The block defines durable substance. The version graph decides which blocks are active in any given view. The event stream (`run.event-stream`, File 04 §23.2) coordinates the streaming that may precede a block's commit. The ledger records the policy decision and capability execution that produced the block. None of those layers may invent new block semantics; they consume what this file defines.
 
 The block model is wire-stable through `block_schema_version`, `BlockKind`, and `BlockContent` discriminators. Adding a new variant to either discriminator is a canonical-spec change, not a runtime registration — runtime registration of new kinds happens through the `Custom { namespace, name }` extension mechanism (§3.4), not by introducing new top-level enum variants. Storage and import flows must validate supported block schema versions and explicitly upgrade or reject unsupported versions; silent reinterpretation is invalid.
 
 ## 3. `BlockKind`
 
+Anchor: `block.block-kind`
+
 ### 3.1 Closed Canonical Catalogue
+
+Anchor: `block.kind-catalogue`
 
 Every block declares its `kind` at creation. The canonical closed catalogue:
 
@@ -139,12 +147,12 @@ Every block declares its `kind` at creation. The canonical closed catalogue:
 
 - `ToolCallProposal` — the structured arguments the executor parsed from the model's tool-call emission, committed before execution; carries the resolved capability id, version, arguments, and the policy decision reference
 - `ToolResult` — the typed result returned by the capability after execution; may be `Inline` (small structured payload), `External` (large output stored as artifact), or `Composed` (a result that wraps several sub-results)
-- `ToolDenial` — the typed denial record produced when policy blocks a proposed call (File 04 §8.3 in-band denial); contains the policy reason, the lease/floor that fired, and the proposed payload reference
+- `ToolDenial` — the typed denial record produced when policy blocks a proposed call (`run.denial-is-in-band`, File 04 §8.3 in-band denial); contains the policy reason, the lease/floor that fired, and the proposed payload reference
 - `Failure` — a user-visible or context-relevant failed or skipped output. Carries `{ source, error_code, retryable, skipped_vs_failed, references }`. Capability execution failures use `Failure { source: capability }`; policy denials remain `ToolDenial`.
 
 **Observation and evidence kinds:**
 
-- `Observation` — a structured observation of the world (file content snapshot, accessibility tree snapshot, screenshot reference, status query result, browser DOM extract) committed for replay and policy revalidation (File 04 §8.2 stale-state revalidation)
+- `Observation` — a structured observation of the world (file content snapshot, accessibility tree snapshot, screenshot reference, status query result, browser DOM extract) committed for replay and policy revalidation (`run.call-pipeline`, File 04 §8.2 stale-state revalidation)
 - `Evidence` — a structured evidence record supporting a claim, an output, or an action; carries citation references and the typed claim it supports (full evidence semantics belong to File 09)
 - `Citation` — a structured reference to an external source (URL, document section, file range, prior block id, MCP resource); the durable lookup key for provenance
 
@@ -159,8 +167,8 @@ Every block declares its `kind` at creation. The canonical closed catalogue:
 
 **Planning and validation kinds:**
 
-- `Plan` — a structured plan record (steps, subtasks, dependencies); used by execution and task promotion (File 02 §6); plan revisions create siblings linked by `supersedes`
-- `Validation` — a structured validation result (postcondition check, type check, lint result, evaluator score); referenced from runs and from the completion-verification hook surface (File 04 §22)
+- `Plan` — a structured plan record (steps, subtasks, dependencies); used by execution and task promotion (`intent.task`, File 02 §6); plan revisions create siblings linked by `supersedes`
+- `Validation` — a structured validation result (postcondition check, type check, lint result, evaluator score); referenced from runs and from the completion-verification hook surface (`run.termination`, File 04 §22)
 - `Critique` — a structured critique or review record (a critic agent's review, a code-review comment, a quality-control note); semantically distinct from `Validation` because critiques are evaluative judgments rather than pass/fail checks
 
 **Coordination kinds:**
@@ -171,7 +179,7 @@ Every block declares its `kind` at creation. The canonical closed catalogue:
 
 **Extension:**
 
-- `Custom { namespace, name }` — domain-specific kind registered by a subsystem, plugin, or user-defined extension. The `namespace` is a registered extension namespace (matching the capability sourcing taxonomy of File 05 §9.1); the `name` is the kind id within that namespace. Custom kinds register through the same proposal-first registration mechanism that registers capabilities (File 05 §16.2) and must declare:
+- `Custom { namespace, name }` — domain-specific kind registered by a subsystem, plugin, or user-defined extension. The `namespace` is a registered extension namespace (matching the capability sourcing taxonomy of `capability.capability-source` (File 05 §9.1)); the `name` is the kind id within that namespace. Custom kinds register through the same proposal-first registration mechanism that registers capabilities (`capability.runtime-mutation`, File 05 §16.2) and must declare:
   - allowed `BlockContent` variants
   - default sensitivity
   - whether the kind is allowed in transcript-anchoring positions
@@ -181,9 +189,11 @@ The closed catalogue is canonical for cross-cutting reasoning. The `Custom` exte
 
 ### 3.2 Kind Declaration
 
-Each capability declaration (File 05 §3.10) names the `output_block_kinds` it can produce. The names are drawn from this catalogue (closed canonical kinds and registered `Custom` kinds). A capability that emits an undeclared kind is an Explicit Rejection (§15).
+Each capability declaration (`capability.composition-fields`, File 05 §3.10) names the `output_block_kinds` it can produce. The names are drawn from this catalogue (closed canonical kinds and registered `Custom` kinds). A capability that emits an undeclared kind is an Explicit Rejection (§15).
 
 ### 3.3 Kind Composition Rules
+
+Anchor: `block.kind-composition-rules`
 
 The catalogue is not free-form. The following composition rules apply:
 
@@ -201,7 +211,7 @@ These rules are enforced at commit time by the block commit validator (§8.2). V
 
 ### 3.4 Custom Extension
 
-A `Custom { namespace, name }` block kind is registered by a subsystem, plugin, or user-defined extension through a capability call (matching File 05 §16.2 proposal-first registration). The registration declares:
+A `Custom { namespace, name }` block kind is registered by a subsystem, plugin, or user-defined extension through a capability call (matching `capability.runtime-mutation` (File 05 §16.2) proposal-first registration). The registration declares:
 
 - `allowed_content_variants` — which `BlockContent` variants the kind permits
 - `default_sensitivity` — the initial sensitivity tagging for blocks of this kind
@@ -211,13 +221,15 @@ A `Custom { namespace, name }` block kind is registered by a subsystem, plugin, 
 - `default_edges` — the canonical edges (§5) blocks of this kind typically participate in; used by surface rendering and provenance queries
 - `description` — human-readable description shown in the inspector and surface catalogues
 
-Registered custom kinds persist in the registry (File 05 §10) under the same registered-state envelope used for capabilities and follow the same source-trust narrowing rules (File 06 §9). A custom kind cannot violate the composition rules above; if its declaration permits a structurally invalid combination, the registration is rejected.
+Registered custom kinds persist in the registry (`capability.registered-capability`, File 05 §10) under the same registered-state envelope used for capabilities and follow the same source-trust narrowing rules (`policy.source-approval-flow`, File 06 §9). A custom kind cannot violate the composition rules above; if its declaration permits a structurally invalid combination, the registration is rejected.
 
 ### 3.5 Boundary
 
 The kind catalogue defines what kinds of content the system reasons about. It does not define how those kinds are rendered, stored, or retrieved. UI, storage, and retrieval layers consume the catalogue; they do not extend it.
 
 ## 4. `BlockContent`
+
+Anchor: `block.block-content`
 
 ### 4.1 Required Shape
 
@@ -229,6 +241,8 @@ Every block carries content as one of three discriminated variants. The variant 
 
 ### 4.2 Inline-Size Threshold
 
+Anchor: `block.inline-size-threshold`
+
 The inline-size threshold is a settings dimension (§14). Block kinds whose declared `allowed_content_variants` include both `Inline` and `External` use the threshold to decide: content below the threshold is `Inline`, content at or above is `External`. The decision is made at commit time and is fixed for the block's lifetime; a block that was committed as `Inline` does not get re-encoded to `External` if the threshold later changes.
 
 ### 4.3 Composition Resolution
@@ -239,25 +253,41 @@ Resolution is a read-time operation. The composed block does not cache resolved 
 
 ### 4.4 Cross-Reference vs Containment
 
+Anchor: `block.cross-reference-vs-containment`
+
 `Composed` blocks express **containment**: the children are parts of the composed block. A block may also **reference** other blocks without containing them (a `Validation` block references the blocks it validated; a `Critique` block references the block it critiques; a `MessageAssistant` references prior messages it responds to). References are expressed as typed edges in the block graph (§5), not as composition.
 
 The distinction is load-bearing: removing a child from a `Composed` block (a hypothetical operation forbidden by §2) would change what the composed block is; removing a referenced block does not change what the referencer is, only what context it can resolve.
 
 ### 4.5 Content Hash
 
-Every block carries a `content_hash` (SHA-256, 32 bytes) computed at creation over the canonical `BlockContent` payload plus the content variant discriminator and the `block_schema_version` that determines interpretation. The hash domain depends on the content variant:
+Anchor: `block.content-hash`
+
+Every block carries a `content_hash` (SHA-256, 32 bytes) computed at creation over the block's canonical content encoding (a `CanonicalEncoding` per `core.canonical-encoding` (File 01 §6.15) and the global hashing rule `core.canonical-hash`), not over the physical storage bytes. The canonical content encoding covers:
+
+- the block kind
+- the content variant discriminator
+- the inline payload or external reference descriptor
+- composed child references, with child order preserved only where composition order is semantic (declared order-sensitive per `core.canonical-encoding` (File 01 §6.15))
+- the `block_schema_version` that determines interpretation
+
+`content_hash` is computed over the full canonical content and must not omit `Sensitive` fields: it is an identity and integrity hash, and stripping fields would make two materially different blocks hash identically and corrupt deduplication. (Raw `Secret` material never appears in inline block content per `secret.backend-boundary`, so there is nothing to strip.) When a redacted or rendered projection of a block needs its own hash, that is a separate `projection_hash` over the projection; a `projection_hash` must never be used for block identity, deduplication, or equality. Only `content_hash` carries identity.
+
+The hash domain depends on the content variant:
 
 - `Inline { text }` — hash of the canonical UTF-8 bytes of `text` plus the `Inline` discriminator
 - `External { storage_ref, size_bytes, content_type, external_content_hash }` — hash of the canonical storage reference identity, size, content type, and external payload hash when known; future changes to external bytes do not silently change the block's identity
-- `Composed { children_block_ids }` — structural hash over the ordered list of `(child_block_id, child_content_hash)` pairs. Lifecycle changes (mask/drop/recover) do not change the hash; child content replacement does, because the composed block committed to those child identities and hashes
+- `Composed { children_block_ids }` — structural hash over the child sequence of `(child_block_id, child_content_hash)` pairs, order-sensitive because composition order is semantic. Lifecycle changes (mask/drop/recover) do not change the hash; child content replacement does, because the composed block committed to those child identities and hashes
 
-The hash supports cross-session block deduplication (the storage layer may share storage for blocks with identical content hashes when structurally equal), materialized-view integrity verification, prompt-prefix cache correlation (File 04 §23 cache-friendly ordering, File 07 §11.7), and replay-time content equality checks. The hash is `NOT NULL` and immutable.
+The hash supports cross-session and cross-device block deduplication (the storage layer may share storage for blocks with identical content hashes when structurally equal), materialized-view integrity verification, prompt-prefix cache correlation (`run.ledger-events-commits`, File 04 §23 cache-friendly ordering, `surface.cache-friendly-ordering` (File 07 §11.7)), and replay-time content equality checks. When `content_hash` is used for cross-device deduplication or content addressing, peers must use the same canonical content encoding version; hash equality across peers on differing encoding versions is not a correctness basis (`core.canonical-hash`). The hash is `NOT NULL` and immutable.
 
 ### 4.6 Boundary
 
 The content shape defines what a block contains. The version graph decides which blocks are active. The storage layer decides how content is laid out on disk. The retrieval layer decides how content is indexed. None of those layers redefines the content shape; they consume it.
 
 ## 5. `BlockEdge` and the Block Graph
+
+Anchor: `block.block-edge-block-graph`
 
 ### 5.1 Definition
 
@@ -274,6 +304,8 @@ Edges are committed at the same boundaries as blocks (§7.6). Edges are immutabl
 
 ### 5.2 Canonical Edge Kinds
 
+Anchor: `block.canonical-edge-kinds`
+
 The closed canonical edge catalogue:
 
 - `parent` — structural causal parent. The block's `parent_block_id` field is the canonical source of truth; graph queries expose it as a derived edge. Used by ancestor walks and conversation-context reconstruction
@@ -288,7 +320,7 @@ The closed canonical edge catalogue:
 - `materialized_by` — composition fallback. When a `Composed` block's children are hard-deleted (§6.6), the runtime may materialize the composed block's resolved content as a new `Inline` or `External` block linked by `materialized_by` to the now-dangling composed parent. Used to preserve resolved-content history when children's storage is destroyed
 - `promotes_scope_of` — scope promotion. Source: a broader-scope block or reference record; target: the original narrower-scope block. Used when content is intentionally made addressable in a broader scope without treating the original as obsolete
 - `scope_projection_of` — scope projection. Source: a scoped reference record; target: the original block. Used when the broader-scope object is an addressability projection rather than a content copy
-- `attaches_to` — workspace anchor. Source: a block; target: a workspace path, conversation node, task, or run. Carries an offset or position metadata when applicable. Used by surface rendering and by the world-model state-awareness service (File 01 §6.7)
+- `attaches_to` — workspace anchor. Source: a block; target: a workspace path, conversation node, task, or run. Carries an offset or position metadata when applicable. Used by surface rendering and by the world-model state-awareness service (`core.world-model`, File 01 §6.7)
 - `validated_by` — block validation. Source: any block; target: a `Validation` or `Critique` block whose target is the source. Closure under `validated_by` shows every validation that has been recorded for a block
 - `responds_to` — request/response chain. Source: a block produced in response to the target; target: the eliciting block. Used in tool-call chains (a `ToolResult` `responds_to` a `ToolCallProposal`) and in clarification dialogs
 - `conditioned_on` — explicit dependency. Source: a block whose meaning depends on the target being present (a `Plan` step `conditioned_on` a preceding task; a workflow node `conditioned_on` its predecessor)
@@ -297,7 +329,7 @@ The closed canonical edge catalogue:
 
 Subsystems and plugins may register additional edge kinds through the same extension plane that registers `Custom` block kinds. A registered edge kind declares:
 
-- `namespace` and `name` — the edge's stable id, matching the capability sourcing taxonomy (File 05 §9.1)
+- `namespace` and `name` — the edge's stable id, matching the capability sourcing taxonomy (`capability.capability-source`, File 05 §9.1)
 - `from_kinds` — closed list of `BlockKind`s the source block may be (or `Any`)
 - `to_kinds` — closed list of `BlockKind`s the target block may be (or `Any`)
 - `metadata_schema` — declared structured shape of the edge's metadata field
@@ -319,6 +351,8 @@ The block graph defines structural relations between blocks. The version graph d
 
 ## 6. Block Lifecycle and Non-Destructive Edits
 
+Anchor: `block.block-lifecycle-non-destructive-edits`
+
 ### 6.1 Definition
 
 `BlockLifecycle` names the runtime view-state of a block within a particular `ContextVersion`. The states are:
@@ -339,6 +373,8 @@ Lifecycle state and pin state are **derived from the version graph's action log 
 
 ### 6.2 Edit Semantics
 
+Anchor: `block.edit-semantics`
+
 Editing a block's observable content does not mutate the block. Edits create a new block in the same pool, linked to the prior by a `supersedes` edge (§5.2). The new block has:
 
 - a fresh `block_id`
@@ -356,15 +392,19 @@ Editing a block's metadata (description, default sensitivity, source attribution
 
 ### 6.3 Mask, Drop, Recover
 
+Anchor: `block.mask-drop-recover`
+
 `Mask`, `Drop`, and `Recover` are version-graph operations that change the view's lifecycle map without touching the block pool:
 
 - `Mask(block_id)` — the version's lifecycle map for the block transitions to `Masked`. The block remains stored and addressable. Future versions branching from this one inherit the masked state until explicitly unmasked
 - `Drop(block_id)` — the version's lifecycle map transitions to `Dropped`. Same storage and addressability as masked. Dropped blocks are excluded from retrieval and from default context assembly
 - `Recover(block_id)` — transitions a `Masked` or `Dropped` block back to `Active` in the current view. The block's appearance in surface presentations resumes; retrieval indexing re-enables
 
-These operations are committed as version-graph entries, not as block mutations. They emit `BlockLifecycleChanged` events through the event stream (File 04 §23.2) and are recorded in the execution ledger.
+These operations are committed as version-graph entries, not as block mutations. They emit `BlockLifecycleChanged` events through the event stream (`run.event-stream`, File 04 §23.2) and are recorded in the execution ledger.
 
 ### 6.4 Pin and Protect
+
+Anchor: `block.pin-protect`
 
 `Pin`, `Unpin`, and `Protect` modify the pin state in the current version's pin map:
 
@@ -377,24 +417,30 @@ Like lifecycle changes, pin operations live on the version, not the block. They 
 
 ### 6.5 Group and Ungroup
 
+Anchor: `block.group-ungroup`
+
 `Group(block_ids)` creates a new `Group`-kind `Composed` block whose children are the named blocks. The grouped blocks remain in the pool unchanged; the group block is a new container.
 
 `Ungroup(group_block_id)` is an edit: a new version-graph entry adjusts the view to dissolve the group's presence in the current view. The group block itself is not destroyed; future versions may re-enable it.
 
 ### 6.6 Hard Delete
 
+Anchor: `block.hard-delete`
+
 Hard deletion is the only operation that physically destroys recoverable block payload storage. It is:
 
 - explicitly user-initiated (no automatic hard delete; compaction never hard-deletes)
-- typed-confirmation required when the block is referenced by a `Composed` parent, by a non-superseded `supersedes` chain, by an `Evidence` chain, or by any version other than the current one (File 06 §7 typed-confirmation flow)
+- typed-confirmation required when the block is referenced by a `Composed` parent, by a non-superseded `supersedes` chain, by an `Evidence` chain, or by any version other than the current one (`policy.permission-floor-typed-confirmation`, File 06 §7 typed-confirmation flow)
 - recorded in the execution ledger as a `BlockHardDeleted` event with the deleting actor, the block id, and the references that would be orphaned
 - accompanied by a minimal tombstone retaining `block_id`, deletion time, deletion actor/source, `conversation_id`, `scope`, `parent_block_id`, prior kind if safe, and a sensitivity-safe reason or description. Payload bytes, secret fields, embeddings, indexed text, and external blobs are removed. References resolve to a typed deleted-block placeholder, not an unexplained missing row
 - accompanied by composition-materialization: if any `Composed` block depends on the deleted block as a child, the runtime materializes the composed block's resolved content into a new block (linked by `materialized_by`, §5.2) so the composed block's previously-resolvable content survives the deletion. If the materialization fails (content is not reconstructible from descriptions alone), the composed block transitions to a typed `MaterializationOrphaned` state and surface rendering shows the missing-child placeholder
 - accompanied by reference-edge cleanup: edges originating from or terminating at the deleted block become orphan-marked; closure queries report the dangling state explicitly
 
-Hard delete is the canonical mechanism for honoring user storage-management requests (File 01 §7.13's "manage and reclaim storage at every granularity") and for honoring credential or secret expungement. It is never automatic. Tombstone retention is the safe default, but deletion history itself remains user-manageable through explicit policy-governed cleanup.
+Hard delete is the canonical mechanism for honoring user storage-management requests (`core.non-destructive-by-default`, File 01 §7.13's "manage and reclaim storage at every granularity") and for honoring credential or secret expungement. It is never automatic. Tombstone retention is the safe default, but deletion history itself remains user-manageable through explicit policy-governed cleanup.
 
 ### 6.7 Lifecycle Transition Rules
+
+Anchor: `block.lifecycle-transition-rules`
 
 The lifecycle state transitions are explicit and deterministic:
 
@@ -415,9 +461,11 @@ Lifecycle is a view-state concern owned by the version graph. This file defines 
 
 ## 7. Streaming and the Commit Boundary
 
+Anchor: `block.streaming-commit-boundary`
+
 ### 7.1 Definition
 
-Block streaming is the process by which a producer (a model generating text, an executing capability emitting partials) commits its output as a `Block` at the producer's declared commit boundary. Streaming itself happens through `Event`s on the event stream (File 04 §23.2). Blocks come into existence only at the commit point.
+Block streaming is the process by which a producer (a model generating text, an executing capability emitting partials) commits its output as a `Block` at the producer's declared commit boundary. Streaming itself happens through `Event`s on the event stream (`run.event-stream`, File 04 §23.2). Blocks come into existence only at the commit point.
 
 ### 7.2 Event-Then-Block Pattern
 
@@ -427,21 +475,23 @@ The canonical pattern:
 2. Surface presentations consume the events live (live streaming UI, live tool-output rendering). The events are not durable history; they are live coordination
 3. When the producer reaches its declared commit boundary (model finishes generating, capability completes, executor accepts the final structured payload), the runtime commits a `Block` containing the accumulated content
 4. The committed block carries the same `block_id` that was named in the partial-block handle, so consumers that recorded the handle can correlate
-5. Surface presentations switch from live-event rendering to durable-block rendering on commit; the visual transition is implementation-defined, but the substantive transition is: events are discarded (or retained per File 04 §23.2 sensitivity rules), the block is the durable record
+5. Surface presentations switch from live-event rendering to durable-block rendering on commit; the visual transition is implementation-defined, but the substantive transition is: events are discarded (or retained per `run.event-stream` (File 04 §23.2) sensitivity rules), the block is the durable record
 
 ### 7.3 Partial-Block Orphans
 
+Anchor: `block.partial-block-orphans`
+
 If the producer fails before commit (cancellation, error, timeout, crash), no committed block exists yet. The runtime may retain staged partial records tied to the run; staged partials are cancellable, configurable, and outside the block pool until promoted through the normal commit validator. Partial events and staged records are subject to:
 
-- File 04 §17.3 cancellation rules — `partial_output_meaningful` declared on the capability determines whether the runtime preserves the partial as an orphan block or discards it
+- `run.cancellation` (File 04 §17.3) cancellation rules — `partial_output_meaningful` declared on the capability determines whether the runtime preserves the partial as an orphan block or discards it
 - if preserved as orphan: the runtime may promote the staged partial to a partial `Block` with kind matching the producer's declared output kind, content reflecting what was streamed before failure, and a typed `partial_orphan` marker in its metadata. The orphan block participates in the block graph normally and may be inspected
 - if discarded: no block is committed; the partial events are retained in the event stream per the standard event-retention rules but are not promoted into the block pool
 
-The decision is made per capability at registration time (File 04 §8.2) and may be overridden at cancellation time by the user (File 04 §17.3).
+The decision is made per capability at registration time (`run.call-pipeline`, File 04 §8.2) and may be overridden at cancellation time by the user (`run.cancellation`, File 04 §17.3).
 
 ### 7.4 Tool-Input vs Tool-Output Streaming
 
-File 04 §12 distinguishes the two stream halves; this file commits them to blocks the same way:
+`run.streaming-partial-execution` (File 04 §12) distinguishes the two stream halves; this file commits them to blocks the same way:
 
 - **Tool-input streaming**: the model is still emitting a tool call's structured arguments. The events carry partial arguments. At commit (the model finishes the call and the executor enters the capability pipeline), the runtime commits a `ToolCallProposal` block with the final structured arguments
 - **Tool-output streaming**: the executing capability is emitting partial results. The events carry partial output. At commit (the capability's declared commit point), the runtime commits a `ToolResult` block with the final structured result
@@ -450,11 +500,15 @@ The two commits may happen at different times for the same call. Both produce bl
 
 ### 7.5 Live-Partial-Write Capabilities
 
-For capabilities that support live partial-write into materialized state (File 04 §12 file-or-artifact write pattern: stage in temp file, atomic rename at commit), the block-layer commit aligns with the executor's atomic-rename point. The block is committed when the capability declares success; the staged temp file becomes the durable artifact at the same boundary; the `Artifact` block points to the now-durable location.
+Anchor: `block.live-partial-write-capabilities`
 
-If the live-write is cancelled mid-stream, the temp file is deleted per File 04 §12, and no `Artifact` block is committed. The partial events are retained or discarded per §7.3.
+For capabilities that support live partial-write into materialized state (`run.streaming-partial-execution`, File 04 §12 file-or-artifact write pattern: stage in temp file, atomic rename at commit), the block-layer commit aligns with the executor's atomic-rename point. The block is committed when the capability declares success; the staged temp file becomes the durable artifact at the same boundary; the `Artifact` block points to the now-durable location.
+
+If the live-write is cancelled mid-stream, the temp file is deleted per `run.streaming-partial-execution` (File 04 §12), and no `Artifact` block is committed. The partial events are retained or discarded per §7.3.
 
 ### 7.6 Commit Boundary Set
+
+Anchor: `block.commit-boundary-set`
 
 The canonical block-commit boundaries are:
 
@@ -469,13 +523,15 @@ The canonical block-commit boundaries are:
 - a user explicitly commits a draft (a manual block-commit affordance in the inspector)
 - a subsystem's internal commit (memory promotion, evidence-chain commit, or equivalent) hits its declared boundary
 
-Each boundary corresponds to a version-graph commit and to a ledger entry. Between boundaries, work is staged in the pending-operations buffer (File 04 §23.4) as events, not as blocks. The buffer accumulates incremental work; the block commit is the atomic durable promotion.
+Each boundary corresponds to a version-graph commit and to a ledger entry. Between boundaries, work is staged in the pending-operations buffer (`run.version-commits`, File 04 §23.4) as events, not as blocks. The buffer accumulates incremental work; the block commit is the atomic durable promotion.
 
 ### 7.7 Boundary
 
 Streaming is owned by File 04 and the event stream. This file owns the durability contract: where streaming becomes a block, what the block looks like at commit, and how cancellation interacts with the commit. The version graph spec owns the version-graph entry that records the commit.
 
 ## 8. Identity, Validation, and Hashing
+
+Anchor: `block.identity-validation-hashing`
 
 ### 8.1 Identity
 
@@ -491,6 +547,8 @@ A block's identity is independent of its content. Two blocks with identical cont
 
 ### 8.2 Block Commit Validator
 
+Anchor: `block.block-commit-validator`
+
 Before a block is admitted to the pool, the block commit validator runs:
 
 1. **Identity validation**: `block_id` is well-formed, not already in use
@@ -505,7 +563,7 @@ Before a block is admitted to the pool, the block commit validator runs:
 10. **Hash validation**: the content hash is computable from the content, variant discriminator, and `block_schema_version`, and matches the supplied `content_hash`
 11. **Scope validation**: the declared `scope` is one of the canonical values and is compatible with the producer (a `run`-scoped block must have an `origin_run_id`; a `workspace`-scoped block must have a workspace context)
 
-A failed validation produces a typed `BlockCommitRejected` error per File 04 §8.3's in-band denial. The producer (a capability handler, the executor, a subsystem) receives the typed error and may retry with corrected input, escalate, or abort.
+A failed validation produces a typed `BlockCommitRejected` error per `run.denial-is-in-band` (File 04 §8.3)'s in-band denial. The producer (a capability handler, the executor, a subsystem) receives the typed error and may retry with corrected input, escalate, or abort.
 
 ### 8.3 Hash Collision
 
@@ -513,7 +571,7 @@ SHA-256's collision resistance makes practical content hash collision negligible
 
 ### 8.4 Cross-Reference Rules
 
-References from blocks to blocks (via `parent_block_id`, `children_block_ids`, edges, or content embeddings) use `block_id` as the canonical reference key. References to external resources use registered storage references or typed source references captured at commit time; uncaptured remote URLs are citations, not durable payload storage. References to capabilities use `(capability_id, capability_version)` per File 05 §13. References to events use `(event_envelope, sequence)` per File 04 §23.2.
+References from blocks to blocks (via `parent_block_id`, `children_block_ids`, edges, or content embeddings) use `block_id` as the canonical reference key. References to external resources use registered storage references or typed source references captured at commit time; uncaptured remote URLs are citations, not durable payload storage. References to capabilities use `(capability_id, capability_version)` per `capability.identity-namespacing-versioning` (File 05 §13). References to events use `(event_envelope, sequence)` per `run.event-stream` (File 04 §23.2).
 
 A block whose committed references resolve to non-existent targets at read time produces a typed `BrokenBlockReference` event but does not corrupt the block — the reference itself is immutable; only the target's existence has changed.
 
@@ -523,15 +581,19 @@ Identity, validation, and hashing are commit-time concerns owned by this file. S
 
 ## 9. Sensitivity
 
+Anchor: `block.sensitivity`
+
 ### 9.1 Definition
 
-Block sensitivity is the durable counterpart to event sensitivity (File 04 §23.2). Every block carries a `default_sensitivity` field with values:
+Block sensitivity is the durable counterpart to event sensitivity (`run.event-stream`, File 04 §23.2). Every block carries a `default_sensitivity` field with values:
 
 - `Public` — the block may appear in shareable exports, may be cached by external services that handle public content (provider prompt caches when the provider permits), and may be persisted in the durable ledger without redaction
 - `Sensitive` — the block contains user-private or workspace-specific data; excluded from shareable exports and clipboard-copy operations unless the user explicitly overrides; persisted in the durable ledger; subject to shorter default retention if settings configure it
 - `Secret` — the block contains credentials, raw API keys, OAuth tokens, password content, or equivalent never-leak material. Secret blocks are persisted to the durable block pool with redacted content (the redaction is applied at commit; the original raw secret is held only in transient memory and zeroed after use). The block's `description` field summarizes what the secret is without revealing it (e.g., "AWS access key for production environment"). Secret blocks are not retrievable through search, not included in compaction algorithms' content review, and not exported under any standard share/export path
 
 ### 9.2 Per-Field Override
+
+Anchor: `block.per-field-override`
 
 A block's content may contain mixed-sensitivity material. The block carries an optional `sensitivity_field_map` that overrides the default per JSON-path-style field reference into the block's content. Example: a `ToolResult` block whose content is `{ stdout: "ok", stderr: "...", credential_used: "aws-prod-key" }` may declare `default_sensitivity: Sensitive` plus an override mapping `$.credential_used: Secret`. Rendering, export, and retrieval respect the per-field map.
 
@@ -543,7 +605,7 @@ The commit validator must prevent persisted underreporting. When the effective s
 
 ### 9.4 Producer-Seeded Defaults
 
-Each `BlockKind` declares a default sensitivity in its kind declaration (the canonical kinds and the registered `Custom` kinds both do this). When a capability commits a block, the executor uses the capability's `data_sensitivity` declaration (File 05 §3.5) as the producer-seeded value, which then becomes the block's `default_sensitivity`. The producer may override the seed by emitting an explicit `default_sensitivity` value, subject to policy constraints (a capability cannot lower a `Secret`-seeded block to `Public` without a typed-confirmation policy override).
+Each `BlockKind` declares a default sensitivity in its kind declaration (the canonical kinds and the registered `Custom` kinds both do this). When a capability commits a block, the executor uses the capability's `data_sensitivity` declaration (`capability.permission-policy-fields`, File 05 §3.5) as the producer-seeded value, which then becomes the block's `default_sensitivity`. The producer may override the seed by emitting an explicit `default_sensitivity` value, subject to policy constraints (a capability cannot lower a `Secret`-seeded block to `Public` without a typed-confirmation policy override).
 
 ### 9.5 Projection Independence
 
@@ -551,9 +613,11 @@ Sensitivity is independent of presentation. A surface that renders a block consu
 
 ### 9.6 Boundary
 
-Sensitivity is a durable property of the block. The policy layer (File 06) decides what to do at policy boundaries based on sensitivity. The event stream (File 04 §23.2) uses the same value set for transient coordination. Surface rendering consumes sensitivity to gate displays. None of those layers redefines the value set.
+Sensitivity is a durable property of the block. The policy layer (File 06) decides what to do at policy boundaries based on sensitivity. The event stream (`run.event-stream`, File 04 §23.2) uses the same value set for transient coordination. Surface rendering consumes sensitivity to gate displays. None of those layers redefines the value set.
 
 ## 10. Block Description
+
+Anchor: `block.block-description`
 
 ### 10.1 Definition
 
@@ -579,10 +643,12 @@ Descriptions live on the block, not in a compaction service or in a retrieval in
 - compaction algorithms read descriptions, not full content, to decide what to evict or summarize. A description that lives on the block survives compaction itself
 - retrieval uses descriptions for low-cost first-pass filtering; full-content embeddings are computed separately
 - surface presentations render descriptions in collapsed views, list views, and previews
-- inspector lenses (File 07 §12.4) render descriptions in catalogue displays
+- inspector lenses (`surface.inspector-lens`, File 07 §12.4) render descriptions in catalogue displays
 - when a block's content is `External` or `Composed`, the description is the only inline content available; without it, every preview operation would require full content resolution
 
 ### 10.4 Description Immutability
+
+Anchor: `block.description-immutability`
 
 The description is fixed at creation. A block whose description proves inadequate is edited (which creates a sibling per §6.2), not patched in place.
 
@@ -591,6 +657,8 @@ The description is fixed at creation. A block whose description proves inadequat
 The description is owned by the block. The compaction service, retrieval service, and surface presentations consume it. None of those layers modifies the description; if they need a richer description, they request a regeneration through a capability call that produces an edit-sibling block.
 
 ## 11. Block Scope
+
+Anchor: `block.block-scope`
 
 ### 11.1 Definition
 
@@ -602,7 +670,7 @@ Every block has a `scope` denoting the broadest context within which the block i
 - `conversation` — the block is visible within the originating conversation; the default for transcript-related blocks
 - `workspace` — the block is visible across conversations within the workspace; the default for workspace artifacts and workspace-scoped memory
 - `global` — the block is visible across workspaces; reserved for global memory entries, global settings blocks, and equivalent
-- `reusable_policy_rule` — matches the lease scope from File 06 §11; reserved for blocks that express reusable policy or workflow templates
+- `reusable_policy_rule` — matches the lease scope from `policy.lease-primitive` (File 06 §11); reserved for blocks that express reusable policy or workflow templates
 
 The scope is declared at commit by the producer. Scope determines:
 
@@ -613,11 +681,15 @@ The scope is declared at commit by the producer. Scope determines:
 
 ### 11.2 Scope Promotion
 
+Anchor: `block.scope-promotion`
+
 A block may be promoted to a broader scope through an explicit operation (a user pins a `run`-scoped observation into `conversation` scope; an agent promotes a `task`-scoped plan into `workspace` scope). Promotion creates a new immutable block or reference record at the broader scope, linked to the original by `promotes_scope_of` or `scope_projection_of`. The original remains valid at the original scope. `supersedes` is reserved for content/version replacement, not visibility broadening.
 
 Scope demotion (broadening down to narrower scope) is not permitted as a direct operation; a workspace block whose content is later judged conversation-specific is left at the workspace scope. The retrieval and surface layers may filter it out of broader contexts, but the block's declared scope is fixed at commit.
 
 ### 11.3 Cross-Scope References
+
+Anchor: `block.cross-scope-references`
 
 A block at a narrower scope may reference (via edges) a block at a broader scope (a `run`-scoped `ToolResult` may `references` a `workspace`-scoped `Memory`). A block at a broader scope may reference a block at a narrower scope only if the references remain meaningful when the narrower block is no longer in scope (a `workspace`-scoped `Plan` referencing a `task`-scoped block must tolerate the task's blocks being garbage-collected). Edge resolution at read time honors the scope rules: a reference that cannot be resolved produces a `BrokenBlockReference` event but does not corrupt the referencer.
 
@@ -626,6 +698,8 @@ A block at a narrower scope may reference (via edges) a block at a broader scope
 Scope is a durable property of the block. Storage uses scope to organize physical layout. Retrieval uses scope to bound queries. The future workspace spec defines the workspace boundary; this file uses workspaces as a scope label without redefining workspace semantics.
 
 ## 12. Cross-Surface Interoperability
+
+Anchor: `block.cross-surface-interoperability`
 
 ### 12.1 Definition
 
@@ -638,11 +712,13 @@ Each surface projects the pool through surface-specific filters:
 - a Coder surface presentation filters for `FileAttachment`, `Artifact` (code), `ToolCallProposal` and `ToolResult` for code-related capabilities, `Validation` (tests), `Critique` (review comments)
 - a Web surface presentation filters for `Observation` (page extracts), `Artifact` (downloads), `Citation` (URLs), `ToolCallProposal` for browser capabilities
 - the conversation transcript filters for transcript-anchorable kinds: `MessageUser`, `MessageAssistant`, and the kinds that appear as their children
-- the inspector lens (File 07 §12.4) presents every block in the pool, filtered by user-chosen axes
+- the inspector lens (`surface.inspector-lens`, File 07 §12.4) presents every block in the pool, filtered by user-chosen axes
 
 The filter is a surface concern; the blocks remain in the pool unchanged. A block produced by the Coder surface but referenced by the Memory subsystem is visible in both.
 
 ### 12.3 Cross-Surface Composition
+
+Anchor: `block.cross-surface-composition`
 
 A block may compose blocks from multiple surfaces. A `MessageAssistant` answering a research question may compose:
 
@@ -660,7 +736,11 @@ Cross-surface interoperability is a property of the unified pool. This file esta
 
 ## 13. Block Persistence Contract
 
+Anchor: `block.block-persistence-contract`
+
 ### 13.1 What Is Durably Stored
+
+Anchor: `block.what-is-durably-stored`
 
 The following block-related facts are durable:
 
@@ -672,24 +752,30 @@ The following block-related facts are durable:
 
 ### 13.2 What Is Computed
 
+Anchor: `block.what-is-computed`
+
 The following are computed, not stored:
 
 - per-version lifecycle maps — derived from the version-graph action log; rebuilt on demand from durable action records
 - per-version pin maps — same as lifecycle
 - the materialized view of "blocks active in the current view, in render order" — derived from the version graph plus the surface's projection filter
-- per-tokenizer token counts — computed on demand per `(block_id, tokenizer_id)`, never cached as plain scalar on the block (per File 01 §8 invariant rejecting unkeyed model-dependent scalars)
+- per-tokenizer token counts — computed on demand per `(block_id, tokenizer_id)`, never cached as plain scalar on the block (per `core.explicit-rejections`, File 01 §8 invariant rejecting unkeyed model-dependent scalars)
 - per-block retrieval relevance scores — computed by the retrieval service
 - per-block embedding vectors — computed by the indexing service using model-keyed identifiers
 
 ### 13.3 Reconstruction Across Restart
 
-On process restart, the block pool re-emerges from durable storage. The version graph reloads. Per-version lifecycle and pin maps rebuild from the action log. In-flight streaming events that were not committed at restart follow the orphan-run rules of File 04 §17.3 — partial events whose producing run was orphaned do not become blocks unless the capability declared `partial_output_meaningful` and a recovery handler.
+Anchor: `block.reconstruction-across-restart`
+
+On process restart, the block pool re-emerges from durable storage. The version graph reloads. Per-version lifecycle and pin maps rebuild from the action log. In-flight streaming events that were not committed at restart follow the orphan-run rules of `run.cancellation` (File 04 §17.3) — partial events whose producing run was orphaned do not become blocks unless the capability declared `partial_output_meaningful` and a recovery handler.
 
 The active view a new run sees after restart is the same view a new run would have seen before restart, modulo any changes recorded during the offline interval. Determinism is required for replay.
 
 ### 13.4 Reconstruction Across Retry, Edit, Reroute, Branch
 
-Per File 04 §19, retry, edit, reroute, and branch produce new runs linked to prior ones. The block pool itself is shared: the new run's blocks join the same pool. The version graph records the branch; lifecycle maps may diverge across the version branches (one branch may mask a block another branch keeps active). The block records themselves remain singular.
+Anchor: `block.reconstruction-across-retry-edit-reroute-branch`
+
+Per `run.retry-reroute-branch` (File 04 §19), retry, edit, reroute, and branch produce new runs linked to prior ones. The block pool itself is shared: the new run's blocks join the same pool. The version graph records the branch; lifecycle maps may diverge across the version branches (one branch may mask a block another branch keeps active). The block records themselves remain singular.
 
 ### 13.5 Boundary
 
@@ -697,9 +783,11 @@ Persistence is the storage layer's responsibility. This file specifies what the 
 
 ## 14. Settings
 
+Anchor: `block.settings`
+
 ### 14.1 Configurable Dimensions
 
-Every block-presentation, retention, and discovery mechanism in this file is configurable through settings (per File 01 §6.8). File 08 names the dimensions; the settings system owns the cascade and storage.
+Every block-presentation, retention, and discovery mechanism in this file is configurable through settings (per `core.settings-system`, File 01 §6.8). File 08 names the dimensions; the settings system owns the cascade and storage.
 
 Surface-presentation dimensions:
 
@@ -710,7 +798,7 @@ Surface-presentation dimensions:
 
 Retention dimensions:
 
-- `blocks.hard_delete_confirmation_threshold` — the typed-confirmation requirements for hard delete (per File 06 §7); per-kind override allowed
+- `blocks.hard_delete_confirmation_threshold` — the typed-confirmation requirements for hard delete (per `policy.permission-floor-typed-confirmation`, File 06 §7); per-kind override allowed
 - `blocks.orphan_retention_policy` — whether to keep partial orphans, discard them, or per-kind override (default: keep when `partial_output_meaningful: true`)
 - `blocks.compaction_default_policy` — the default compaction policy for non-pinned blocks; File 13 owns the policy set
 
@@ -723,14 +811,14 @@ Sensitivity dimensions:
 Custom-kind dimensions:
 
 - `blocks.allow_custom_kinds_from_source.<source_id>` — per-source toggle for accepting custom kind registrations
-- `blocks.custom_kind_review_threshold` — the source-approval flow threshold for new custom kinds (per File 06 §9 source-approval flow)
+- `blocks.custom_kind_review_threshold` — the source-approval flow threshold for new custom kinds (per `policy.source-approval-flow`, File 06 §9 source-approval flow)
 
 Description dimensions:
 
 - `blocks.description_max_length_chars` — soft cap on description length at commit; producers above the cap emit a truncated description
 - `blocks.description_regeneration_enabled` — whether the system permits the user to request a regenerated description for a block (which creates a sibling edit)
 
-Agent-exposure dimensions (per File 06 §16.4):
+Agent-exposure dimensions (per `policy.agent-exposure-policy-settings`, File 06 §16.4):
 
 - `blocks.kind_catalogue_visible_to_agent` — whether the model sees the full canonical kind catalogue in model-request text content (default `InPrompt` for the canonical kinds; custom kinds `OnRequest`)
 - `blocks.sensitivity_exposure` — whether sensitivity is visible to the agent (`InPrompt` for `Public`/`Sensitive`/`Secret` indicators; `Hidden` for `sensitivity_field_map` detail)
@@ -746,6 +834,8 @@ This file names the settings dimensions. The settings system owns cascade resolu
 
 ## 15. Explicit Rejections
 
+Anchor: `block.explicit-rejections`
+
 The following shapes are wrong for this layer:
 
 - mutable block content — every observable content change is a new block in the same pool, linked by `supersedes`. In-place mutation of `content`, `kind`, `parent_block_id`, `created_at`, `content_hash`, or `producer` is invalid
@@ -760,8 +850,8 @@ The following shapes are wrong for this layer:
 - silent hard delete — hard delete is always explicit, always typed-confirmation-gated when references depend on the block, and always recorded in the ledger
 - automatic mask-after-time-window — time-based block lifecycle transitions are forbidden (File 01 constraint). Compaction may invoke explicit `Mask`/`Drop` operations, but the block layer enforces no implicit decay
 - forcing every event into a block — events are not blocks. The streaming model commits blocks at boundaries; not every event becomes durable
-- block content carrying a token-count scalar — token counts are model-dependent and must be keyed by tokenizer identifier (File 01 §8); blocks store content, not unkeyed scalars
-- block content carrying a cost scalar — same rule; cost is computed per-model per File 01 §8
+- block content carrying a token-count scalar — token counts are model-dependent and must be keyed by tokenizer identifier (`core.explicit-rejections`, File 01 §8); blocks store content, not unkeyed scalars
+- block content carrying a cost scalar — same rule; cost is computed per-model per `core.explicit-rejections` (File 01 §8)
 - `Composed` blocks whose children list mutates — children list is immutable like content. Adding or removing a child creates a sibling composed block
 - `Composed` blocks with no children — invalid composition
 - `Evidence` blocks without any supporting `cites` edges — invalid evidence
@@ -778,6 +868,8 @@ The following shapes are wrong for this layer:
 - using block ordering as sequence truth — sequence within a view is owned by the version graph; blocks are not ordered by `created_at` alone
 
 ## 16. Consequences for Later Specs
+
+Anchor: `block.consequences-for-later-specs`
 
 Later specs must follow these rules:
 

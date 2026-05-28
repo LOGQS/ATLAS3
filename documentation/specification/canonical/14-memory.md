@@ -44,6 +44,8 @@ Resolved design:
 
 ## 1. Chosen Model
 
+Anchor: `memory.chosen-model`
+
 ATLAS3 has one Memory substrate.
 
 Memory stores curated learned state that should survive beyond the immediate conversation. It is not raw transcript, not a knowledge base, not an instruction file, not a graph database, and not a private prompt layer.
@@ -58,6 +60,8 @@ Recent conversation turns are not a Memory tier. They are conversation blocks in
 Memory is always integrated. Every work surface can read from and contribute to it through registered capabilities and policy. No surface receives a private memory model.
 
 ## 2. Adjacent Boundaries
+
+Anchor: `memory.adjacent-boundaries`
 
 ### 2.1 Blocks
 
@@ -86,6 +90,8 @@ Memory operations are capabilities registered through File 05, evaluated through
 Memory-specific capability handlers do not implement private approval logic. Memory writes, deletes, exports, imports, consolidation, and derived instruction/profile proposals go through the shared capability and policy systems.
 
 ## 3. `MemoryEntry`
+
+Anchor: `memory.memory-entry`
 
 ### 3.1 Definition
 
@@ -129,6 +135,8 @@ The following are projections or policy-retained telemetry, not required identit
 When retained, these values must be keyed by the policy, model, tokenizer, source version, or retrieval profile that produced them.
 
 ## 4. Kinds, Scopes, and Facets
+
+Anchor: `memory.kinds-scopes-facets`
 
 ### 4.1 `MemoryKind`
 
@@ -184,6 +192,8 @@ Facets are typed. Prose-only facets are insufficient for policy-critical behavio
 
 ## 5. Core Memory
 
+Anchor: `memory.core-memory`
+
 Core memory is the high-priority memory subset intended to shape ordinary interaction without search.
 
 Core memory blocks are:
@@ -200,6 +210,8 @@ Core memory is not a system prompt, not hidden instruction text, and not guarant
 
 ## 6. Archival Memory
 
+Anchor: `memory.archival-memory`
+
 Archival memory is durable learned state not normally assembled unless retrieved or selected by policy.
 
 Archival memory:
@@ -213,6 +225,8 @@ Archival memory:
 Indexes over archival memory are rebuildable from blocks and entity records. Loss or corruption of an index must not destroy memory content.
 
 ## 7. Validity, Retention, and Short-Term Memory
+
+Anchor: `memory.validity-retention-short-term-memory`
 
 Memory may be durable or time-bounded.
 
@@ -230,6 +244,8 @@ Example: "I have an exam on June 10; help me focus on exam prep until then" can 
 Settings decide whether expired memories are hidden, searchable only with archived/stale filters, proposed for cleanup, or automatically dropped from active memory projections.
 
 ## 8. Learning and Extraction
+
+Anchor: `memory.learning-extraction`
 
 ### 8.1 Learning Paths
 
@@ -293,6 +309,8 @@ Memory must not self-amplify by re-memorizing memory-injected content.
 
 ## 9. Retrieval and Use
 
+Anchor: `memory.retrieval-use`
+
 ### 9.1 Progressive Retrieval
 
 Memory retrieval returns compact hits first.
@@ -337,6 +355,8 @@ If a retrieval affects future ranking, the system must record the signal in a se
 
 ## 10. Salience and Strength
 
+Anchor: `memory.salience-strength`
+
 Memory salience is represented by feature inputs, not a single canonical formula.
 
 A default salience feature set may include:
@@ -351,6 +371,8 @@ Other features may be registered by profiles or subsystems. The active ranking/c
 Strength is not stored as an unqualified mutable scalar on the memory entity.
 
 ## 11. Provenance, Confidence, and Conflict
+
+Anchor: `memory.provenance-confidence-conflict`
 
 Every memory must have provenance.
 
@@ -375,6 +397,8 @@ Conflict handling:
 
 ## 12. Consolidation
 
+Anchor: `memory.consolidation`
+
 Consolidation maintains memory quality. It may:
 
 - merge duplicates
@@ -394,6 +418,8 @@ When consolidation rewrites, merges, supersedes, exports, broadly promotes, or r
 
 ## 13. Natural Use and Inspectability
 
+Anchor: `memory.natural-use-inspectability`
+
 Memory should feel natural in ordinary assistant text. The assistant should not gratuitously frame normal answers as database retrieval or say "based on your stored memories" when simple contextual phrasing is better.
 
 Attribution is allowed and sometimes required:
@@ -410,6 +436,8 @@ Exact phrase bans, validators, and fail directions are quality-control/settings 
 
 ## 14. Memory-Derived Instructions, Profiles, and Skills
 
+Anchor: `memory.memory-derived-instructions-profiles-skills`
+
 Memory may inform future behavior, but it does not own hidden instruction injection.
 
 If a learned preference, style, procedure, or pattern should guide future model behavior as an instruction, profile, workflow, skill, or reusable knowledge entry, Memory may propose that object through the appropriate layer. The resulting object must carry source attribution, authority, sensitivity, and policy approval.
@@ -417,6 +445,8 @@ If a learned preference, style, procedure, or pattern should guide future model 
 Memory stores learned signals. Instruction sources instruct. Workflows orchestrate. Knowledge entries provide reference content. These are connected but separate primitives.
 
 ## 15. Knowledge Base and Graph Relationship
+
+Anchor: `memory.knowledge-base-graph-relationship`
 
 Memory and Knowledge Base differ by semantic role.
 
@@ -427,6 +457,8 @@ Entity-relationship extraction is domain-populated. Memory may register extracti
 Relationship-like memories can be represented as facts and also projected into File 12 records when useful.
 
 ## 16. Capability Families
+
+Anchor: `memory.capability-families`
 
 Memory must register capabilities through the canonical registry. Exact declarations belong to File 05-compatible capability specs, but the memory subsystem must cover these operation families:
 
@@ -447,6 +479,8 @@ All memory capabilities declare touched resources, sensitivity, replay class, re
 Write-like memory capabilities route through File 06. Hard deletion and secret/sensitive export require the strongest applicable confirmation path.
 
 ## 17. Events, Ledger, and Background Work
+
+Anchor: `memory.events-ledger-background-work`
 
 Memory emits events through File 10.
 
@@ -470,6 +504,8 @@ Background memory work, including extraction, distillation, consolidation, impor
 
 ## 18. Privacy, Sensitivity, and User Control
 
+Anchor: `memory.privacy-sensitivity-user-control`
+
 Memory content defaults to the sensitivity implied by its source. User-private context usually produces `Sensitive` memory. Raw secrets must not be stored in memory content, descriptions, indexes, events, exports, or telemetry.
 
 Users must be able to:
@@ -489,6 +525,8 @@ UI layout is not defined here. These are required management capabilities and da
 
 ## 19. Import, Export, and Materialization
 
+Anchor: `memory.import-export-materialization`
+
 Blocks and `MemoryEntry` records are canonical. Markdown, JSON, workspace files, or other user-editable formats are projections or import sources unless committed back into the block pool.
 
 Import flows through policy, deduplication, provenance, sensitivity classification, and proposal/commit rules.
@@ -498,6 +536,8 @@ Export must preserve source identity, scope, sensitivity markings, provenance, a
 File-backed or human-readable memory is valuable for portability and review, but it does not replace the block model.
 
 ## 20. Settings
+
+Anchor: `memory.settings`
 
 Memory behavior must be configurable through the settings system.
 
@@ -522,6 +562,8 @@ Settings dimensions include:
 Specific defaults belong to settings profiles and later settings specs, not this file.
 
 ## 21. Explicit Rejections
+
+Anchor: `memory.explicit-rejections`
 
 The following shapes are wrong for this layer:
 
@@ -551,6 +593,8 @@ The following shapes are wrong for this layer:
 - treating memory-derived procedures as hidden instructions instead of proposing the correct instruction, knowledge, workflow, or profile object when needed
 
 ## 22. Consequences for Later Specs
+
+Anchor: `memory.consequences-for-later-specs`
 
 Later specs must follow these rules:
 

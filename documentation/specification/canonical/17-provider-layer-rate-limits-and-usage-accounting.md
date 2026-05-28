@@ -68,6 +68,8 @@ Resolved design:
 
 ## 1. Provider Layer
 
+Anchor: `provider.provider-layer`
+
 Atlas has one Provider Layer between the runtime and external model/inference providers.
 
 It owns:
@@ -112,6 +114,8 @@ Future STT, TTS, image, embedding, video, and local-inference adapter families r
 
 ## 2. Boundaries with Adjacent Layers
 
+Anchor: `provider.boundaries-with-adjacent-layers`
+
 ### 2.1 With File 16 (Model Strategy, Profiles, and Selection)
 
 File 16 consumes three projections from this layer: `ModelCapabilityDescriptor` (per `(provider_id, model_id)`), `ProviderOfferingProjection` (provider/account availability, effective pricing, region, data handling), and `ProviderRuntimeSnapshot` (current health, rate-limit posture, in-flight capacity, credential state, known retryability). File 17 produces all three. File 17 does not select models, score candidates, or evaluate `ModelProfile`s.
@@ -136,7 +140,7 @@ File 10 Â§10's sensitivity classification (`Public`/`Sensitive`/`Secret`) gove
 
 File 13 Â§10 owns token counting at the assembly boundary (request-size estimation against the active model's request limits) and produces the `BudgetReport`. File 17 owns the tokenizer dispatch table, the per-model tokenizer identity, and the provider-exception list. The `(block_id, tokenizer_id)` LRU cache contract is shared: File 13 populates and consumes it for assembly; File 17 populates it during parse with provider-reported counts when available, which take precedence over local-tokenizer counts. The `tokenizer_id` namespace is defined here (Â§17).
 
-File 13 §11 produces logical `CacheMarker` candidates with provider-invariant anchors, stability metadata, sensitivity eligibility, fingerprints, and source references. File 17 §16 translates those candidates to provider-native cache behavior, applies provider-declared marker limits and cache constraints, and reports cache hit accounting back through `TokenUsageRecord`. Minimum cacheable size and retention behavior belong to provider offering or adapter policy metadata, not `ModelCapabilityDescriptor`.
+`context.cache-marker-candidates` (File 13 §11) produces logical `CacheMarker` candidates with provider-invariant anchors, stability metadata, sensitivity eligibility, fingerprints, and source references. `provider.cache-marker-translation` (File 17 §16) translates those candidates to provider-native cache behavior, applies provider-declared marker limits and cache constraints, and reports cache hit accounting back through `TokenUsageRecord`. Minimum cacheable size and retention behavior belong to provider offering or adapter policy metadata, not `ModelCapabilityDescriptor`.
 
 ### 2.5 With File 15 (Settings, Profiles, and Scope Resolution)
 
@@ -153,6 +157,8 @@ File 03 owns routing semantics, `RunIntent` field meanings, and `RouteRecord` pr
 This file owns the contract every provider implementation meets, the typed primitives every other layer consumes, the runtime state machine over health/rate-limits/credentials, the per-call attribution schema, the tokenizer dispatch table, the cache translation, and the settings dimensions every provider-layer behavior exposes. It does not own selection, routing, the ledger row shape, vault internals, retrieval, context assembly, sync, storage, or UI.
 
 ## 3. `ProviderAdapter`
+
+Anchor: `provider.provider-adapter`
 
 ### 3.1 Definition
 
@@ -225,6 +231,8 @@ Provider adapters are the only layer permitted to know provider-specific wire sh
 
 ## 4. `ProviderProfile`
 
+Anchor: `provider.provider-profile`
+
 ### 4.1 Definition
 
 A `ProviderProfile` is a declarative description of a provider's transport behavior. It lets one transport implementation serve many providers that share a wire family.
@@ -278,6 +286,8 @@ Hand-coded adapters remain valid for transports that do not fit any registered w
 
 ## 5. `ProviderInstance` and `ProviderRegistry`
 
+Anchor: `provider.provider-instance-provider-registry`
+
 ### 5.1 `ProviderInstance`
 
 A `ProviderInstance` binds a `ProviderAdapter` (typically realized from a `ProviderProfile`) to:
@@ -311,6 +321,8 @@ The registry is not an independent source of provider truth. Capability data is 
 
 ## 6. Provider Sourcing
 
+Anchor: `provider.provider-sourcing`
+
 ### 6.1 Source Classes
 
 Every provider instance is sourced from one of:
@@ -328,7 +340,7 @@ Wrapper-specific behavior (subprocess lifecycle, stdio normalization, per-CLI us
 
 ### 6.3 Custom Providers and Registered Wire Families
 
-Custom providers are registered through the canonical `provider.register` capability surface declared in §22.6. A custom provider may select an existing `WireFamily { family_id }` profile with a custom `base_url` or register a new profile. Unknown provider identifiers receive a synthesized `ModelCapabilityDescriptor` from adapter-shipped fallback only where the profile declares safe fallback behavior. The descriptor carries `Unknown` for capability facts the adapter cannot determine; selection and assembly treat `Unknown` per File 16 §3.4.
+Custom providers are registered through the canonical `provider.register` capability surface declared in §22.6. A custom provider may select an existing `WireFamily { family_id }` profile with a custom `base_url` or register a new profile. Unknown provider identifiers receive a synthesized `ModelCapabilityDescriptor` from adapter-shipped fallback only where the profile declares safe fallback behavior. The descriptor carries `Unknown` for capability facts the adapter cannot determine; selection and assembly treat `Unknown` per `model.normalization-refresh` (File 16 §3.4).
 
 ### 6.4 Gateway Compatibility
 
@@ -340,6 +352,8 @@ This file does not embed concrete provider names, exact endpoint paths, exact wi
 
 ## 7. `ProviderRequest`
 
+Anchor: `provider.provider-request`
+
 ### 7.1 Definition
 
 A `ProviderRequest` is the typed provider-invariant call envelope carried into `ProviderAdapter::build_request`.
@@ -347,7 +361,7 @@ A `ProviderRequest` is the typed provider-invariant call envelope carried into `
 It carries:
 
 - the resolved `(provider_id, model_id, account_id)` identity
-- the assembled model request from File 13 §2 with semantic regions preserved
+- the assembled model request from `context.model-request` (File 13 §2) with semantic regions preserved
 - `assembly_snapshot_ref`, `sensitivity_summary`, `data_boundary_decision_ref`, and provider/account boundary requirements needed to prove the request is authorized before serialization
 - the resolved behavioral intents from File 16 Â§10 (`reasoning_posture`, `sampling_posture`, `output_length_posture`, `latency_posture`, `cost_posture`, `cache_continuity_preference`, `structured_output_posture`, parameter overrides resolved per File 15)
 - the rendered or pending `CacheMarker` candidates from File 13 Â§11
@@ -375,6 +389,8 @@ Provider-native callable declarations (the tool array carried with the model req
 
 ## 8. Parameter Serialization
 
+Anchor: `provider.parameter-serialization`
+
 ### 8.1 Rule
 
 Every provider-native parameter is produced by `ProviderAdapter::build_request` from the resolved behavioral intent. No canonical Atlas-level layer above this one knows the provider's parameter names.
@@ -399,6 +415,8 @@ Rules are inspectable, replayable, and auditable. Hidden conditional logic outsi
 Provider-specific behavioral defaults that affect correctness (role-field mapping, surrogate sanitization, unsupported-parameter suppression, identity-header rules, model-id normalization) are part of the adapter's responsibility and must produce typed diagnostic events whenever they alter the user's apparent request.
 
 ## 9. Streaming
+
+Anchor: `provider.streaming`
 
 ### 9.1 `ProviderStreamChunk`
 
@@ -440,6 +458,8 @@ High-frequency streaming events (`TextDelta`, `ReasoningDelta`, `ToolUseArgument
 
 ## 10. Provider Error Classification
 
+Anchor: `provider.provider-error-classification`
+
 ### 10.1 Closed Canonical Error Variants
 
 Every provider error is one of the following canonical variants. Every adapter must produce one of these variants for any provider failure that exits the adapter boundary.
@@ -462,8 +482,11 @@ Every provider error is one of the following canonical variants. Every adapter m
 - `StreamInterrupted { provider_id, phase, retry_advice }`
 - `GatewayIncompatibility { provider_id, message }`
 - `ProviderInternalError { provider_id, message }`
+- `ProviderSpecificError { provider_id, provider_error_code, provider_error_class, scrubbed_message, http_status?, retry_after?, classified_as: ErrorClassification, classification_confidence }` — the declared escape hatch for a provider failure that maps cleanly to none of the named variants above (per the closed-canonical extension path, `core.closed-canonical` (File 01 §6.16)). It still carries a `classified_as: ErrorClassification`, so downstream behavior never depends on the raw provider strings. `scrubbed_message` is secret-scrubbed per §10.5; `provider_error_code` and `provider_error_class` are preserved for telemetry; `classification_confidence` records how certain the adapter's classification is.
 
-This catalogue must align exactly with the typed error vocabulary File 16 Â§9.2 consumes. `RateLimited`, `ModelUnavailable`, `CapabilityMismatchDiscovered`, `ContextTooLargeForSelectedModel`, `RequestRejectedByProvider`, `ProviderUnavailable`, and `PolicyOrDataBoundaryConflict` are the File 16 fallback inputs; the remaining variants are transport-level and stay inside this layer until they exhaust per Â§11.
+This catalogue must align exactly with the typed error vocabulary File 16 Â§9.2 consumes. `RateLimited`, `ModelUnavailable`, `CapabilityMismatchDiscovered`, `ContextTooLargeForSelectedModel`, `RequestRejectedByProvider`, `ProviderUnavailable`, and `PolicyOrDataBoundaryConflict` are the File 16 fallback inputs; the remaining variants are transport-level and stay inside this layer until they exhaust per Â§11. A `ProviderSpecificError` routes by its `classified_as.recovery_advice` like any other variant.
+
+Fallback and retry logic consume the `ErrorClassification` (§10.2), never raw provider strings. Every variant — including `ProviderSpecificError` — yields one, so an unrecognized provider failure is classified, not passed through untyped.
 
 ### 10.2 `ErrorClassification`
 
@@ -500,6 +523,8 @@ The runtime does not treat retry waits as correctness logic. Provider reset hint
 
 ## 11. Transport-Level Retry and Backoff
 
+Anchor: `provider.transport-level-retry-backoff`
+
 ### 11.1 Retry Boundary
 
 Retry inside this layer covers the same `(provider_id, model_id, account_id)` identity. Switching `(provider_id, model_id)` is File 16's `FallbackPolicy` decision and exits the retry loop with the typed error.
@@ -520,7 +545,7 @@ Every transport-level retry obeys:
 - `ServiceOverloaded`, `NetworkError`, `TimeoutError`, `StreamInterrupted`, `ProviderInternalError` — `BackoffAndRetry` with a settings/profile-selected strategy
 - `AuthenticationFailed`, `NotAuthenticated` — `RefreshAuth` once per call; if refresh fails or is unsupported, fail without retry
 - `CredentialExhausted` — `RotateCredential` through the `CredentialPool`; if every credential is exhausted, fail with the typed variant for File 16 to consume
-- `ContextTooLargeForSelectedModel` — non-retryable at the transport layer; surface to File 04 §20.1 for context-layer recovery
+- `ContextTooLargeForSelectedModel` — non-retryable at the transport layer; surface to `run.boundary-rule` (File 04 §20.1) for context-layer recovery
 - `InvalidRequest`, `RequestRejectedByProvider`, `CapabilityMismatchDiscovered`, `PolicyOrDataBoundaryConflict`, `GatewayIncompatibility` — non-retryable; surface to caller
 - `ModelUnavailable`, `ProviderUnavailable` — non-retryable at the transport layer in the sense of same-`(provider, model)`-retry; surface for File 16
 
@@ -533,6 +558,8 @@ The `idempotency_key` carried on every `ProviderRequest` lets the adapter coales
 Retry never converts a `Fatal` `ErrorClassification` into a `Transient` one. Retry never proceeds when the cancellation signal is active. Retry never exceeds the configured cap. Retry never blocks indefinitely; every retry wait is an individually killable execution unit and every backoff has a finite configurable ceiling.
 
 ## 12. `ProviderHealth`
+
+Anchor: `provider.provider-health`
 
 ### 12.1 Definition
 
@@ -563,6 +590,8 @@ The runtime does not poll providers for health on a schedule. Active probes (`Pr
 `ProviderRuntimeSnapshot` carries the current `ProviderHealth` value, the `contributing_failures` counter, the last typed error observed, and any provider retry hint when `Unhealthy`. File 16 consumes this snapshot during its selection hard-filters per File 16 Â§7.3.
 
 ## 13. `RateLimitState` and Header Reconciliation
+
+Anchor: `provider.rate-limit-state-header-reconciliation`
 
 ### 13.1 `RateLimitScope`
 
@@ -631,6 +660,8 @@ Burst capacity may be modeled with a token-bucket overlay above the canonical wi
 
 ## 14. Credentials, Accounts, and Pools
 
+Anchor: `provider.credentials-accounts-pools`
+
 ### 14.1 `ProviderAccount`
 
 A `ProviderAccount` is a typed named identity within one `provider_id`. Multi-account per provider is canonical. Accounts carry:
@@ -676,6 +707,8 @@ For providers that expose account-level usage endpoints, `ProviderAdapter::accou
 
 ## 15. Model Catalog and Capability Normalization
 
+Anchor: `provider.model-catalog-capability-normalization`
+
 ### 15.1 `ModelCatalogEntry`
 
 Per `(provider_id, model_id)` the registry holds a `ModelCatalogEntry` carrying:
@@ -719,9 +752,11 @@ Capability state is cached in the registry projection. Invalidation triggers: mo
 
 ## 16. Cache Marker Translation
 
+Anchor: `provider.cache-marker-translation`
+
 ### 16.1 Boundary
 
-File 13 §11 produces logical `CacheMarker` candidates with provider-invariant anchors, source references, fingerprints, stability reasons, and sensitivity eligibility. File 17 translates them to provider-native cache annotations through `ProviderAdapter::render_cache_markers`.
+`context.cache-marker-candidates` (File 13 §11) produces logical `CacheMarker` candidates with provider-invariant anchors, source references, fingerprints, stability reasons, and sensitivity eligibility. File 17 translates them to provider-native cache annotations through `ProviderAdapter::render_cache_markers`.
 
 ### 16.2 Translation Discipline
 
@@ -745,7 +780,11 @@ Provider-native cache syntax, retention behavior, minimum lengths, marker limits
 
 ## 17. Tokenizers and Token Counting
 
+Anchor: `provider.tokenizers-token-counting`
+
 ### 17.1 `TokenSource`
+
+Anchor: `provider.token-source`
 
 The canonical accuracy hierarchy is closed:
 
@@ -798,7 +837,13 @@ Multimodal content (images, audio, video, files) has provider-specific counting 
 - when the provider does not report per-modality usage but accepts multimodal input, adapters compute a typed estimate from declared per-modality constants (image dimensions to tokens, audio duration to tokens) declared in the adapter or profile
 - estimates are accuracy-classed below provider-native counts and feed the same telemetry path
 
+### 17.8 Live Counting Versus Replay
+
+Provider token-count endpoints (`ProviderCountEndpoint`) and any other live counting path may be used for live assembly and pre-call estimation. Every count obtained this way must be recorded with its `provider_id`, `model_id`, `tokenizer_id`, and `TokenSource` on the call's `TokenUsageRecord` (§18) and in the consuming `AssemblySnapshot` (`context.assembly-replay-snapshot`, File 13 §19). Historical replay, audit, and deterministic reconstruction consume the recorded counts, never the provider endpoint, consistent with the replay-determinism rule `context.assembly-replay-snapshot`. A replay that re-queries a provider count endpoint is invalid.
+
 ## 18. `TokenUsageRecord`
+
+Anchor: `provider.token-usage-record`
 
 ### 18.1 Required Fields
 
@@ -848,6 +893,8 @@ For streaming calls, a partial `TokenUsageRecord` is written on cancellation or 
 
 ## 19. Cost as a Derived Projection
 
+Anchor: `provider.cost-as-derived-projection`
+
 ### 19.1 Rule
 
 Cost is never stored as an unkeyed scalar in any durable row. This obeys File 01 Â§8 and the ledger-side forgery guard in File 10 Â§3.7.
@@ -882,6 +929,8 @@ Cost tracking is opt-in per File 04 Â§21 budget enforcement and per File 15 se
 
 ## 20. Multimodal Usage
 
+Anchor: `provider.multimodal-usage`
+
 ### 20.1 Scope
 
 Provider-reported multimodal usage flows through this layer alongside textual usage. Each modality has its own optional counter on `TokenUsageRecord` per Â§18 and its own optional pricing on `ModelPricing` per Â§19.
@@ -895,6 +944,8 @@ Adapters extract provider-reported per-modality counts when available, fall back
 For providers that produce non-text outputs (images, audio, structured artifacts), the same accounting principle applies: each output modality has its own counter on `TokenUsageRecord`, populated from provider-reported usage where exposed.
 
 ## 21. `ProviderRuntimeSnapshot` and `ProviderOfferingProjection`
+
+Anchor: `provider.provider-runtime-snapshot-provider-offering-projection`
 
 ### 21.1 Definitions
 
@@ -926,6 +977,8 @@ File 16 does not mutate either projection. Mutations flow only from runtime call
 Both projections are read-optimised. Their staleness is bounded by the events that drive them; consumers read at call time. Stale projections never substitute for the underlying state; cached projections invalidate on the relevant typed events per Â§22.
 
 ## 22. Events Emitted
+
+Anchor: `provider.events-emitted`
 
 ### 22.1 Provider Event Vocabulary
 
@@ -989,6 +1042,8 @@ Exact declarations, permission tiers, touched-resource expressions, preview beha
 
 ## 23. Sensitivity, Redaction, and the Secret Boundary
 
+Anchor: `provider.sensitivity-redaction-secret-boundary`
+
 ### 23.1 Default Classification
 
 Provider-layer events default to `Public` per File 10 Â§5.2 except where credentials or sensitive content are involved.
@@ -1014,7 +1069,38 @@ Adapters scrub provider-reported error bodies for known credential patterns and 
 
 `RateLimitState` is per-device and excluded from sync per Â§13.8. `TokenUsageRecord`s sync per the settings spec's locality declarations. Credentials never sync. Exports redact `Sensitive` payloads unless the user explicitly includes them.
 
+### 23.6 The Backend Secret Boundary
+
+Anchor: `secret.backend-boundary`
+
+Raw `Secret` material — resolved credentials, API keys, vault-decoded OAuth tokens, request signatures, and unredacted user content marked `Secret` (`ledger.sensitivity-aware-persistence-retention`, File 10 §10) — must never cross the backend secret boundary. It is held only in backend-owned transient buffers and the vault/credential substrate, and is discarded after the request leaves.
+
+Forbidden destinations for raw `Secret` material:
+
+- the frontend or renderer process
+- the JavaScript heap
+- IPC payloads
+- model-request context
+- logs
+- events
+- ledger payloads
+- telemetry
+- settings values
+- block content
+- retrieval indexes
+
+What may cross the boundary in its place:
+
+- an opaque secret reference (a `SecretRef` or vault namespace key)
+- a redacted projection
+- a safe description (`safe_description`)
+- a capability-scoped handle
+
+Zeroization guarantees apply only to backend-owned buffers that actually hold raw secret material; references, redacted projections, and safe descriptions carry nothing to zeroize. This section is the provider-layer statement of the cross-cutting rule. `ledger.sensitivity-aware-persistence-retention` (File 10 §10) enforces it at the ledger, event, sync, export, and telemetry paths; `settings.secret-boundary` (File 15 §10) enforces it at the settings, TOML, and sync paths; the future Security spec owns vault internals.
+
 ## 24. Settings Dimensions
+
+Anchor: `provider.settings-dimensions`
 
 Every behavior in this file that is meaningful for users, workspaces, conversations, profiles, or installations to vary is declared as a `SettingDefinition` and resolved through File 15. The settings catalogue includes:
 
@@ -1046,6 +1132,8 @@ Every behavior in this file that is meaningful for users, workspaces, conversati
 Exact default values belong to setting definitions and profile layers, not this file. Settings define intended product variation; they must not become hidden hardcoded branches.
 
 ## 25. Explicit Rejections
+
+Anchor: `provider.explicit-rejections`
 
 The following shapes are wrong for this layer:
 
@@ -1088,6 +1176,8 @@ The following shapes are wrong for this layer:
 - treating provider-reported reset hints as optional when they are present, except where the user cancels or policy permits explicit override
 
 ## 26. Consequences for Later Specs
+
+Anchor: `provider.consequences-for-later-specs`
 
 Later specs must follow these rules:
 
