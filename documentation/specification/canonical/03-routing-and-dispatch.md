@@ -320,8 +320,12 @@ The chosen model strategy for the request.
 It must include:
 
 - `profile_id`
+- `resolved_provider_id`
 - `resolved_model_id`
 - `fallback_policy_id`
+- `selection_record_id`
+
+`selection_record_id` references the model-strategy selection record for the initial model-bound step. Later model-bound steps inside the same run may produce their own selection records without mutating this route field.
 
 `tool_surface_strategy`
 

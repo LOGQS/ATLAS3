@@ -830,7 +830,7 @@ Branching applies to:
 
 Execution coordinates errors; it does not absorb every subsystem's internal policy.
 
-Provider retries, rate-limit fallback, and model failover belong to the model strategy and provider layers. Execution receives either a model response or a typed provider failure and records the outcome.
+Provider retries, rate-limit handling, credential refresh, and retry timing belong to the provider layer. Model-level failover after a typed provider/model failure belongs to model strategy. Execution receives either a model response, a selected fallback model path, or a typed failure and records the outcome.
 
 Context overflow is not an execution-layer compaction trigger. Context assembly reports overflow or degraded assembly; context management decides whether to compact, adjust budget, ask the user, or return a typed failure. Execution then retries the affected unit or follows the recovery path.
 
