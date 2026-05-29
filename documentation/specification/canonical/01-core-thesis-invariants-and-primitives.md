@@ -33,7 +33,7 @@ Resolved design:
 - The product is one shared runtime with multiple presentations, work surfaces, substrate services, and control rails.
 - Participation levels are a UX design lens, not a backend primitive.
 - Blocks, capabilities, execution, events, settings, world state, and versioned durable state are the foundational primitives later files reuse.
-- Extensibility and customization are system-wide invariants, not optional domain features.
+- Extensibility and customization are system-wide invariants, not optional subsystem features.
 
 ## 1. Product Thesis
 
@@ -81,19 +81,19 @@ Examples:
 Boundary:
 Control rails initiate or steer work. They are not themselves the work model.
 
-### 2.2 Participation Levels / Postures
+### 2.2 Interaction Shapes / User Involvement
 
-Anchor: `core.participation-levels-postures`
+Anchor: `core.interaction-shapes`
 
 Definition:
-The degree and shape of user involvement in a running experience. A participation level is a presentation and interaction choice over the same underlying runtime.
+The degree and shape of user involvement in a running experience. An interaction shape is a presentation and interaction choice over the same underlying runtime.
 
 Interpretation rule:
 This is a conceptual design lens for reasoning about UX shape and user involvement. It is not a required backend primitive, not a mandatory stored enum, and not a separate execution architecture.
 
 Examples:
 
-- chat-only
+- conversation-only
 - inline assist
 - sidecar workspace
 - hands-on paired workspace
@@ -101,10 +101,10 @@ Examples:
 
 Boundary:
 
-- not a domain
+- not a subsystem or surface identity
 - not a backend ontology requirement
 - not a separate execution system
-- not a rigid autonomy dial
+- not a rigid backend autonomy control
 - can vary per surface, per request, and over time
 
 ### 2.3 Work Surfaces
@@ -175,13 +175,13 @@ A durable scoped environment for files, state, tools, history, and user-visible 
 
 Rules:
 
-- every chat has a durable scoped context for storage, execution, settings, and materialization
+- every conversation has a durable scoped context for storage, execution, settings, and materialization
 - major work surfaces should support one or many workspaces
 - workspace multiplicity is normal
-- substrate services may be global, workspace-scoped, chat-scoped, or mixed
+- substrate services may be global, workspace-scoped, conversation-scoped, or mixed
 
 Boundary:
-A user-visible workspace is a system capability, not a mandatory UX doorway. A chat's durable scoped context may be exposed as a visible workspace, or may remain latent while the user stays entirely in chat.
+A user-visible workspace is a system capability, not a mandatory UX doorway. A conversation's durable scoped context may be exposed as a visible workspace, or may remain latent while the user stays entirely in the conversation interface.
 
 ## 4. Canonical Abstractions
 
@@ -203,7 +203,7 @@ Does not require:
 
 - explicit task formalization
 - a dedicated workspace view
-- one domain only
+- one surface/subsystem only
 
 ### 4.2 Task
 
@@ -290,7 +290,7 @@ Blocks are not the only top-level abstraction. They are the common context unit.
 ### 4.7 Run
 
 Definition:
-A durable record of one bounded attempt to progress work. A run may answer a simple request, perform tool-using work, execute a workflow, run a domain runtime, or coordinate child runs.
+A durable record of one bounded attempt to progress work. A run may answer a simple request, perform tool-using work, execute a workflow, run a surface runtime, or coordinate child runs.
 
 Boundary:
 The full run lifecycle, structure, and semantics belong in the execution spec. This section establishes only that Run is a canonical abstraction referenced by other abstractions.
@@ -308,7 +308,7 @@ Minimum fields:
 - model/tool strategy
 
 Boundary:
-RunIntent is not "pick one domain." It is the runtime's decision envelope for how to proceed.
+RunIntent is not "pick one surface/subsystem." It is the runtime's decision envelope for how to proceed.
 
 ## 5. Current Major-Area Classification
 
@@ -487,10 +487,10 @@ The structured live model of what the system and user are currently interacting 
 
 Must be able to represent at least:
 
-- active domain/surface
+- active surface and owning subsystem
 - mounted panels
 - focused element
-- available actions
+- available capabilities and control affordances
 - active workspaces
 - other relevant structured runtime state
 
@@ -506,11 +506,11 @@ Centralized typed configuration governing intended product variation.
 
 Rules:
 
-- scoped: global, workspace, and chat levels with clear resolution order
+- scoped: global, workspace, and conversation levels with clear resolution order
 - reactive
 - policy-aware
 - progressive: simple surface by default, full depth available for users who want it
-- agent-exposure-controlled: each setting declares whether it is hidden from, available on request to, or included in prompt for the agent
+- agent-exposure-controlled: each setting declares whether it is hidden from, available on request to, or included in the model request
 - not replaced by hardcoded behavior branches
 
 ### 6.9 Typed Errors
@@ -667,7 +667,7 @@ Durable context-bearing content must remain interoperable through the shared con
 
 ### 7.5 Flexible Presentation
 
-Presentation shape may vary by surface, participation posture, and request complexity without changing the underlying runtime model.
+Presentation shape may vary by surface, interaction shape, and request complexity without changing the underlying runtime model.
 
 ### 7.6 Typed Configuration and Failure
 
@@ -691,7 +691,7 @@ Customization spans settings, profiles, layouts, themes, workflows, tools, model
 
 ### 7.10 Extension Integrity
 
-Extensions must be inspectable, reversible, toggleable, and policy-bound. AI-assisted customization must use the same system paths as manual customization. Plugins are cohesive contribution bundles, not synonymous with domains and not a separate execution architecture.
+Extensions must be inspectable, reversible, toggleable, and policy-bound. AI-assisted customization must use the same system paths as manual customization. Plugins are cohesive contribution bundles, not synonymous with subsystems or surfaces and not a separate execution architecture.
 
 Specific engines, libraries, adapters, providers, parsers, rankers, vector stores, and search backends are replaceable implementations behind typed contracts. A built-in implementation may be recommended, but no canonical subsystem may make that implementation the semantic boundary.
 
@@ -705,7 +705,7 @@ Runs, child-run trees, processes, sandboxes, tool calls, and other long-running 
 
 Anchor: `core.evidence-provenance`
 
-Important outputs should preserve evidence of how they were produced. Artifacts, recommendations, and automations should be traceable to the sources, tool results, observations, and validations that informed them. The degree of provenance depends on the output's significance — not every chat response requires a citation chain, but outputs the user may reuse, share, or build on should carry enough lineage to be trustworthy and reviewable. Later specs define where and how provenance applies per domain.
+Important outputs should preserve evidence of how they were produced. Artifacts, recommendations, and automations should be traceable to the sources, tool results, observations, and validations that informed them. The degree of provenance depends on the output's significance — not every conversation response requires a citation chain, but outputs the user may reuse, share, or build on should carry enough lineage to be trustworthy and reviewable. Later specs define where and how provenance applies per subsystem and surface.
 
 ### 7.13 Non-Destructive by Default
 
@@ -733,13 +733,13 @@ The following are architecturally invalid:
 
 - chat-app-with-tools framing
 - one-heavy-path-for-all-requests architecture
-- single-domain routing as the universal execution model
-- coupling participation level/posture to domain identity
+- single-surface/subsystem routing as the universal execution model
+- coupling interaction shape to surface or subsystem identity
 - coupling model choice to one universal router decision
 - private per-surface context models
 - normalizing non-killable long-running execution as an ordinary design choice
 - business logic in React or command wrappers
-- participation levels implemented as rigid explicit autonomy dials in core architecture
+- interaction shapes implemented as rigid backend autonomy controls in core architecture
 - silent last-write-wins for concurrent mutations of shared state
 - storing model-dependent values as unkeyed plain scalars (token counts, costs, capability flags must be keyed by model or provider identifier)
 

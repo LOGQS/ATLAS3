@@ -42,7 +42,7 @@ This file does not define:
 - credential storage internals, trust-state cryptography, or secret-vault primitives — the future Security, Credentials, and Trust Boundaries spec owns those; this file specifies the canonical `Secret` sensitivity class and the rule that `Secret` payloads never persist to the durable ledger
 - sandbox primitives, process control internals, or isolation mechanics — the future Sandbox, Process Control, and Isolation spec owns those; this file specifies the events sandbox and process operations emit and the `backend_id` envelope dimension that demultiplexes them
 - the model-strategy layer, provider-routing logic, fallback chains, rate-limit reconciliation, or provider-health tracking — Files 16 and 17 own those; this file specifies the per-call attribution and per-error-class retry classification the ledger records
-- retrieval, indexing, knowledge-base mechanics, or RAG hybrid-search algorithms — File 12 owns those; this file specifies that the ledger is the substrate over which forensic and replay queries operate
+- retrieval, indexing, knowledge-base mechanics, retrieval-augmented generation mechanics, or hybrid-search algorithms — File 12 owns those; this file specifies that the ledger is the substrate over which forensic and replay queries operate
 - context-assembly, compaction algorithms, token-budget mechanics, or per-policy block selection — File 13 owns those; this file specifies the typed `ContextPressureObserved` boundary and the compaction-related events that flow through the bus
 - the UI shell, the rendering of live or durable events into UI components, modal layouts, or accessibility surface choices — the future UI specs own those; this file specifies the typed envelope and event vocabulary the UI consumes
 - specific provider transport mechanics (Tauri IPC, Server-Sent Events, WebSocket, Unix sockets, MCP transports) — the future Runtime Infrastructure and Lifecycle spec owns those; this file specifies the canonical wire-format contract the transport must preserve
@@ -97,7 +97,7 @@ Anchor: `ledger.boundaries-with-adjacent-layers`
 
 `run.call-pipeline` (File 04 §8.2) defines the capability-call pipeline. This file specifies the durable record and live event each pipeline step produces. `run.execution-ledger` (File 04 §23.1) enumerates the canonical minimum ledger content; this file expands that minimum into the full closed catalogue, the per-call attribution schema, the forgery guards, and the replay-reference rules.
 
-`run.event-stream` (File 04 §23.2) defines the event envelope's minimum identifiers; this file specifies the canonical envelope. The conversation field is `conversation_id`; legacy `chat_id` wording in older source material is normalized to `conversation_id`.
+`run.event-stream` (File 04 §23.2) defines the event envelope's minimum identifiers; this file specifies the canonical envelope. The conversation field is `conversation_id`; legacy conversation-identifier wording in older source material is normalized to `conversation_id`.
 
 `run.hook-integration` (File 04 §23.3) defines the typed hook decision vocabulary (`Continue`, `Substitute`, `Block`, `RedirectSuggestion`) and priority convention; this file specifies the full hook contract, the subscription schema, category-aware fail-direction, dispatch mechanics, source-trust integration, and action-handler taxonomy.
 
@@ -242,7 +242,7 @@ Per `run.execution-ledger` (File 04 §23.1) the ledger records at minimum:
 - execution unit starts and finishes
 - capability proposals
 - approvals, denials, leases, and policy decisions (per `policy.approval-policy-templates`, File 06 §12)
-- model calls, including provider, model identifier, role (router / responder / critic / validator / sub-agent / etc.), prompt tokens, completion tokens, cache creation tokens, cache read tokens, and cost (computed from per-model pricing — never stored as an unkeyed scalar; per `core.explicit-rejections` (File 01 §8) invariant)
+- model calls, including provider, model identifier, role (router / responder / critic / validator / sub-agent / etc.), input tokens, completion tokens, cache creation tokens, cache read tokens, and cost (computed from per-model pricing — never stored as an unkeyed scalar; per `core.explicit-rejections` (File 01 §8) invariant)
 - tool calls and tool results
 - observations (per `artifact.observation`, File 09 §13)
 - validation results (per `artifact.validation-critique`, File 09 §14)
@@ -261,7 +261,7 @@ Per `run.execution-ledger` (File 04 §23.1) the ledger records at minimum:
 - backend binding lifecycle (resolved binding rebound, source connection lost / restored, per `capability.backend-binding-lifecycle` (File 05 §10.4))
 - hook subscriptions and decisions (per §5 below)
 
-Section 4 enumerates the full closed canonical `LedgerEntryKind` catalogue with payload schemas. The closed catalogue is canonical for cross-cutting reasoning. `Custom { namespace, name }` extension is canonical for domain specialization through proposal-first registration.
+Section 4 enumerates the full closed canonical `LedgerEntryKind` catalogue with payload schemas. The closed catalogue is canonical for cross-cutting reasoning. `Custom { namespace, name }` extension is canonical for specialization through proposal-first registration.
 
 ### 3.5 Storage Contract
 
@@ -550,7 +550,7 @@ Domain-specific workspace, source-control, browser, perception, system-watch, me
 
 **Custom extension:**
 
-- `Custom { namespace, name, payload }` — domain-specific or extension-defined kind registered by a subsystem, plugin, MCP server, API source, or user-defined extension. Registration follows `capability.runtime-mutation` (File 05 §16.2) proposal-first. The registration declares the namespace, schema id/version, payload shape, allowed cross-reference keys, default sensitivity, retention class, owner, and canonical event vocabulary the kind participates in.
+- `Custom { namespace, name, payload }` — subsystem-, surface-, plugin-, MCP-, API-, or user-defined kind registered through proposal-first registration. Registration follows `capability.runtime-mutation` (File 05 §16.2). The registration declares the namespace, schema id/version, payload shape, allowed cross-reference keys, default sensitivity, retention class, owner, and canonical event vocabulary the kind participates in.
 
 ### 4.2 Kind Composition Rules
 
@@ -644,10 +644,10 @@ Every event is an `AppEvent` variant. The closed canonical catalogue is the same
 - `ReasoningChunk` — model reasoning delta during streaming (per `capability.permission-policy-fields`, File 05 §3.5 sensitivity defaults; `Sensitive` by default)
 - `BlockStreamStarted` — a block began streaming (the durable counterpart is `StreamStarted`; the transient form notifies the UI immediately)
 - `BlockStreamCompleted` — a block finished streaming (durable counterpart is `StreamCompleted`)
-- `ContextAssembled` — context-assembly produced a prompt (per cross-cutting/context-assembly.md); payload includes budget breakdown
+- `ContextAssembled` — context assembly produced a model request (per cross-cutting/context-assembly.md); payload includes budget breakdown
 - `ContextBudgetWarning` — context approached a budget (per cross-cutting/context-assembly.md)
 - `CompactionStarted` / `CompactionCompleted` — compaction pipeline events (per File 13)
-- `UiPanelRegistered` / `UiPanelUnregistered` / `UiPrimaryPanelChanged` / `UiSelectionChanged` / `UiModeChanged` / `UiAvailableActionsRecomputed` — UI state-awareness events (per cross-cutting/state-awareness.md)
+- `UiPanelRegistered` / `UiPanelUnregistered` / `UiPrimaryPanelChanged` / `UiSelectionChanged` / `UiModeChanged` / `UiAvailableCapabilitiesRecomputed` — UI state-awareness events (per cross-cutting/state-awareness.md)
 - `UiThemeChanged` / `UiKeybindingChanged` / `UiLayoutChanged` — UI customization events
 - `DebugLog` — structured log entry (sensitive by default; secret content always redacted)
 - `EventBufferOverflow` — a subscriber's bounded buffer overflowed; the subscriber transitions to `degraded` state
@@ -664,7 +664,7 @@ The catalogue is extensible via `Custom { namespace, name, payload }` events reg
 The bus delivers events through these rules:
 
 - **Within a `sequence_scope`**, events are delivered to subscribers in monotonic `sequence` order. Subscribers see the same event ordering, deterministic across replay of that scope.
-- **Across context tuples**, no ordering is guaranteed; subscribers cannot assume that an event in chat A precedes an event in chat B in the same wall-clock order.
+- **Across context tuples**, no ordering is guaranteed; subscribers cannot assume that an event in conversation A precedes an event in conversation B in the same wall-clock order.
 - **Fan-out** to multiple subscribers happens in parallel; the bus does not block one subscriber's processing on another's.
 - **Blocking hook dispatch** happens at interceptable boundaries before the consequential action proceeds. Passive bus delivery is non-blocking fan-out and does not become the authority for mutating or approving the action.
 - **Backpressure** is bounded per subscriber: each subscription declares a buffer profile. Overflow emits `EventBufferOverflow` and marks the subscription `degraded`; degraded subscriptions stop receiving events until the subscriber acknowledges recovery through an explicit reconnection.
@@ -1001,7 +1001,7 @@ These capabilities are `ReadOnly` tier and respect the standard agent-exposure r
 
 The registration mechanism is owned by File 05 (capability registry) for the registry side and this file for the hook-subscription contract. Source-approval is owned by `policy.source-approval-flow` (File 06 §9). Settings persistence and profile-layer resolution are owned by File 15. File-based hook discovery is an infrastructure/plugin concern whose enablement and visibility are settings-controlled.
 
-## 9. Hook Action Vocabulary
+## 9. Hook Effect Vocabulary
 
 Anchor: `ledger.hook-action-vocabulary`
 
@@ -1037,7 +1037,7 @@ Shell-script hooks operate over a typed JSON wire protocol:
 }
 ```
 
-The `context_modification` field is a hook-specific extension allowing the hook to inject text into the next agent prompt (per the cline pattern); it is consumed by the agent loop when the hook is on a `UserPromptSubmit` or `PreToolUse`-equivalent event.
+The `context_modification` field is a hook-specific extension allowing the hook to add attributed text to the next model request (per the cline pattern); it is consumed by the agent loop when the hook is on a user-input-submitted or `PreToolUse`-equivalent event.
 
 The `system_message_injection` field similarly injects a system-level note (e.g., "memory available" hint from claude-mem; "loop detected" warning from openclaw).
 
@@ -1067,7 +1067,7 @@ An `EmitEvent` hook emits a new event into the bus when fired. The synthesized e
 - inherits the triggering event's `sensitivity` unless the hook declaration overrides (subject to the sensitivity-monotonicity rule: only raise, never lower)
 - is recorded as a ledger entry if the kind is one of the consequential kinds
 
-Use cases: transforming a raw event into a higher-level domain event (for example, a capability completion fires an `EmitEvent` hook that synthesizes a domain-specific registered `Custom` event); annotating events with hook-computed metadata (for example, a stuck detector fires `EmitEvent` to synthesize `StuckDetected` with the diagnosed pattern).
+Use cases: transforming a raw event into a higher-level specialized event (for example, a capability completion fires an `EmitEvent` hook that synthesizes a subsystem-specific registered `Custom` event); annotating events with hook-computed metadata (for example, a stuck detector fires `EmitEvent` to synthesize `StuckDetected` with the diagnosed pattern).
 
 Hook recursion is allowed only inside explicit safety bounds. A hook does not receive its own derivative events by default. Subscriptions that opt into recursive handling declare maximum depth, cycle policy, and whether repeated loops are allowed. The runtime detects causal cycles and records typed hook failures when configured bounds are exceeded. Users may override limits through settings, but infinite unbounded loops are not a valid default.
 
@@ -1077,7 +1077,7 @@ An `InternalHandler` action invokes an in-process function registered with a sta
 
 ### 9.6 Boundary
 
-The action vocabulary is closed: `RunScript`, `InvokeCapability`, `EmitEvent`, `InternalHandler`. New action kinds require a canonical-spec update. Action handlers themselves (the shell command implementation, the capability handler, the in-process function) are not owned by this file; they are implementation details that the canonical mechanism dispatches into.
+The hook-effect vocabulary is closed: `RunScript`, `InvokeCapability`, `EmitEvent`, `InternalHandler`. New hook-effect kinds require a canonical-spec update. Hook-effect handlers themselves (the shell command implementation, the capability handler, the in-process function) are not owned by this file; they are implementation details that the canonical mechanism dispatches into.
 
 ## 10. Sensitivity-Aware Persistence and Retention
 
@@ -1087,7 +1087,7 @@ Anchor: `ledger.sensitivity-aware-persistence-retention`
 
 Every ledger entry and every event payload carries a `sensitivity` tag drawn from the canonical closed set:
 
-- `Public` — the entry / event may appear in shareable exports, may be cached by external services that handle public content (provider prompt caches when permitted), and is persisted in the durable ledger with default retention
+- `Public` — the entry / event may appear in shareable exports, may be cached by external services that handle public content (provider-side model-request caches when permitted), and is persisted in the durable ledger with default retention
 - `Sensitive` — the entry / event contains user-private or workspace-specific data; excluded from shareable exports and clipboard-copy operations by default; persisted in the durable ledger; subject to shorter default retention if settings configure it; never sent to external telemetry without explicit user opt-in
 - `Secret` — the entry / event contains credentials, raw API keys, OAuth tokens, password content, hidden user files/blocks, or equivalent never-leak material. `Secret` payloads are persisted to the durable ledger with payload redaction applied at commit; only `safe_description` strings persist, never the raw secret. The original raw `Secret` material is held only in transient memory or the credential/vault substrate and zeroed after use.
 
@@ -1236,7 +1236,7 @@ The system streams several kinds of partial output through the event bus:
 - **Tool-output streaming** — the executing capability is emitting partial results (streaming text, growing diff, growing file content)
 - **File-or-artifact live partial-write** — capabilities that write incrementally into materialized state (per `run.streaming-partial-execution`, File 04 §12 and `block.live-partial-write-capabilities` (File 08 §7.5))
 - **Reasoning summary streaming** — when the provider exposes intermediate reasoning summaries
-- **Progress events** — domain-specific progress (file conversion progress, web fetch progress, indexing progress)
+- **Progress events** — specialized progress (file conversion progress, web fetch progress, indexing progress)
 
 ### 12.2 Commit Boundary Contract
 
@@ -1653,7 +1653,7 @@ The following shapes are wrong for this layer:
 - using shutdown grace periods as correctness: successful critical ledger/audit-overlay commits must be durable before success is reported; shutdown flushing is best effort for remaining noncritical buffers
 - the ledger silently becoming the version graph: the ledger references version ids; File 11 owns the version-tree action log; ledger entries do not duplicate version-graph operations
 - duplicating per-capability data into ledger payloads: ledger entries reference capability declarations via `(capability_id, capability_version)`; they do not embed the declaration content
-- using `Custom` event kinds for canonical concerns: if a new canonical-kind need arises, the canonical catalogue extends through a canonical-spec update; `Custom` is for domain-specific extensions, not for canonical workarounds
+- using `Custom` event kinds for canonical concerns: if a new canonical-kind need arises, the canonical catalogue extends through a canonical-spec update; `Custom` is for subsystem-, surface-, plugin-, MCP-, API-, or user-defined extensions, not for canonical workarounds
 - treating cancellation as a destructive operation: cancellation is a recorded ledger event; partial outputs may persist per declaration; cancellation does not erase prior ledger entries
 
 ## 19. Consequences for Later Specs
@@ -1673,14 +1673,14 @@ The canonical principles later specs must follow:
 - honor the per-call attribution requirement (`TokenUsageRecord` keyed by model identifier); never store unkeyed model-dependent scalars
 - honor the sensitivity-aware persistence rules (`Public` / `Sensitive` / `Secret`); never persist `Secret` raw content
 - honor the forgery guards (run-completion contract, unkeyed-scalar rejection); never bypass through subsystem-internal paths
-- consume the closed `AppEvent` and `LedgerEntryKind` catalogues; declare new domain kinds through `Custom { namespace, name, payload }` with proposal-first source-approval
-- record domain-specific events through the canonical mechanism; the ledger and bus integrate them uniformly with the standard envelope, sensitivity, and cross-references
+- consume the closed `AppEvent` and `LedgerEntryKind` catalogues; declare new specialized kinds through `Custom { namespace, name, payload }` with proposal-first source-approval
+- record specialized events through the canonical mechanism; the ledger and bus integrate them uniformly with the standard envelope, sensitivity, and cross-references
 
 Specific integration contracts:
 
 - Version Graph, Commits, and Projections consume ledger commit boundaries and emit version events through this layer; the ledger references version ids but does not own version-tree invariants.
-- Retrieval, Indexing, Knowledge Base, Memory, Perception, Web, Coder, Teacher, Data Processor, GUI Control, System Agent, SRS, Automation, Workflows, and surface-specific specs declare domain event and ledger-entry kinds through `Custom { namespace, name, payload }` rather than adding them to the closed canonical catalogue here.
-- Context Assembly and Compaction emit context-budget and compaction facts through the bus and ledger, while owning the prompt-assembly and compaction algorithms.
+- Retrieval, Indexing, Knowledge Base, Memory, Perception, Web, Coder, Teacher, Data Processor, GUI Control, System Agent, SRS, Automation, Workflows, and surface-specific specs declare specialized event and ledger-entry kinds through `Custom { namespace, name, payload }` rather than adding them to the closed canonical catalogue here.
+- Context Assembly and Compaction emit context-budget and compaction facts through the bus and ledger, while owning the model-request assembly and compaction algorithms.
 - Model Strategy, Provider, Rate Limits, and Usage Accounting consume `TokenUsageRecord`, provider identity, tokenizer identity, and pricing snapshots; they must not store unkeyed token or cost scalars.
 - World Model, Settings, Storage, Sync, Security, Sandbox, Process Control, Workspaces, Control Rails, Plugins, MCP integrations, UI, Quality Control, Evaluation, Telemetry, Runtime Infrastructure, and Packaging consume this file's envelope, delivery-class, sensitivity, hook, audit-overlay, replay, and ledger contracts.
 

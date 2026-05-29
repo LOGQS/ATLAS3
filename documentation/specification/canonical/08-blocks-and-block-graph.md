@@ -48,7 +48,7 @@ Resolved design:
 - Blocks are immutable durable content units; lifecycle, ordering, pinning, and visibility are versioned projection state around them.
 - Messages, artifacts, evidence handles, memory content, tool calls, tool results, failures, summaries, and groups are block kinds or later entity layers over blocks.
 - Events carry live/transient activity; blocks are created only when content is deliberately committed for audit, replay, context, or user inspection.
-- The canonical kind catalogue is closed with a `Custom` extension path; domain specs add specialized kinds through registration.
+- The canonical kind catalogue is closed with a `Custom` extension path; subsystem and surface specs add specialized kinds through registration.
 - Composition is explicit through parent/child/reference edges, not nested mutable message structures.
 - Scope, sensitivity, provenance, and lifecycle metadata determine safe visibility and retrieval behavior.
 
@@ -58,19 +58,19 @@ Anchor: `block.chosen-model`
 
 ATLAS3 has one `Block` model and one `BlockGraph` over it. Every durable structured content the system produces — a user message, an accepted assistant turn, a tool call proposal, a tool result, a reasoning trace, a file attachment, a citation, a memory entry, a validation report, an artifact handle, a plan, an execution trace, a workflow step record, a structured observation, an evidence chain — is carried as a `Block`. The relations between blocks form the `BlockGraph`.
 
-Some block kinds are also higher-level entities. A message, artifact, memory, evidence record, tool call, or validation may be represented by one primary block while still having domain-specific lifecycle, UI, management, and export behavior owned by its later spec. The block is the durable context carrier; it does not erase the entity-level meaning.
+Some block kinds are also higher-level entities. A message, artifact, memory, evidence record, tool call, or validation may be represented by one primary block while still having specialized lifecycle, UI, management, and export behavior owned by its later spec. The block is the durable context carrier; it does not erase the entity-level meaning.
 
 A `Block`:
 
 - is immutable after creation: identity, kind, content (`Inline` payload, `External` reference, or `Composed` children list), parent, content hash, source attribution, and creation timestamp are fixed at the moment the block is committed and never change
-- is typed: its `BlockKind` is drawn from the canonical closed catalogue (§3), with a `Custom { namespace, name }` extension for domain-specific kinds registered through the same extension plane as capabilities (`core.extension-planes`, File 01 §6.14)
+- is typed: its `BlockKind` is drawn from the canonical closed catalogue (§3), with a `Custom { namespace, name }` extension for subsystem-, surface-, plugin-, or user-defined kinds registered through the same extension plane as capabilities (`core.extension-planes`, File 01 §6.14)
 - is composable: a `Composed` block has no `Inline` or `External` payload of its own; it carries an ordered list of `children_block_ids` that resolve at read time, and the composition itself is what the block represents
 - is durable: blocks persist across run boundaries, conversation archival, process restart, and version-graph rewrites; the only operation that destroys a block's storage is explicit user-initiated hard deletion
 - is addressable: it has a stable `block_id` used by the version graph, the execution ledger, the event stream (`run.event-stream`, File 04 §23.2), capability invocations (`capability.invocation-record`, File 05 §11), policy events (`policy.approval-policy-templates`, File 06 §12), and every surface presentation (File 07)
 
 A `Block` is not:
 
-- a UI element — the same block may be rendered differently in chat, in the inspector, in a workspace panel, in a comparison board, in an artifact preview, or in a voice transcript without changing the block
+- a UI element — the same block may be rendered differently in the conversation interface, in the inspector, in a workspace panel, in a comparison board, in an artifact preview, or in a voice transcript without changing the block
 - a row in any single store — storage and projection layers shape how blocks land on disk, but the canonical block model is independent of schema
 - a transcript line — a `Message` in the transcript (`intent.message`, File 02 §3) is a presentation anchor over one primary block; that block may be `Composed` over attachments, mentions, tool calls, results, or other child blocks
 - a live coordination signal — those are `Event`s on the event stream (`run.event-stream`, File 04 §23.2) and never carry the durable-history contract
@@ -86,7 +86,7 @@ A `BlockGraph` is the typed directed graph formed by every registered block as a
 
 There is no per-surface block registry, no per-capability private block format, no per-conversation isolated block pool, and no "events become blocks" silent promotion: every block enters the canonical pool through a declared producer (a capability commit, a user message commit, an inspector apply, a workflow node commit, an import) and is referenced through stable identity from that point.
 
-`Block` supersedes any earlier vocabulary in source material that named the same primitive: "chat block", "transcript block", "content block", "fragment", "chunk", "DAG node", "history entry", "node output", "session entry", "rich block", "typed block", "context entry", "memory row". Those words may persist as informal synonyms in surface vocabulary; the canonical noun is `Block`.
+`Block` supersedes any earlier vocabulary in source material that named the same primitive: "transcript block", "content block", "fragment", "chunk", "DAG node", "history entry", "node output", "session entry", "rich block", "typed block", "context entry", "memory row". Those words may persist as informal synonyms in surface vocabulary; the canonical noun is `Block`.
 
 ## 2. `Block`
 
@@ -135,7 +135,7 @@ Every block declares its `kind` at creation. The canonical closed catalogue:
 
 **Message and instruction kinds:**
 
-- `InstructionSource` — durable instruction-source content such as workspace rules, user rules, prompt fragments, or committed policy notices. It is not the fully assembled provider system prompt or model request.
+- `InstructionSource` — durable instruction-source content such as workspace rules, user rules, instruction fragments, or committed policy notices. It is not the fully assembled model request.
 - `MessageUser` — a user's transcript input. By default, the message text is one primary block; attachments, mentions, quoted prior blocks, and other structured parts are linked as children when structure is needed.
 - `MessageAssistant` — an accepted assistant turn; typically `Composed` over final text plus tool-call, tool-result, reasoning, validation, or failure child blocks
 
@@ -179,13 +179,13 @@ Every block declares its `kind` at creation. The canonical closed catalogue:
 
 **Extension:**
 
-- `Custom { namespace, name }` — domain-specific kind registered by a subsystem, plugin, or user-defined extension. The `namespace` is a registered extension namespace (matching the capability sourcing taxonomy of `capability.capability-source` (File 05 §9.1)); the `name` is the kind id within that namespace. Custom kinds register through the same proposal-first registration mechanism that registers capabilities (`capability.runtime-mutation`, File 05 §16.2) and must declare:
+- `Custom { namespace, name }` — specialized kind registered by a subsystem, surface, plugin, or user-defined extension. The `namespace` is a registered extension namespace (matching the capability sourcing taxonomy of `capability.capability-source` (File 05 §9.1)); the `name` is the kind id within that namespace. Custom kinds register through the same proposal-first registration mechanism that registers capabilities (`capability.runtime-mutation`, File 05 §16.2) and must declare:
   - allowed `BlockContent` variants
   - default sensitivity
   - whether the kind is allowed in transcript-anchoring positions
   - the canonical edge kinds the kind participates in
 
-The closed catalogue is canonical for cross-cutting reasoning. The `Custom` extension is canonical for domain specialization. Every block at runtime belongs to exactly one of these — no block ever has an unparseable kind.
+The closed catalogue is canonical for cross-cutting reasoning. The `Custom` extension is canonical for specialization. Every block at runtime belongs to exactly one of these — no block ever has an unparseable kind.
 
 ### 3.2 Kind Declaration
 
@@ -199,7 +199,7 @@ The catalogue is not free-form. The following composition rules apply:
 
 - `MessageUser` and `MessageAssistant` are transcript-anchor kinds. The transcript (File 02) renders these as message lines; the message line references a single block of one of these kinds, which itself may be `Composed` over children
 - Message composition rules are defaults, not hard limits on later editing. A user or model may split a block into smaller sibling blocks, merge content into a new `Composed` block, group blocks, tag them through registered metadata, or edit them through the standard sibling-creation model; the original blocks remain immutable.
-- `ToolCallProposal` and `ToolResult` always live as children of a `MessageAssistant` block (the turn that produced the call) or as standalone blocks in a non-chat context (an automation run, an inspector-initiated capability invocation). They never appear as transcript-anchor blocks directly
+- `ToolCallProposal` and `ToolResult` always live as children of a `MessageAssistant` block (the turn that produced the call) or as standalone blocks in a non-conversation context (an automation run, an inspector-initiated capability invocation). They never appear as transcript-anchor blocks directly
 - `Evidence` blocks must reference one or more `Citation`, `Observation`, or prior content blocks via `cites` edges; an evidence block with no supporting references is an Explicit Rejection (§15)
 - `Artifact` blocks must reference a durable backing storage location through `External` content when their content exceeds the inline-size threshold; an oversized `Artifact` block with `Inline` content is an Explicit Rejection
 - `Composed` blocks must reference at least one child via `children_block_ids`; a `Composed` block with no children is an Explicit Rejection
@@ -279,7 +279,7 @@ The hash domain depends on the content variant:
 - `External { storage_ref, size_bytes, content_type, external_content_hash }` — hash of the canonical storage reference identity, size, content type, and external payload hash when known; future changes to external bytes do not silently change the block's identity
 - `Composed { children_block_ids }` — structural hash over the child sequence of `(child_block_id, child_content_hash)` pairs, order-sensitive because composition order is semantic. Lifecycle changes (mask/drop/recover) do not change the hash; child content replacement does, because the composed block committed to those child identities and hashes
 
-The hash supports cross-session and cross-device block deduplication (the storage layer may share storage for blocks with identical content hashes when structurally equal), materialized-view integrity verification, prompt-prefix cache correlation (`run.ledger-events-commits`, File 04 §23 cache-friendly ordering, `surface.cache-friendly-ordering` (File 07 §11.7)), and replay-time content equality checks. When `content_hash` is used for cross-device deduplication or content addressing, peers must use the same canonical content encoding version; hash equality across peers on differing encoding versions is not a correctness basis (`core.canonical-hash`). The hash is `NOT NULL` and immutable.
+The hash supports cross-session and cross-device block deduplication (the storage layer may share storage for blocks with identical content hashes when structurally equal), materialized-view integrity verification, model-request-prefix cache correlation (`run.ledger-events-commits`, File 04 §23 cache-friendly ordering, `surface.cache-friendly-ordering` (File 07 §11.7)), and replay-time content equality checks. When `content_hash` is used for cross-device deduplication or content addressing, peers must use the same canonical content encoding version; hash equality across peers on differing encoding versions is not a correctness basis (`core.canonical-hash`). The hash is `NOT NULL` and immutable.
 
 ### 4.6 Boundary
 
@@ -587,7 +587,7 @@ Anchor: `block.sensitivity`
 
 Block sensitivity is the durable counterpart to event sensitivity (`run.event-stream`, File 04 §23.2). Every block carries a `default_sensitivity` field with values:
 
-- `Public` — the block may appear in shareable exports, may be cached by external services that handle public content (provider prompt caches when the provider permits), and may be persisted in the durable ledger without redaction
+- `Public` — the block may appear in shareable exports, may be cached by external services that handle public content (provider-side model-request caches when the provider permits), and may be persisted in the durable ledger without redaction
 - `Sensitive` — the block contains user-private or workspace-specific data; excluded from shareable exports and clipboard-copy operations unless the user explicitly overrides; persisted in the durable ledger; subject to shorter default retention if settings configure it
 - `Secret` — the block contains credentials, raw API keys, OAuth tokens, password content, or equivalent never-leak material. Secret blocks are persisted to the durable block pool with redacted content (the redaction is applied at commit; the original raw secret is held only in transient memory and zeroed after use). The block's `description` field summarizes what the secret is without revealing it (e.g., "AWS access key for production environment"). Secret blocks are not retrievable through search, not included in compaction algorithms' content review, and not exported under any standard share/export path
 
@@ -820,9 +820,9 @@ Description dimensions:
 
 Agent-exposure dimensions (per `policy.agent-exposure-policy-settings`, File 06 §16.4):
 
-- `blocks.kind_catalogue_visible_to_agent` — whether the model sees the full canonical kind catalogue in model-request text content (default `InPrompt` for the canonical kinds; custom kinds `OnRequest`)
-- `blocks.sensitivity_exposure` — whether sensitivity is visible to the agent (`InPrompt` for `Public`/`Sensitive`/`Secret` indicators; `Hidden` for `sensitivity_field_map` detail)
-- `blocks.description_visible_to_agent` — whether other blocks' descriptions appear in the agent's compaction-eligible content (`InPrompt`)
+- `blocks.kind_catalogue_visible_to_agent` — whether the model sees the full canonical kind catalogue in model-request text content (default `InModelRequest` for the canonical kinds; custom kinds `OnRequest`)
+- `blocks.sensitivity_exposure` — whether sensitivity is visible to the agent (`InModelRequest` for `Public`/`Sensitive`/`Secret` indicators; `Hidden` for `sensitivity_field_map` detail)
+- `blocks.description_visible_to_agent` — whether other blocks' descriptions appear in the agent's compaction-eligible content (`InModelRequest`)
 
 ### 14.2 Settings-Key Convention
 
@@ -859,7 +859,7 @@ The following shapes are wrong for this layer:
 - block descriptions that are regenerated in place — descriptions are immutable like content. A new description means a new sibling block
 - treating `Block` and `Message` as the same primitive — a `Message` is a transcript anchor (File 02); a `Block` is the durable structured content. One message anchors one primary block, which may be composed over children; one block may participate in many messages or in no message at all
 - treating `Block` and `Event` as the same primitive — events are live coordination; blocks are durable history. The commit boundary separates them
-- treating `Block` and `Artifact` as the same primitive — artifact-kind blocks are the block-level handles for artifacts. Artifact identity, lifecycle, versioning, materialization, export mechanics, and artifact-specific UI are owned by the artifacts/provenance layer. The same boundary applies to Evidence, Memory, and equivalent higher-level primitives: blocks carry their content; later specs define their domain-specific identity.
+- treating `Block` and `Artifact` as the same primitive — artifact-kind blocks are the block-level handles for artifacts. Artifact identity, lifecycle, versioning, materialization, export mechanics, and artifact-specific UI are owned by the artifacts/provenance layer. The same boundary applies to Evidence, Memory, and equivalent higher-level primitives: blocks carry their content; later specs define their specialized identity.
 - treating `Block` and `Capability` as the same primitive — capabilities are typed operations the system can perform (File 05); blocks are the durable content those operations may produce
 - treating `Block` and `Ledger Entry` as the same primitive — the ledger is the durable execution-history record; the block is the durable content-bearing record. Both are durable; they record different things. A `ToolResult` block and the ledger entry recording the tool call coexist and link through cross-references, not through a canonical join-table block kind
 - silent compaction without ledger record — every mask, drop, or consolidation emits the corresponding `BlockLifecycleChanged` or `BlockConsolidated` event into the ledger; silent compaction would defeat audit and replay

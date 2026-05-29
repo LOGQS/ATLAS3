@@ -37,7 +37,7 @@ This file does not define:
 
 ## Source Resolution
 
-This file resolves tool loading, tool search, borrowing, MCP discovery, subsystem surfaces, and prompt exposure material into one boundary: the runtime capability surface visible to a model or user.
+This file resolves tool loading, tool search, borrowing, MCP discovery, subsystem surfaces, and model-request exposure material into one boundary: the runtime capability surface visible to a model or user.
 
 Resolved design:
 
@@ -325,7 +325,7 @@ The composition algorithm (§9) consumes the following routing-supplied inputs:
 - `RunIntent.capability_families` — illustrative routing hints about which families matter; the composition uses these to prefer those families if zone slots are constrained by context budget
 - `RunIntent.tool_surface_strategy` — `use_current_surface_tools` | `borrow_foreign_capabilities` | `load_deferred_capabilities` per `routing.tool-surface-strategy` (File 03 §8.3); consumed as in §5.3
 - `RunIntent.model_route.resolved_model_id` — the resolved model identity; used to determine native tool-call format (per `run.tool-calls`, File 04 §9) and the model's context window (per File 17) for budget-aware shrinking
-- `RunIntent.execution_entry` — `respond_inline` | `respond_with_tools` | `domain_runtime` | `multi_step_agent` per `run.execution-entry` (File 04 §4); affects whether tool surface is rendered at all (a `respond_inline` entry that needs no tools renders an empty surface)
+- `RunIntent.execution_entry` — `respond_inline` | `respond_with_tools` | `surface_runtime` | `multi_step_agent` per `run.execution-entry` (File 04 §4); affects whether tool surface is rendered at all (a `respond_inline` entry that needs no tools renders an empty surface)
 - `routing_metadata` — observability fields per `routing.run-intent` (File 03 §4.3); surfaces use this for diagnostic display in the inspector lens
 
 ### 6.2 Routing-Time Pinning
@@ -766,7 +766,7 @@ Within `Primary`, capabilities are rendered in a deterministic order:
 4. Capabilities promoted by `tool_surface_strategy` in the order specified in `routing_metadata`
 5. Capabilities promoted by active `BorrowGrant`s in grant order
 
-This order is the canonical cache-friendly ordering. Changing the order (for example, sorting alphabetically every turn) can invalidate cached request prefixes. The settings dimension `prompt_order_strategy` allows users to choose alternative orderings (alphabetical, frequency-based).
+This order is the canonical cache-friendly ordering. Changing the order (for example, sorting alphabetically every turn) can invalidate cached request prefixes. The settings dimension `model_request_order_strategy` allows users to choose alternative orderings (alphabetical, frequency-based).
 
 ### 11.8 Boundary
 
@@ -800,7 +800,7 @@ The `Voice` lens filters capabilities tagged `voice-invokable` (per `capability.
 - `display_name` and `description`
 - `voice_aliases` — the spoken phrases that map to this capability (per File 05 display fields and unit-spec recommendations); examples like "read the file", "open the project", "send an email"
 - `argument_extraction_hints` — typed hints for the voice-to-arguments extraction (per the future Voice spec)
-- `effective_tier` — voice invocation may produce a typed-confirmation prompt for high-tier capabilities (per `policy.approval-ui-surface-contract`, File 06 §13)
+- `effective_tier` — voice invocation may produce a typed-confirmation request for high-tier capabilities (per `policy.approval-ui-surface-contract`, File 06 §13)
 
 Voice invocation invokes the capability through the same `run.call-pipeline` (File 04 §8.2) pipeline as agent or user invocation. The voice resolver is just another invoker.
 
@@ -1041,7 +1041,7 @@ Per `run.execution-entry` (File 04 §4) and the active provider's tool-call form
 
 - `respond_inline` typically maps to `tool_choice: none`
 - `respond_with_tools` typically maps to `tool_choice: auto`
-- `domain_runtime` may map to `tool_choice: auto` or `specific_tool` depending on the primary surface's entry pattern
+- `surface_runtime` may map to `tool_choice: auto` or `specific_tool` depending on the primary surface's entry pattern
 - `multi_step_agent` typically maps to `tool_choice: auto`
 
 ### 16.2 Empty Surface Handling
@@ -1054,7 +1054,7 @@ If composition produces zero `Primary` entries and the active `tool_choice` is `
 Empty surfaces happen rarely. They occur when:
 
 - the active `SubsystemSurfaceSpec` declares no primary capabilities (a subsystem that exclusively delegates to subagents)
-- routing chose `respond_inline` and no preparatory tool calls were registered (the typical chat-only response)
+- routing chose `respond_inline` and no preparatory tool calls were registered (the typical conversation-only response)
 - all primary capabilities are currently `Unavailable` and no auto-promotion fills the gap
 
 ### 16.3 Forced Tool Choice
@@ -1144,7 +1144,7 @@ Dimensions:
 - `surface.discovery_capabilities_zone` — zone for `tool.borrow`, `tool.search`, `mcp.search`, `tool.inspect` (default `Primary`)
 - `surface.mcp_default_zone` — default zone for newly registered MCP-sourced capabilities (default `Borrowable`)
 - `surface.plugin_default_zone` — default zone for newly registered plugin-sourced capabilities (default `Borrowable`)
-- `surface.prompt_order_strategy` — `cache_friendly` (default; preserves request prefix where supported) | `alphabetical` | `frequency_based`
+- `surface.model_request_order_strategy` — `cache_friendly` (default; preserves request prefix where supported) | `alphabetical` | `frequency_based`
 - `surface.lens_filter_strictness` — `strict` | `permissive`
 - `surface.trust_narrowing_active` — whether trust narrowing affects zone or only inspector flags
 - `surface.composition_diagnostic_verbosity` — what diagnostics are recorded per composition (default minimal; verbose for debugging)
@@ -1162,7 +1162,7 @@ Per `policy.agent-exposure-policy-settings` (File 06 §16.4) and the canonical s
 - `surface.zone_override.*`, `surface.always_load.*`, `surface.never_load.*` — `OnRequest`; the agent can read these on request through the canonical read-only settings capability; the agent never writes them
 - `surface.budget_token_count`, `surface.auto_shrink_enabled` — `OnRequest`; the agent may want to know what the budget is
 - `surface.shortcut_binding.*` — `Hidden`; the agent never sees user shortcut bindings (they are user UI concerns)
-- The active `SubsystemSurfaceSpec` and resolved zone assignments for the current run — `InPrompt`; the model request already includes the surface, so the agent knows by inspection
+- The active `SubsystemSurfaceSpec` and resolved zone assignments for the current run — `InModelRequest`; the model request already includes the surface, so the agent knows by inspection
 
 ### 18.4 Settings Changes Are Surface-Relevant Events
 

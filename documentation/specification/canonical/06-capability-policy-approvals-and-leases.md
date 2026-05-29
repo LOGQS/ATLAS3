@@ -27,7 +27,7 @@ This file does not define:
 
 - the Capability Contract field set itself — File 05 owns declaration
 - the registry's resolution, lookup, or backend-binding lifecycle — `capability.registered-capability` (File 05 §10)–§16 own those
-- tool-surface zones, prompt visibility, deferred loading, or capability-borrowing UX — File 07 owns those
+- tool-surface zones, model-request visibility, deferred loading, or capability-borrowing UX — File 07 owns those
 - run lifecycle, execution graph, hook execution mechanics, or the typed hook-decision vocabulary — File 04 owns those (File 06 reuses `run.hook-integration` (File 04 §23.3)'s hook architecture)
 - routing or `RunIntent` selection — File 03 owns those
 - block schema, artifact lifecycle, evidence model — Files 08 and 09 own those
@@ -43,7 +43,7 @@ This file resolves permissions, approvals, leases, trust gates, confirmation, po
 
 Resolved design:
 
-- Every capability invocation passes through one policy layer; there is no agent-specific, domain-specific, or UI-specific approval system.
+- Every capability invocation passes through one policy layer; there is no agent-specific, subsystem-specific, surface-specific, or UI-specific approval system.
 - Policy evaluates declarations, invocation arguments, touched resources, caller/source trust, active leases, settings, previews, validators, and user decisions.
 - Leases are the durable primitive for persisted allow/deny decisions, scoped authorization, and revocation history.
 - User approval, typed confirmation, policy-driven escalation, and LLM-mediated approval judgment are policy behaviors, not execution-loop special cases.
@@ -79,7 +79,7 @@ The `Approval Router` is the policy layer's dispatch shape. It registers as a si
 
 There is no per-subsystem or per-surface bespoke approval logic, no per-capability custom approval flow, no separate "MCP approval system," and no parallel "plugin permission system." Every approval path goes through the same router consulting the same templates against the same lease set under the same settings cascade.
 
-The policy layer supersedes the per-tool ad-hoc gating shapes that earlier source material described as `goose mode`, `AskForApproval`, `auto-approve toggle`, `permission mode`, `YOLO classifier`, `participation level`, and equivalent terms. Those are vocabulary variants for one or more aspects of the system this file defines; the canonical names here are `approval-posture preset`, `approval mode`, `auto-decide`, and `Lease`.
+The policy layer supersedes the per-tool ad-hoc gating shapes that earlier source material described as `goose mode`, `AskForApproval`, `auto-approve toggle`, `permission mode`, `YOLO classifier`, interaction-level controls, and equivalent terms. Those are vocabulary variants for one or more aspects of the system this file defines; the canonical names here are `approval-posture preset`, `approval mode`, `auto-decide`, and `Lease`.
 
 ## 2. Boundaries with Adjacent Layers
 
@@ -310,7 +310,7 @@ Batching granularity is configurable by surface and policy profile: single turn,
 
 ### 5.6 Boundary
 
-Approval flows produce typed decisions through the same hook bus. The user-facing presentation of each flow (chat-inline approval card, modal dialog, voice confirmation prompt, command-palette inline confirmation) is owned by the future UI specs; the policy layer specifies the data contract (§13), not the rendering.
+Approval flows produce typed decisions through the same hook bus. The user-facing presentation of each flow (conversation-inline approval card, modal dialog, voice confirmation request, command-palette inline confirmation) is owned by the future UI specs; the policy layer specifies the data contract (§13), not the rendering.
 
 ## 6. Touched-Resource Matching Against Lease Scope
 
@@ -385,9 +385,9 @@ Typed-confirmation:
 
 - always asks; no `AlwaysAllow` lease, scope-level override, settings preset, trust upgrade, or `agent.unrestricted_mode` lifts it
 - never participates in batched approval (§5.5); a typed-confirmation call always presents alone
-- never fast-paths through `auto-decide`; even if the classifier returns high-confidence allow, the typed-confirmation prompt still appears
+- never fast-paths through `auto-decide`; even if the classifier returns high-confidence allow, the typed-confirmation request still appears
 - emits a single-proposal policy event regardless of user choice; no `AlwaysAllow` lease can be granted from a typed-confirmation flow
-- the typed-confirmation prompt template carries the confirmation-string pattern, the human-readable warning, and the rendered preview of what the call will do
+- the typed-confirmation approval-text template carries the confirmation-string pattern, the human-readable warning, and the rendered preview of what the call will do
 
 ### 7.4 The `Denied` Carve-Out
 
@@ -408,7 +408,7 @@ The list is illustrative. The canonical rule is: any capability that is irrevers
 
 ### 7.6 Boundary
 
-Typed-confirmation is a policy-flow shape. The actual rendering of the typed-confirmation UI (the modal, the input field, the preview, the cancel button) is owned by the future UI specs. File 06 specifies the data contract: the prompt template, the confirmation-string pattern, the preview payload, and the typed `TypedConfirmationResponse` carrying the user's typed string. The policy layer validates the typed string against the pattern; mismatch produces a typed `TypedConfirmationMismatch` decision and the flow returns to ask the user again or cancel.
+Typed-confirmation is a policy-flow shape. The actual rendering of the typed-confirmation UI (the modal, the input field, the preview, the cancel button) is owned by the future UI specs. File 06 specifies the data contract: the approval-text template, the confirmation-string pattern, the preview payload, and the typed `TypedConfirmationResponse` carrying the user's typed string. The policy layer validates the typed string against the pattern; mismatch produces a typed `TypedConfirmationMismatch` decision and the flow returns to ask the user again or cancel.
 
 ## 8. Auto-Decide Mode
 
@@ -416,7 +416,7 @@ Anchor: `policy.auto-decide-mode`
 
 ### 8.1 Definition
 
-`Auto-Decide` is the model-mediated approval mode named in `run.approval-during-execution` (File 04 §11). A designated classifier model evaluates a proposed call against a configured policy prompt and returns a typed `ClassifierResult` carrying decision, confidence, and reasoning. Auto-decide is opt-in per capability or per family and never the default.
+`Auto-Decide` is the model-mediated approval mode named in `run.approval-during-execution` (File 04 §11). A designated classifier model evaluates a proposed call against a configured policy model-request template and returns a typed `ClassifierResult` carrying decision, confidence, and reasoning. Auto-decide is opt-in per capability or per family and never the default.
 
 ### 8.2 Configuration
 
@@ -424,7 +424,7 @@ Auto-decide configuration is a settings-resolved value with the standard cascade
 
 - `enabled` per capability or per family — opt-in flag
 - `classifier_model_id` — the model used for classification, resolved through the model-strategy layer per File 04
-- `policy_prompt_id` — the configured prompt template the classifier evaluates against (registry-managed per File 05's broader registry-of-typed-resources pattern; user-authored prompts permitted under proposal-first registration)
+- `policy_model_request_template_id` — the configured model-request template the classifier evaluates against (registry-managed per File 05's broader registry-of-typed-resources pattern; user-authored templates permitted under proposal-first registration)
 - `confidence_threshold` — minimum confidence for the classifier's verdict to be honored; exact defaults belong to settings profiles and must be tested, not hardcoded here
 - `consecutive_denial_fallback` — configurable count after which repeated auto-denials of the same capability in the same scope fall through to ask-user
 - `consecutive_approval_check_in` — configurable count after which repeated auto-approvals of the same capability in the same scope present a "still happy with this?" check-in to the user
@@ -434,7 +434,7 @@ Auto-decide configuration is a settings-resolved value with the standard cascade
 
 When auto-decide is active for a proposed call:
 
-1. The policy layer constructs a classifier prompt from the configured `policy_prompt_id`, the capability declaration, the proposal arguments, the resolved touched resources, the active context (run, intent thread, task, conversation, workspace, invoker), the recent policy history (prior approvals/denials of the same capability), and any user-authored guidance attached to the policy template
+1. The policy layer constructs a classifier model request from the configured `policy_model_request_template_id`, the capability declaration, the proposal arguments, the resolved touched resources, the active context (run, intent thread, task, conversation, workspace, invoker), the recent policy history (prior approvals/denials of the same capability), and any user-authored guidance attached to the policy template
 2. The classifier model is invoked as a policy-internal model step through the model-strategy layer. It honors provider allowlists, data sensitivity, rate limits, and model settings, but does not emit a nested `ToolCallProposed`, cannot call tools, and cannot recursively ask for approval through the same approval router.
 3. The classifier returns a `ClassifierResult { decision, confidence, reasoning }`
 4. If `confidence >= confidence_threshold` and the decision is `Allow` or `Deny`, the result is honored; emit `AutoDecideClassification { request_id, decision, confidence, reasoning, fell_back: false }` and produce the corresponding `Continue` or `Block`
@@ -446,13 +446,13 @@ When auto-decide is active for a proposed call:
 
 - the classifier result is advisory: when policy still requires a human decision (typed-confirmation, `Denied` floor, contradiction, lease re-grant), the classifier does not override
 - the classifier never lifts `permission_floor`, never bypasses `Denied`, never lifts `typed-confirmation`
-- the classifier prompt is registry-managed and inspectable; the user can view, customize, or replace the prompt for any capability or family through settings
+- the classifier model-request template is registry-managed and inspectable; the user can view, customize, or replace the template for any capability or family through settings
 - per-call cost is one extra model invocation per proposed call when active; settings let users limit cost (e.g., enable auto-decide only for `ReadOnly` capabilities, or only when the model-strategy layer has a low-cost classifier available)
 - auto-decide is per scope: the user may enable it globally, per workspace, per conversation, per capability, or per family
 
 ### 8.5 Boundary
 
-Auto-decide composes with the rest of the policy machinery. It does not replace tier resolution, lease lookup, contradiction detection, or floor enforcement. Its output is one more verdict among the policy inspector chain (§3.3); the router merges it with the rest. The classifier model and policy prompt are configurable resources, not hardcoded dependencies; a capability without an active auto-decide configuration follows the default tier-driven flow.
+Auto-decide composes with the rest of the policy machinery. It does not replace tier resolution, lease lookup, contradiction detection, or floor enforcement. Its output is one more verdict among the policy inspector chain (§3.3); the router merges it with the rest. The classifier model and policy model-request template are configurable resources, not hardcoded dependencies; a capability without an active auto-decide configuration follows the default tier-driven flow.
 
 ## 9. The Source-Approval Flow
 
@@ -488,7 +488,7 @@ The user resolves the flow by choosing one of:
 - **Customize per capability** — for each declared capability, the user may set a per-capability tier ceiling (capped above by the floor), grant a pre-approval (an `AlwaysAllow` reusable-policy-rule lease for the capability), or deny outright (an `AlwaysDeny` reusable-policy-rule lease); the policy layer composes these with the declared defaults
 - **Customize per source** — set a user trust override or default policy behavior for the source; this changes the trust-narrowing input without mutating the source-authored trust hint
 - **Deny outright** — the source's capabilities register but are not invocable; effectively each capability gets an `AlwaysDeny` reusable-policy-rule lease at registration time; the user can revisit and approve later through settings
-- **DeferSourcePolicy** — explicit choice to register the source while each capability remains gated by the configured fallback policy (`ask_each_time`, `require_explicit_approval`, or `prompt_on_first_use`)
+- **DeferSourcePolicy** — explicit choice to register the source while each capability remains gated by the configured fallback policy (`ask_each_time`, `require_explicit_approval`, or `ask_on_first_use`)
 - **CancelRegistration** — registration does not complete, or the source remains catalogued only with capabilities disabled until future review
 
 ### 9.5 Persistence
@@ -633,7 +633,7 @@ A `single_proposal` lease never affects a future call; its scope is one decision
 
 Anchor: `policy.built-in-reusable-policy-rules`
 
-The system ships built-in reusable policy rules as system defaults with stable ids. They project to effective reusable-policy-rule leases at evaluation time, after durable user override records are applied. This avoids ambiguity on restart: defaults re-register, then user disables, narrows, widens, prompt edits, replacements, and restore-default actions are applied as separate audit-visible records.
+The system ships built-in reusable policy rules as system defaults with stable ids. They project to effective reusable-policy-rule leases at evaluation time, after durable user override records are applied. This avoids ambiguity on restart: defaults re-register, then user disables, narrows, widens, template edits, replacements, and restore-default actions are applied as separate audit-visible records.
 
 Built-in default rules include:
 
@@ -681,7 +681,7 @@ Every template carries:
 - `typed_confirmation_required` — bool; true means any call routed through this template uses the typed-confirmation flow
 - `denied_override_via_typed_confirmation` — bool; for templates attached to `Denied`-floor capabilities, whether the typed-confirmation override path is available
 - `confirmation_string_pattern` — when typed-confirmation is required, the registered pattern the user's typed string must match; may interpolate validated `args.*` field paths from the proposed call
-- `prompt_template` — the localizable prompt text shown to the user during ask-user or typed-confirmation flows from this template
+- `approval_text_template` — the localizable request text shown to the user during ask-user or typed-confirmation flows from this template
 - `source` — `Builtin`, `Subsystem { id }`, `Plugin { id, version }`, `UserDefined { scope }` per the canonical sourcing taxonomy
 
 ### 12.3 Validator Verdicts
@@ -706,11 +706,11 @@ The system ships with built-in templates seeded from the canonical patterns:
 
 - per-tier defaults: `tier_default_readonly`, `tier_default_workspace_write`, `tier_default_user_approval`, `tier_default_unrestricted`, `tier_default_denied` — applied when a capability declares no explicit `approval_template_id`
 - per-class defaults from CT.20: `class_internal_analysis_default` (defaults to ReadOnly tier-resolution behavior), `class_action_external_default` (defaults to UserApproval with batched-approval support), `class_user_artifact_default` (defaults to WorkspaceWrite with workspace-containment escalation)
-- behavioral templates from CT.16: `clarify_first_for_multistep` (validators check whether a multi-step task has been initiated without prior clarification and emit `Ask` with a clarify-first prompt), `todos_for_multistep` (validators check that the agent has invoked the todo capability before non-trivial tool sequences), `prefer_dedicated_tools` (validator emits `RedirectSuggestion` when `shell.exec` is invoked with a pattern that has a registered dedicated-tool equivalent), `fetch_fallback_ban` (validator emits `Deny` when shell network-fetch capabilities are invoked after a recent same-run `web.fetch` denial)
+- behavioral templates from CT.16: `clarify_first_for_multistep` (validators check whether a multi-step task has been initiated without prior clarification and emit `Ask` with clarify-first request text), `todos_for_multistep` (validators check that the agent has invoked the todo capability before non-trivial tool sequences), `prefer_dedicated_tools` (validator emits `RedirectSuggestion` when `shell.exec` is invoked with a pattern that has a registered dedicated-tool equivalent), `fetch_fallback_ban` (validator emits `Deny` when shell network-fetch capabilities are invoked after a recent same-run `web.fetch` denial)
 - safety templates per the canonical reusable-policy-rule set (§11.5): `git_protected_branch_force_push_denied`, `irreversible_op_typed_confirmation`, `dangerous_command_typed_confirmation`, `secret_export_denied`
 - subsystem- and surface-default templates: registered subsystems and work surfaces may ship default templates that can be overridden per capability
 
-Built-in templates are settings-overridable per scope. The user may disable any built-in template, customize its prompt, narrow its applicability, or replace it with a user-authored template.
+Built-in templates are settings-overridable per scope. The user may disable any built-in template, customize its request text, narrow its applicability, or replace it with a user-authored template.
 
 ### 12.5 User-Authored Templates
 
@@ -724,7 +724,7 @@ A capability invocation may have multiple templates applicable: the capability's
 
 ### 12.7 Boundary
 
-Templates are policy-evaluation declarations. Their storage schema, version evolution, and import/export behavior are owned by the future Storage and Persistence and Sync specs. Their UI presentation (the template editor, the validator-chain visualizer, the prompt-template preview) is owned by the future UI specs. File 06 specifies the field set, the validator verdict semantics, and the composition order.
+Templates are policy-evaluation declarations. Their storage schema, version evolution, and import/export behavior are owned by the future Storage and Persistence and Sync specs. Their UI presentation (the template editor, the validator-chain visualizer, the approval-text preview) is owned by the future UI specs. File 06 specifies the field set, the validator verdict semantics, and the composition order.
 
 ## 13. Approval UI Surface Contract
 
@@ -756,7 +756,7 @@ Every ask-user, typed-confirmation, batched-approval, or contradiction-resolutio
 - `batch_id` — optional, present when this request is part of a batched approval per §5.5
 - `contradictions_detected` — typed `Contradiction` records when the request is a contradiction-resolution flow per §14
 - `lease_staleness` — typed reason when the request is a lease-stale-re-grant per §10.4
-- `prompt_template_text` — the localized prompt text from the active approval-policy template
+- `approval_text` — the localized request text from the active approval-policy template
 - `confirmation_string_pattern` — present only for typed-confirmation flows; the pattern the user's typed string must match per §7.4. Template variables referencing validated `args.*` field paths resolve to concrete argument values (for example, `force-push to {args.branch}` resolves to `force-push to main`). Static patterns remain valid. Sensitive interpolations must preserve redaction; `Secret` values use safe labels or typed surrogates, not raw secret values.
 
 The payload flows through the canonical event bus carrying the standard envelope (`conversation_id`, `step_id`, `node_id`, `worktree_id`, `backend_id`, `sequence`, `timestamp`, `sensitivity`).
@@ -808,7 +808,7 @@ A contradiction-resolution flow (§14) presents as a request carrying:
 
 Any presentation surface implementing the contract must:
 
-- present the `prompt_template_text`, `resolved_args` (with sensitivity redactions intact), `reason`, `resolved_tier`, and `permission_floor`
+- present the `approval_text`, `resolved_args` (with sensitivity redactions intact), `reason`, `resolved_tier`, and `permission_floor`
 - present invoker identity, resolved proposal facts, synthesized preview/egress/isolation facts, and absence of preview when preview is unavailable for a mutating or high-risk call
 - present every `available_option` with its scope label, description, and default constraints
 - allow the user to customize `user_customizable_constraints` for any option that declares them
@@ -816,7 +816,7 @@ Any presentation surface implementing the contract must:
 - emit the `ApprovalResponse` through the canonical event bus
 - support keyboard navigation, voice control, and screen-reader operation per the canonical accessibility requirements (the future UI Shell and Accessibility specs detail these, but the policy layer's contract here requires that the UI honor them)
 
-The contract does not specify modal vs inline rendering, color, layout, animation, or any other presentation choice. Multiple surfaces (chat-inline approval, modal dialog, voice prompt, command-palette inline confirmation, batched approval review, automation pre-flight review) consume the contract and render appropriately for their context.
+The contract does not specify modal vs inline rendering, color, layout, animation, or any other presentation choice. Multiple surfaces (conversation-inline approval, modal dialog, voice confirmation, command-palette inline confirmation, batched approval review, automation pre-flight review) consume the contract and render appropriately for their context.
 
 ### 13.8 Boundary
 
@@ -912,10 +912,10 @@ Every policy mechanism in this file is configurable through settings (per File 1
 - per-template enable/disable, per scope
 - approval-posture preset — `Strict`, `Balanced`, `Permissive`, plus user-authored profiles
 - per-flow timeouts (ask-user, typed-confirmation, batched approval) and timeout fall-through behavior; exact defaults belong to settings profiles
-- auto-decide configuration (per capability or family) — enablement, classifier model, policy prompt, confidence threshold, fallback rules per §8.2
+- auto-decide configuration (per capability or family) — enablement, classifier model, policy model-request template, confidence threshold, fallback rules per §8.2
 - batched approval grouping keys and maximum batch size
 - grant-evidence availability revalidation behavior
-- per-source-class default `DeferSourcePolicy` fallback behavior (`ask_each_time`, `require_explicit_approval`, `prompt_on_first_use`)
+- per-source-class default `DeferSourcePolicy` fallback behavior (`ask_each_time`, `require_explicit_approval`, `ask_on_first_use`)
 - source-approval flow risk thresholds per source class and resource class
 - protected-branch seed list; customizable and consumed by git-related built-in safety rules per §11.5
 - dedicated-tool preference mode (`Strict`, `Warn`, `Off`) per CT.16
@@ -947,7 +947,7 @@ Per the canonical settings exposure rules:
 
 - approval-posture preset, current `effective_trust` per source, per-capability tier overrides — `OnRequest` exposure (the agent can read these on request through the read-only settings tool); the agent never sees per-call ask-user history beyond what the conversation context already carries
 - typed-confirmation strings, lease grant contexts, and source-approval proposals — `Hidden`; the agent never sees the user's typed confirmation strings or the full grant-context snapshots
-- the active approval-posture preset — `InPrompt` (the agent's system prompt includes the active posture so the agent can adjust its behavior — for example, avoid proposing capabilities at higher tiers when the user is in `Strict` mode)
+- the active approval-posture preset — `InModelRequest` (the model-request instructions include the active posture so the agent can adjust its behavior — for example, avoid proposing capabilities at higher tiers when the user is in `Strict` mode)
 
 ### 16.5 Boundary
 
@@ -976,7 +976,7 @@ The following shapes are wrong for this layer:
 - treating trust state as a declaration: source trust is registered-entry state per `capability.trust-source-approval-flow` (File 05 §9.2); any policy mechanism that mutates a declaration field based on trust is rejected; trust narrowing is policy-side
 - a single global "approval policy" that overrides per-capability templates and per-scope overrides — policy is composed, not monolithic; built-in defaults plus templates plus leases plus settings compose deterministically; no single setting silently overrides the composition
 - routing approval decisions through unrelated services or sidecars (logging service, telemetry service, automation service) — the approval router is the canonical decision point; logging and telemetry observe but never decide
-- requiring the user to type a confirmation string the system computes from arguments without disclosing the string — the typed-confirmation prompt always shows the required string in the prompt; the user types it as a deliberate-intent check, not as a guess
+- requiring the user to type a confirmation string the system computes from arguments without disclosing the string — the typed-confirmation request always shows the required string; the user types it as a deliberate-intent check, not as a guess
 - silently auto-approving a typed-confirmation override when the user has previously typed-confirmed the same operation — typed-confirmation is per-call; it never persists as an `AlwaysAllow` lease; every typed-confirmation invocation requires fresh user input
 - producing approval decisions that include other than `Continue`, `Substitute`, `Block`, or `RedirectSuggestion` — the canonical hook decision vocabulary is closed
 - approval flows that depend on time-based polling rather than event-driven evaluation — re-evaluation triggers are event-driven per §10.3; the policy layer never polls

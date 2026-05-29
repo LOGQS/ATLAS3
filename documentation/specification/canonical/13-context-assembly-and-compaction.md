@@ -33,15 +33,15 @@ This file does not define:
 
 ## Source Resolution
 
-This file resolves prompt construction, context windows, compaction, memory/context retrieval, authority separation, and model-request rendering material into one boundary: how runtime state becomes a model request.
+This file resolves model-request construction, context windows, compaction, memory/context retrieval, authority separation, and model-request rendering material into one boundary: how runtime state becomes a model request.
 
 Resolved design:
 
 - Context assembly is a per-iteration read operation over canonical state; it does not mutate blocks, tasks, memory, or routing state.
 - Assembly is region-based and part-based: regions provide ordering and budgets, while each included part carries its own source, authority, scope, sensitivity, and lifecycle facts.
-- Compaction creates explicit durable outputs or lifecycle actions through existing block/version systems; it is not hidden prompt loss.
+- Compaction creates explicit durable outputs or lifecycle operations through existing block/version systems; it is not hidden model-request loss.
 - Retrieval, virtual paging, and recall use canonical indexes and lifecycle filters rather than separate archive stores.
-- The rendered model request must preserve instruction boundaries, source attribution, and provider-native callable declarations without collapsing all content into one system prompt.
+- The rendered model request must preserve instruction boundaries, source attribution, and provider-native callable declarations without collapsing all content into one governing-instruction blob.
 
 ## 1. Chosen Model
 
@@ -321,7 +321,7 @@ Sensitive or secret content is cache-ineligible unless policy explicitly allows 
 
 Anchor: `context.compaction`
 
-Compaction reduces active context by committing versioned operations. It is not prompt trimming, hidden deletion, or an assembly side effect.
+Compaction reduces active context by committing versioned operations. It is not model-request trimming, hidden deletion, or an assembly side effect.
 
 Canonical compaction policy families:
 
@@ -437,7 +437,7 @@ Expected event families:
 - cache-marker candidates produced
 - router context assembled
 
-Durable records must reference `AssemblySnapshot`s rather than storing raw prompt dumps by default. An `AssemblySnapshot` records or references enough to reconstruct what was sent without re-querying any live source:
+Durable records must reference `AssemblySnapshot`s rather than storing raw model-request dumps by default. An `AssemblySnapshot` records or references enough to reconstruct what was sent without re-querying any live source:
 
 - the included assembly parts
 - the omitted and redacted parts with their reasons
@@ -506,7 +506,7 @@ Anchor: `context.explicit-rejections`
 The following shapes are wrong for this layer:
 
 - mutating blocks, indexes, lifecycle state, or versions during assembly
-- treating compaction as hidden prompt trimming
+- treating compaction as hidden model-request trimming
 - treating overflow as permission to silently drop user content
 - replacing the current user request with a summary as the normal routing path
 - maintaining separate router, instruction, surface, or validator request builders
@@ -521,7 +521,7 @@ The following shapes are wrong for this layer:
 - making duplicate detection mutate prior blocks
 - bypassing File 05-07 capability and policy contracts for context operations
 - bypassing File 10/11 records for compaction, snapshots, or durable context history
-- treating `ATLAS.md` or any workspace file as hidden prompt text without source attribution and policy control
+- treating `ATLAS.md` or any workspace file as hidden model-request text without source attribution and policy control
 
 ## 22. Consequences for Later Specs
 
@@ -534,6 +534,6 @@ Later specs must follow these rules:
 - model strategy and provider specs must expose request-size, tokenizer/counting, cache, callable-declaration, and multimodal accounting capabilities without leaking provider specifics into this file
 - storage specs must persist assembly snapshot references, continuity summaries, compaction commits, and externalized source records without creating parallel context tables
 - UI specs must present context inspection, duplicate handling, overflow, compaction history, and source externalization as projections over the records defined here
-- surface specs must declare their default context and compaction policies without creating private prompt assembly paths
+- surface specs must declare their default context and compaction policies without creating private model-request assembly paths
 - automation and workflow specs must reuse the same assembly, compaction, pressure, and snapshot contracts
 - evaluation specs should measure context correctness, continuity preservation, duplicate handling, overflow recovery, cache effectiveness, and compaction quality

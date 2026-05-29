@@ -12,7 +12,7 @@ This file defines:
 - execution entry from `RunIntent`
 - execution lifecycle
 - execution structure
-- model, programmatic, workflow, domain, and multi-agent execution shapes
+- model, programmatic, workflow, surface-runtime, and multi-agent execution shapes
 - capability/tool execution semantics
 - tool-surface management
 - approval and denial handling during execution
@@ -33,7 +33,7 @@ This file does not define:
 - provider failover internals
 - storage schema
 - model/provider registry schema
-- domain-specific tool catalogs
+- subsystem- and surface-specific tool catalogs
 - frontend layout behavior
 
 ## Source Resolution
@@ -59,7 +59,7 @@ Execution consumes routing, context assembly, model strategy, capability registr
 
 Execution centers on `Run`.
 
-`Run` is the durable record of one bounded attempt to progress work. It may answer a simple chat request, perform tool-using work, execute a workflow, run a domain runtime, or coordinate multiple child runs.
+`Run` is the durable record of one bounded attempt to progress work. It may answer a simple conversation request, perform tool-using work, execute a workflow, run a surface runtime, or coordinate multiple child runs.
 
 The chosen execution model is:
 
@@ -71,7 +71,7 @@ The chosen execution model is:
 - the execution ledger records what happened
 - the event stream projects live state to the UI and hooks
 
-This makes execution inspectable and reusable without forcing ordinary chat into heavy task ceremony.
+This makes execution inspectable and reusable without forcing ordinary conversation into heavy task ceremony.
 
 ## 2. Run
 
@@ -100,7 +100,7 @@ Every run must attach to:
 - one conversation
 - one primary intent thread
 - one trigger
-- one route result or equivalent non-chat trigger decision
+- one route result or equivalent non-conversation trigger decision
 
 A run may also attach to:
 
@@ -238,7 +238,7 @@ Entry types:
 
 - `respond_inline`: produce a direct response, usually one model step or deterministic answer.
 - `respond_with_tools`: use the standard model/tool loop when tools may be useful.
-- `domain_runtime`: enter a surface-specific runtime while still using shared execution semantics.
+- `surface_runtime`: enter a surface-specific runtime while still using shared execution semantics.
 - `multi_step_agent`: execute a persistent multi-step structure until completion, pause, failure, or user intervention.
 
 All entries share:
@@ -302,7 +302,7 @@ Allowed execution shapes:
 - model-with-tools loop
 - deterministic orchestration with model steps where needed
 - graph or workflow execution
-- domain runtime execution
+- surface runtime execution
 - multi-agent parent run with child runs
 - automation run using a saved execution template
 
@@ -416,7 +416,7 @@ Every capability declares minimum execution-relevant metadata beyond input/outpu
 - `preview_mode`: one of `none`, `dry_run` (the capability can execute against simulated state and return a typed result describing what would happen — examples: `--dry-run` shell commands, simulated package install, automation deploy plans), `structural_preview` (the capability can return a structured description of the change without executing — parsed AST of an edit, planned subprocess pipeline, planned API request), or `diff_preview` (the capability can return a diff between current and post-execution state — file edits, DOM mutations, database row changes).
 - `partial_output_meaningful` (§17.3), `cooperative_stop_deadline_ms` (§17.3), `sibling_abort_on_failure` (§15.3), and `resume_on_restart` (§17.3) where applicable.
 
-These declarations may be deterministic (the capability author classifies once at registration) or model-mediated per call where deterministic classification is impossible. A `shell.exec` capability cannot declare a single `reversibility_class` for all bash commands: the runtime supports a model-mediated classification mode where a designated model classifies the specific call against the configured policy prompt before the pipeline proceeds. The classification mode is a setting per capability or capability family, not hardcoded.
+These declarations may be deterministic (the capability author classifies once at registration) or model-mediated per call where deterministic classification is impossible. A `shell.exec` capability cannot declare a single `reversibility_class` for all bash commands: the runtime supports a model-mediated classification mode where a designated model classifies the specific call against the configured policy model-request template before the pipeline proceeds. The classification mode is a setting per capability or capability family, not hardcoded.
 
 A capability whose mutation depends on prior observation should validate observation currency before mutating. The pattern: the prior observation captures state-defining metadata (file mtime and content hash, DOM tree fingerprint, screen element id and bounds, browser session cookie state); the mutating call carries `expected_*` fields the capability checks against current state; a mismatch returns a typed `StateChangedSinceObservation` error rather than silently overwriting. The agent loop receives the typed error in-band and may re-observe and retry, branch, or stop. This is a capability-author responsibility; the executor enforces nothing additional.
 
@@ -463,7 +463,7 @@ Anchor: `run.tool-surface`
 
 Each run has a tool surface: the capability subset visible to the executing model or programmatic unit.
 
-The tool surface is a prompt and availability strategy, not a security boundary. Policy still governs every call.
+The tool surface is a model-request visibility and availability strategy, not a security boundary. Policy still governs every call.
 
 ### 10.2 Zones
 
@@ -493,18 +493,18 @@ When absent, execution uses the active surface defaults and settings.
 
 Routing is not the only entry point for capability loading. Deferred capabilities may be discovered and loaded mid-execution by the model itself, through canonical built-in capabilities — `tool.borrow` for already-named borrowable tools whose schemas need to be loaded, and `tool.search` or `mcp.search` for discovering deferred capabilities by name, family, or description. Discovery and borrow are themselves capability calls and pass through the full pipeline (§8); newly loaded tools become part of the run's tool surface for the rest of the turn or for the duration of the granting lease, whichever is longer.
 
-The default surface composition follows the active model's context budget. When all primary plus borrowable tools fit, they may be fully loaded; under context pressure, the runtime auto-shrinks to selective loading and surfaces the trade-off to the user through the settings UI (with concrete recommendations) rather than silently dropping tools. Domain runtimes load their domain-scoped tools by default within the domain; capabilities outside the domain are reachable only through `tool.search` or `tool.borrow`, never through silent autoload — this keeps the active prompt focused while preserving full reachability.
+The default surface composition follows the active model's context budget. When all primary plus borrowable tools fit, they may be fully loaded; under context pressure, the runtime auto-shrinks to selective loading and surfaces the trade-off to the user through the settings UI (with concrete recommendations) rather than silently dropping tools. Surface runtimes load their surface-scoped tools by default within the surface; capabilities outside the active surface/subsystem are reachable only through `tool.search` or `tool.borrow`, never through silent autoload — this keeps the active model request focused while preserving full reachability.
 
 ### 10.4 User Customization
 
 Tool-surface behavior must be deeply customizable through settings.
 
-Users must be able to inspect available tools in grouped form, such as by domain, capability family, risk class, integration source, or other useful categories. The settings UI may present these groups as collapsible views, but the canonical requirement is grouped inspectability and fine-grained control.
+Users must be able to inspect available tools in grouped form, such as by subsystem, surface, capability family, risk class, integration source, or other useful categories. The settings UI may present these groups as collapsible views, but the canonical requirement is grouped inspectability and fine-grained control.
 
 At minimum, users must be able to configure:
 
 - whether broad capability families are primary, borrowable, or deferred by default
-- whether individual tools are primary, borrowable, deferred, or disabled from prompt exposure
+- whether individual tools are primary, borrowable, deferred, or disabled from model-request exposure
 - whether all tools are always loaded, selectively loaded, or loaded only on demand
 - per-surface, per-profile, per-workspace, per-conversation, and per-run overrides where meaningful
 - whether routing may expand or preload tools automatically
@@ -526,8 +526,8 @@ Approval behavior must support:
 - immediate deny
 - ask user
 - typed-confirmation: a variant of "ask user" that requires the user to type a specific confirmation string (the action's identifier, the exact path, the branch name) before the call proceeds. Used for irreversible high-blast-radius operations (force push to a protected branch, account deletion, bulk filesystem delete). Typed-confirmation is not lifted by global trust toggles; it always asks.
-- persisted approval as a `Lease`. A lease has scope, duration, revocation conditions, inherited constraints, and a recorded grant reason. A trivial persisted approval is a degenerate lease with full-capability scope, indefinite duration, and no constraints. A lease's scope is one of: `single-proposal` (no lease created — one-shot decision recorded as a policy event), `run`, `intent-thread`, `task`, `conversation`, `workspace`, `global`, or `reusable-policy-rule` (a user-authored approval template applied as policy). `conversation` is the canonical persisted scope name; "chat" is UI wording, not a separate stored scope. Inherited constraints may narrow a lease to a path subtree, host set, or session set; revocation conditions may include manual revoke, workspace switch, policy change, or grant evidence becoming unavailable.
-- model-mediated policy evaluation, including the named `auto-decide` mode, where a designated model classifies each proposed call against a configured policy prompt and returns allow, deny, ask user, or escalate.
+- persisted approval as a `Lease`. A lease has scope, duration, revocation conditions, inherited constraints, and a recorded grant reason. A trivial persisted approval is a degenerate lease with full-capability scope, indefinite duration, and no constraints. A lease's scope is one of: `single-proposal` (no lease created — one-shot decision recorded as a policy event), `run`, `intent-thread`, `task`, `conversation`, `workspace`, `global`, or `reusable-policy-rule` (a user-authored approval template applied as policy). `conversation` is the canonical persisted scope name; legacy UI wording is not a separate stored scope. Inherited constraints may narrow a lease to a path subtree, host set, or session set; revocation conditions may include manual revoke, workspace switch, policy change, or grant evidence becoming unavailable.
+- model-mediated policy evaluation, including the named `auto-decide` mode, where a designated model classifies each proposed call against a configured policy model-request template and returns allow, deny, ask user, or escalate.
 - policy-driven escalation
 - batched approval for multiple pending calls
 
@@ -697,7 +697,7 @@ Child runs are used for:
 - isolated browser tasks
 - validator or critic passes
 - comparison runs (best-of-N with a selector child run, arena-style ranked rounds, tournament-style pairwise comparison)
-- delegated domain execution
+- delegated surface/subsystem execution
 
 ### 16.2 Isolation
 
@@ -756,7 +756,7 @@ Anchor: `run.user-intervention`
 
 The user may intervene during execution.
 
-Intervention is a run input, not an out-of-band chat hack. It must be recorded and may cause:
+Intervention is a run input, not an out-of-band conversation hack. It must be recorded and may cause:
 
 - continuation with new instruction
 - pause
@@ -860,7 +860,7 @@ Execution may create or update a task when the work benefits from explicit struc
 Task promotion is not:
 
 - automatic router behavior
-- required for ordinary chat
+- required for ordinary conversation
 - a hidden heuristic
 
 Task updates must be revision-safe. A task update carries the revision it was based on and fails or branches if the task changed concurrently.
@@ -899,7 +899,7 @@ Retry may change:
 
 Anchor: `run.reroute`
 
-Mid-execution reroute is allowed when current execution lacks the right surface, model route, capability family, policy scope, or domain runtime.
+Mid-execution reroute is allowed when current execution lacks the right surface, model route, capability family, policy scope, or surface runtime.
 
 Reroute happens at a safe boundary:
 
@@ -965,7 +965,7 @@ Required recovery strategies:
 - switch model profile
 - switch capability implementation
 - narrow capability scope
-- revoke stale leases and reacquire with narrower scope (when a long-lived lease's grant context — workspace, file subtree, network host set — has changed, revoke the lease, narrow the new request, and re-prompt for grant)
+- revoke stale leases and reacquire with narrower scope (when a long-lived lease's grant context — workspace, file subtree, network host set — has changed, revoke the lease, narrow the new request, and ask again for grant)
 - request user clarification
 - branch strategy
 - restore or propose rollback of materialized output
@@ -1007,7 +1007,7 @@ Budget dimensions:
 
 Elapsed-time guards may be used only as external-process safety guards when no reliable completion signal exists. They are not correctness conditions and must be configurable.
 
-Programmatic execution and graph or workflow execution may compose per-stage budgets within a single run. A research pipeline declares a thinking budget, an acting budget, and a final-response budget; a multi-stage research pipeline declares per-stage budgets. When configured, the runtime enforces both the per-stage and the run-level budgets; the per-stage warning fires before the per-stage limit, and the run-level warning fires before the run-level limit (the soft-warning escalation rule from §20.3 applies to both). Budgets are not enforced by default — provider rate limits and model-internal stop conditions are sufficient for ordinary work — and the runtime must not silently impose hidden budget limits. Users opt into per-run and per-stage enforcement when they want it, at the granularity they want it (per turn, per task, per domain, per workspace, globally).
+Programmatic execution and graph or workflow execution may compose per-stage budgets within a single run. A research pipeline declares a thinking budget, an acting budget, and a final-response budget; a multi-stage research pipeline declares per-stage budgets. When configured, the runtime enforces both the per-stage and the run-level budgets; the per-stage warning fires before the per-stage limit, and the run-level warning fires before the run-level limit (the soft-warning escalation rule from §20.3 applies to both). Budgets are not enforced by default — provider rate limits and model-internal stop conditions are sufficient for ordinary work — and the runtime must not silently impose hidden budget limits. Users opt into per-run and per-stage enforcement when they want it, at the granularity they want it (per turn, per task, per surface, per subsystem, per workspace, globally).
 
 Before a non-fatal budget limit is reached, execution should emit a budget warning through the ledger/event/context path appropriate to the active unit. The warning must be visible to the model or programmatic executor before wrap-up is expected.
 
@@ -1052,7 +1052,7 @@ It records:
 - execution unit starts and finishes
 - capability proposals
 - approvals, denials, leases, and policy decisions
-- model calls, including provider, model identifier, role (router, responder, critic, validator, and so on), prompt tokens, completion tokens, cache creation tokens, cache read tokens, and cost estimate (per-call cost is computed from per-model pricing, not stored as an unkeyed scalar — cf. `core.explicit-rejections` (File 01 §8) invariant)
+- model calls, including provider, model identifier, role (router, responder, critic, validator, and so on), input tokens, completion tokens, cache creation tokens, cache read tokens, and cost estimate (per-call cost is computed from per-model pricing, not stored as an unkeyed scalar — cf. `core.explicit-rejections` (File 01 §8) invariant)
 - tool calls and tool results
 - observations
 - validation results
@@ -1081,7 +1081,7 @@ It drives:
 - validators
 - logs
 
-Every event carries the canonical envelope defined by File 10. At execution level this means at least: `conversation_id` when conversation-scoped, `context_refs` for applicable execution identities (`run_id`, `step_id`, `node_id`, `worktree_id`, `backend_id`), `sequence_scope`, `sequence`, `timestamp`, and `sensitivity` (`Public`, `Sensitive`, or `Secret`; default `Public`). Sensitive events are excluded from shareable chat exports and copy-to-clipboard operations on the event log unless explicitly included by policy. Capabilities tag at emit time — a generic `shell.exec` event is `Public`, but the same call against a credentials path is `Sensitive`. Raw `Secret` payloads in flight (credentials, unredacted secrets, or user-marked secret content) must never be persisted to the durable ledger.
+Every event carries the canonical envelope defined by File 10. At execution level this means at least: `conversation_id` when conversation-scoped, `context_refs` for applicable execution identities (`run_id`, `step_id`, `node_id`, `worktree_id`, `backend_id`), `sequence_scope`, `sequence`, `timestamp`, and `sensitivity` (`Public`, `Sensitive`, or `Secret`; default `Public`). Sensitive events are excluded from shareable conversation exports and copy-to-clipboard operations on the event log unless explicitly included by policy. Capabilities tag at emit time — a generic `shell.exec` event is `Public`, but the same call against a credentials path is `Sensitive`. Raw `Secret` payloads in flight (credentials, unredacted secrets, or user-marked secret content) must never be persisted to the durable ledger.
 
 Events may be transient. Consequential events must also be represented in the ledger.
 
@@ -1158,7 +1158,7 @@ Execution presentation is a projection.
 
 The same run may be shown as:
 
-- a normal chat answer
+- a normal conversation answer
 - compact progress summary
 - expandable timeline
 - workspace activity
@@ -1192,7 +1192,7 @@ The runtime may propose:
 - automation
 - custom capability wrapper
 - validation recipe
-- prompt fragment
+- instruction fragment
 - retrieval recipe
 - document or artifact template
 
@@ -1241,12 +1241,12 @@ At minimum, settings must support:
 - sibling-abort and `depends_on` dispatch behavior per capability and per batch
 - per-capability and category-default cancellation deadlines, partial-output retention overrides, and resume-on-restart enablement, plus the cancel UI's default action and expanded-menu options
 - stuck detection thresholds (per pattern), in-band soft-warning escalation rules, and opt-in model-mediated stuck detection
-- per-stage and per-run budget composition (off by default), warning thresholds, and granularity (per turn, per task, per domain, per workspace, global)
+- per-stage and per-run budget composition (off by default), warning thresholds, and granularity (per turn, per task, per surface, per subsystem, per workspace, global)
 - completion-verification hook surface configuration: enablement, deterministic-versus-model-mediated mode, cadence (every N steps, parallel/background, sequential, on demand), and per-task expected-outcome shape
 - hook subscription configuration: priority, timeout, fail-direction overrides per hook category and per error class
 - event sensitivity classification overrides per capability or capability family
 - ledger-record retention granularity and additional attribution fields beyond the canonical minimum
-- domain-scoped tool loading defaults, cross-domain borrow restriction (search-only by default), and context-pressure auto-shrink behavior
+- surface-scoped tool loading defaults, cross-surface/subsystem borrow restriction (search-only by default), and context-pressure auto-shrink behavior
 - isolation primitive defaults per child run kind, with per-task and per-call overrides for shared-workspace work
 - classification mode per capability — deterministic declaration vs. model-mediated per-call classification — for `reversibility_class`, `idempotent`, and other declarations where a single static value is not meaningful
 
@@ -1258,7 +1258,7 @@ Anchor: `run.explicit-rejections`
 
 The following shapes are wrong for this layer:
 
-- treating chat message generation as the whole execution model
+- treating conversation message generation as the whole execution model
 - making every request a heavy task graph
 - making the linear agent loop the universal core architecture
 - making planning a mandatory phase
@@ -1298,6 +1298,6 @@ Later specs must follow these rules:
 - event specs must carry the File 10 envelope (`conversation_id` where applicable, `context_refs`, `sequence_scope`, `sequence`, `timestamp`, `sensitivity`) on every event, and must keep raw `Secret` payloads out of durable persistence
 - UI specs must present runs without making presentation the execution truth, must surface failed-on-restart runs with per-run resume-or-discard affordances, and must expose the cancel UI's default action plus expanded-menu options (cancel run / run+children / specific child / specific tool call / specific sandbox)
 - automation specs must reuse the run model instead of creating a parallel scheduler runtime, and must compose per-stage budgets within the run model
-- domain specs must declare default tool surfaces, context policies, budgets, and child-run affordances, and must default cross-domain capability access to search-and-borrow rather than autoload
+- surface and subsystem specs must declare default tool surfaces, context policies, budgets, and child-run affordances, and must default cross-surface/subsystem capability access to search-and-borrow rather than autoload
 - quality-control specs must integrate through event/capability hooks instead of a separate execution pipeline, and the completion-verification hook surface must support both deterministic and model-mediated checks at user-configured cadence
 - workspace and isolation specs must define the canonical isolation primitives (git worktrees, isolated browser profiles, sandboxed VM instances, isolated process groups) and the runtime selection policy plus the shared-workspace exception

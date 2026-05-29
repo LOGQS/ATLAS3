@@ -31,11 +31,11 @@ This file does not define:
 
 ## Source Resolution
 
-This file resolves memory, learning, context, retrieval, and self-improvement source material into one boundary: Memory stores durable learned state. It does not become a domain workspace, a prompt-injection layer, a conversation-history manager, a private retrieval stack, or a parallel event/capability system.
+This file resolves memory, learning, context, retrieval, and self-improvement source material into one boundary: Memory stores durable learned state. It does not become a workspace-first surface, a model-request injection layer, a conversation-history manager, a private retrieval stack, or a parallel event/capability system.
 
 Resolved design:
 
-- Memory is a substrate service per File 01, always available to work surfaces but not shaped like a workspace-first domain.
+- Memory is a substrate service per File 01, always available to work surfaces but not shaped like a workspace-first surface.
 - Memory entries are entity metadata over `Memory`-kind blocks. The block carries durable content; the entity carries memory-specific management state.
 - Memory owns core and archival memory. Recent conversation turns are conversation history, managed by Files 12 and 13.
 - Memory learning uses explicit user commands and policy-governed distillation proposals. Raw run history remains in the ledger.
@@ -48,7 +48,7 @@ Anchor: `memory.chosen-model`
 
 ATLAS3 has one Memory substrate.
 
-Memory stores curated learned state that should survive beyond the immediate conversation. It is not raw transcript, not a knowledge base, not an instruction file, not a graph database, and not a private prompt layer.
+Memory stores curated learned state that should survive beyond the immediate conversation. It is not raw transcript, not a knowledge base, not an instruction file, not a graph database, and not a private model-request layer.
 
 Memory-owned tiers:
 
@@ -178,7 +178,7 @@ Facets add structure without forcing every memory into a large schema.
 Useful facets include:
 
 - subject
-- domain tags
+- topic tags
 - temporal fields: `when`, deadline, recurrence, valid-from, valid-until
 - source authority
 - extraction method
@@ -206,7 +206,7 @@ Core memory blocks are:
 
 Core memory labels such as persona, human, workspace, project, communication style, or active commitments may be useful profile seeds, but they are not a hardcoded canonical set.
 
-Core memory is not a system prompt, not hidden instruction text, and not guaranteed to render in every model request. When omitted, redacted, externalized, or summarized, the assembly snapshot records the reason.
+Core memory is not governing instruction text, not hidden instruction text, and not guaranteed to render in every model request. When omitted, redacted, externalized, or summarized, the assembly snapshot records the reason.
 
 ## 6. Archival Memory
 
@@ -351,7 +351,7 @@ Combination policy is configurable and must be score-attributed. The canonical s
 
 Retrieval reinforcement is optional policy-governed telemetry.
 
-If a retrieval affects future ranking, the system must record the signal in a sensitivity-aware, inspectable, and policy-controlled way. It must not persist secret query text or hidden private prompts.
+If a retrieval affects future ranking, the system must record the signal in a sensitivity-aware, inspectable, and policy-controlled way. It must not persist secret query text or hidden private model-request content.
 
 ## 10. Salience and Strength
 
@@ -452,7 +452,7 @@ Memory and Knowledge Base differ by semantic role.
 
 Knowledge is curated reference content the agent may cite, study, or retrieve. Memory is learned state about the user, workspace, preferences, procedures, commitments, mastery, and context. The same interaction can produce both.
 
-Entity-relationship extraction is domain-populated. Memory may register extraction capabilities that project memory-derived entities and relationships into File 12's shared graph projection. Memory does not own the graph store, graph query algorithm, graph UI, or universal entity taxonomy.
+Entity-relationship extraction is producer-populated. Memory may register extraction capabilities that project memory-derived entities and relationships into File 12's shared graph projection. Memory does not own the graph store, graph query algorithm, graph UI, or universal entity taxonomy.
 
 Relationship-like memories can be represented as facts and also projected into File 12 records when useful.
 
@@ -567,17 +567,17 @@ Anchor: `memory.explicit-rejections`
 
 The following shapes are wrong for this layer:
 
-- treating Memory as a domain peer workspace rather than a substrate service
+- treating Memory as a workspace-first surface rather than a substrate service
 - building a parallel memory store outside the block model
 - storing mutable memory content on both entity and block as separate sources of truth
 - creating `RecallMemory` as a Memory-owned conversation-history tier
 - creating a parallel memory retrieval stack or graph store
-- using `Chat` or `chat_id` as canonical terminology
+- using legacy conversation identifiers as canonical terminology
 - encoding scope into memory kind
 - using relationship or event as flat memory kinds instead of facts/context plus facets/projections
 - making core memory bypass File 13 assembly, authority, sensitivity, or budget reporting
-- treating core memory as hidden system prompt text
-- hidden memory-owned prompt injection
+- treating core memory as hidden governing instruction text
+- hidden memory-owned model-request injection
 - re-extracting memory-injected content as new memory without new evidence
 - silent memory extraction with no inspect, disable, review, or policy path
 - ungrounded model updates/deletes using hallucinated memory ids
@@ -602,7 +602,7 @@ Later specs must follow these rules:
 - UI specs must present memory management, proposal review, influence inspection, and import/export as projections over the records defined here.
 - Storage specs must persist `MemoryEntry` entity records, `Memory` blocks, provenance, validity, retention, and projection metadata without duplicating mutable content.
 - Retrieval specs must treat memory indexes as rebuildable projections and return normalized hits with score attribution.
-- Context specs must assemble memory through File 13 regions and authority classes, never through private prompt construction.
+- Context specs must assemble memory through File 13 regions and authority classes, never through private model-request construction.
 - Capability and policy specs must declare memory operations as ordinary capabilities with touched resources, approval behavior, leases, cancellation, postconditions, and output contracts.
 - Teacher, Coder, Web, Data Processor, GUI Control, System Agent, automation, workflows, plugins, and MCP integrations may consume and contribute memory only through this substrate.
 - Knowledge and graph specs must own curated reference content and graph projection mechanics while accepting memory-derived source records through the shared indexing pipeline.

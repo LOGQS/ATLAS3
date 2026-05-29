@@ -10,7 +10,7 @@ This file defines the shared retrieval substrate for Atlas:
 
 - retrieval indexes as rebuildable projections over blocks, versions, observations, knowledge entities, and registered external sources
 - index namespaces, index kinds, index entries, chunking, embeddings, freshness, rebuild, and replay semantics
-- the normalized query and result contracts used by local search, knowledge search, file search, web retrieval adapters, MCP resources, and domain retrieval
+- the normalized query and result contracts used by local search, knowledge search, file search, web retrieval adapters, MCP resources, and specialized retrieval
 - the curated knowledge-base entity layer over `KnowledgeEntry` blocks
 - sensitivity-aware indexing and retrieval
 - retrieval-related capabilities, policy boundaries, events, settings, and extension points
@@ -30,11 +30,11 @@ This file resolves the retrieval and knowledge-base material from the existing c
 
 Resolved design:
 
-- retrieval is one shared substrate with source-specific adapters, not one private index system per domain
+- retrieval is one shared substrate with source-specific adapters, not one private index system per subsystem or surface
 - canonical specs define behavior and contracts, not permanent engines or libraries
-- local retrieval, file search, web search, web fetch, MCP retrieval, knowledge search, and domain retrieval can have specialized capabilities while sharing normalized retrieval results
+- local retrieval, file search, web search, web fetch, MCP retrieval, knowledge search, and specialized retrieval can have specialized capabilities while sharing normalized retrieval results
 - knowledge-base curation is entity-layer state over `KnowledgeEntry` blocks, not metadata welded into every block
-- graph extraction is domain-owned, but the graph projection and retrieval contract are shared
+- graph extraction is producer-owned, but the graph projection and retrieval contract are shared
 - time-based sweeps and TTLs may optimize maintenance, but correctness must come from events, version identity, fingerprints, and policy
 
 ## 1. Core Model
@@ -151,7 +151,7 @@ Canonical namespace families:
 - `mcp_resource:<server_id>`
 - `custom:<namespace>:<name>`
 
-The envelope term is `conversation_id`. Legacy `chat_id` terminology is not canonical.
+The envelope term is `conversation_id`. Legacy conversation-identifier terminology is not canonical.
 
 ### 3.3 Namespace Rules
 
@@ -178,20 +178,20 @@ Retrieval sources include:
 - MCP resources and external integration records
 - custom source records registered by subsystems
 
-No domain may create a parallel retrieval substrate for these records. Domain-specific sources register adapters into this substrate.
+No subsystem or surface may create a parallel retrieval substrate for these records. Specialized sources register adapters into this substrate.
 
 ### 4.2 Entity-Relationship Projection
 
-Entity and relationship records are domain-populated projections. File 12 owns the index and retrieval contract over them; domain specs own extraction semantics.
+Entity and relationship records are producer-populated projections. File 12 owns the index and retrieval contract over them; the producing subsystem or surface spec owns extraction semantics.
 
 Examples:
 
 - codebase ingestion may extract files, modules, functions, classes, imports, calls, and references
 - document ingestion may extract concepts, sections, prerequisites, citations, and glossary terms
 - memory processing may extract factual triples and user preference relations
-- data-processing domains may extract dataset, column, schema, and lineage entities
+- data-processing surfaces/subsystems may extract dataset, column, schema, and lineage entities
 
-Each extraction capability commits records through the canonical indexing pipeline. No domain gets a private entity-relationship store.
+Each extraction capability commits records through the canonical indexing pipeline. No subsystem or surface gets a private entity-relationship store.
 
 ### 4.3 External Sources
 
@@ -219,7 +219,7 @@ Strategy selection is based on source type, content type, user settings, subsyst
 
 Derived chunks are not blocks. They are index entries.
 
-If a chunk or excerpt must become durable conversation context, evidence, or user-visible material, it is committed as a `SourceExcerpt` block through File 08. `SourceExcerpt` describes what the content is; "RAG chunk" is not a canonical block kind.
+If a chunk or excerpt must become durable conversation context, evidence, or user-visible material, it is committed as a `SourceExcerpt` block through File 08. `SourceExcerpt` describes what the content is; retrieval implementation terminology is not a canonical block kind.
 
 ### 5.3 Source Spans
 
@@ -619,7 +619,7 @@ Codebase ingestion may:
 - create or update knowledge entries
 - update retrieval indexes
 
-Extraction semantics belong to the Coder or owning domain specs. File 12 owns only the shared indexing and retrieval contract.
+Extraction semantics belong to the Coder or owning subsystem/surface specs. File 12 owns only the shared indexing and retrieval contract.
 
 ### 14.3 Document Ingestion
 
@@ -630,7 +630,7 @@ Document ingestion may:
 - commit source spans, sections, concepts, citations, and knowledge entries
 - update lexical, vector, graph, and metadata projections
 
-Teacher, Data Processor, Memory, and other domain specs decide what entities are meaningful for their content.
+Teacher, Data Processor, Memory, and other producing specs decide what entities are meaningful for their content.
 
 ### 14.4 Plugin-Bundled Knowledge
 
@@ -654,7 +654,7 @@ Anchor: `retrieval.events-ledger-telemetry`
 
 ### 16.1 Custom Events
 
-Retrieval and knowledge-base events are `Custom { namespace, name, payload }` extensions registered through File 10. File 12 reserves the retrieval and knowledge namespaces; it does not add domain-specific kinds to File 10's canonical event catalogue.
+Retrieval and knowledge-base events are `Custom { namespace, name, payload }` extensions registered through File 10. File 12 reserves the retrieval and knowledge namespaces; it does not add specialized kinds to File 10's canonical event catalogue.
 
 Expected event families:
 
@@ -752,18 +752,18 @@ Anchor: `retrieval.explicit-rejections`
 The following are rejected:
 
 - treating a specific retrieval library, vector store, tokenizer, parser, or web-search engine as canonical semantics
-- creating private per-domain retrieval substrates for content that should be retrievable through the shared contract
+- creating private per-subsystem or per-surface retrieval substrates for content that should be retrievable through the shared contract
 - indexing Secret payload
 - storing embedding vectors without embedding model identity
 - using unstable index entry ids across rebuilds
 - treating derived chunks as blocks unless deliberately promoted to `SourceExcerpt`
-- making query telemetry leak full private prompts by default
+- making query telemetry leak private model-request content by default
 - relying on timed sweeps, TTL, polling, or elapsed time for correctness
 - hardcoding ranking weights, snippet limits, rerank thresholds, cache TTLs, or retry counts into the canonical spec
-- using `Chat` or `chat_id` as canonical terminology
+- using legacy conversation identifiers as canonical terminology
 - placing mutable knowledge curation fields directly on `KnowledgeEntry` blocks
 - letting web search, web fetch, MCP retrieval, or plugin retrieval bypass capability policy
-- duplicating graph stores per domain
+- duplicating graph stores per subsystem or surface
 - silently returning stale or partial retrieval results without typed warning
 
 ## 22. Consequences for Later Specs

@@ -28,7 +28,7 @@ This file resolves conversation, message, intent-thread, task, branch, and trans
 
 Resolved design:
 
-- Chat-first use remains first-class without making chat chronology the root durable model.
+- Conversation-first use remains first-class without making transcript chronology the root durable model.
 - Messages, events, blocks, intent threads, tasks, runs, and versions stay separate primitives.
 - Intent threads preserve continuity without requiring immediate task formalization.
 - Tasks are promoted only when explicit structure improves execution, inspection, automation, or reuse.
@@ -54,7 +54,7 @@ They exist at different levels:
 - `IntentThread`: persisted work-line continuity when needed
 - `Task`: promoted structured work when useful
 
-This keeps normal chat fluid while still supporting long-running, parallel, and structured work.
+This keeps normal conversation fluid while still supporting long-running, parallel, and structured work.
 
 ## 2. Conversation
 
@@ -67,7 +67,7 @@ Anchor: `intent.conversation`
 It provides:
 
 - transcript chronology
-- chat history and recall
+- conversation history and recall
 - the default place for input and output
 - a durable scoped context for storage, execution, settings, and materialization
 
@@ -318,11 +318,11 @@ Task promotion is appropriate when the work needs:
 - stronger execution ownership
 - durable artifact attachment to a named goal
 - automation potential
-- pause/resume continuity beyond normal chat flow
+- pause/resume continuity beyond normal conversation flow
 - structured handling of ambiguity (multiple plausible interpretations, multiple stakeholders, conflicting constraints)
 - escalation after repeated failure or unproductive iteration
 
-Task promotion is not required for ordinary conversation or simple requests. Single-question, single-answer chat must not require task ceremony.
+Task promotion is not required for ordinary conversation or simple requests. Single-question, single-answer conversation must not require task ceremony.
 
 Promotion may be initiated by the user explicitly creating a task, by the agent through explicit capability invocation, or by a hook that surfaces a promotion recommendation for the user or agent to accept. Hidden routing or execution heuristics must not silently promote work into a task.
 
@@ -373,8 +373,8 @@ Anchor: `intent.presentation`
 
 The same underlying work may be rendered in many shapes without changing the work model. Examples include but are not limited to:
 
-- chat-first transcript
-- inline assistance overlaid on a non-chat surface
+- conversation-first transcript
+- inline assistance overlaid on a non-conversation surface
 - workspace-primary views (editor, browser, terminal, document, canvas, whiteboard)
 - notebook or pipeline view of structured tasks
 - comparison board for parallel branches, runs, or agents
@@ -384,17 +384,17 @@ The same underlying work may be rendered in many shapes without changing the wor
 
 A presentation surface is a projection over the underlying work, not part of the work model. The set of presentation surfaces must be extensible: new surfaces, new compositions, and user- or extension-supplied views must be addable without changing the work model. Later specs define presentation surfaces, their compositions, and per-profile defaults.
 
-### 8.2 Chat-First
+### 8.2 Conversation-First
 
-Chat-first is a first-class experience.
+Conversation-first is a first-class experience.
 
-The user must be able to stay entirely in chat while the runtime still uses tools, surfaces, and domains internally.
+The user must be able to stay entirely in the conversation interface while the runtime still uses tools, surfaces, and subsystems internally.
 
 ### 8.3 Workspace-First
 
 Workspace-first is appropriate when direct inspection or participation matters more than transcript simplicity.
 
-The same work may move between chat-first and workspace-first over time.
+The same work may move between conversation-first and workspace-first over time.
 
 ### 8.4 Parallel Presentation
 
@@ -419,7 +419,7 @@ The following shapes are wrong for this layer:
 - making intent-thread creation a mandatory tool call
 - treating presentation choice as routing-owned backend truth
 - adding a second separate heavy continuity-analysis pass on top of normal routing
-- collapsing routing output to one domain pick
+- collapsing routing output to one surface/subsystem pick
 - treating presentation shape as a separate execution architecture
 - silent driver transitions in tasks or runs
 - silent abandonment of in-flight runs by mid-execution user input
@@ -437,14 +437,14 @@ Later specs must follow these rules:
 - task specs must support revision-safe updates rather than shared in-place mutation
 - routing specs must define continuity attachment as part of `RunIntent`
 - execution specs must support safe parallel work without ownership ambiguity
-- UI specs must support both chat-first and richer workspace presentations over the same underlying objects
+- UI specs must support both conversation-first and richer workspace presentations over the same underlying objects
 - workspace specs must define cross-conversation continuity primitives (memory scope, project scope, automation scope) without redefining `IntentThread`
 - conversation state must remain a coarse-grained projection of underlying runs and explicit pause requests; later specs must not collapse conversation state into per-run execution state
-- settings specs must define which pre-dispatch behaviors are enabled per profile, per workspace, and per chat
+- settings specs must define which pre-dispatch behaviors are enabled per profile, per workspace, and per conversation
 - ledger specs must record pre-dispatch decisions and their resolutions alongside the eventual `RunIntent` and triggering message
 - context-assembly and compaction specs must produce per-work-line summaries that satisfy §5.3's minimum content requirement and must not silently lose any of those fields during compaction
 - task driver transitions must be recorded in the execution ledger and surfaced to the UI; later specs define handoff mechanics
 - storage and event specs must define the identifier schema that satisfies §7.2's ownership-resolution requirement; events that span multiple ownership levels must carry every applicable identifier
 - execution specs must define mid-execution user input handling (interrupt, queue, summarize-and-continue, supersede) with a user-configurable default and per-action override; the chosen behavior must produce a recorded continuity decision that satisfies §5.5
-- settings and UI specs must allow users to customize presentation shape per profile, per workspace, and per chat, with a profile default that does not lock the user out of switching
+- settings and UI specs must allow users to customize presentation shape per profile, per workspace, and per conversation, with a profile default that does not lock the user out of switching
 - automation, scheduling, and trigger specs must define how non-user-originated `RunIntent`s attach to intent threads under §5.4

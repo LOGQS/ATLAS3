@@ -36,7 +36,7 @@ This file does not define:
 - block immutability, sibling versioning, lifecycle state machinery, pin states, scope, sensitivity, or descriptions — File 08 owns those
 - the execution ledger row format, event stream wire format, or storage projections — `run.ledger-events-commits` (File 04 §23) owns the contract, File 10 owns the ledger and event schemas, and the future Storage and Persistence spec owns storage schemas
 - the version-graph commit storage or version-tree action-log shape — File 11 owns those; this file specifies which entity transitions emit version-commit boundaries
-- retrieval, indexing, knowledge-base, RAG mechanics, or hybrid-search algorithms — File 12 owns those
+- retrieval, indexing, knowledge-base, retrieval-augmented generation mechanics, or hybrid-search algorithms — File 12 owns those
 - context-assembly, compaction algorithms, token-budget mechanics, or per-policy block selection — File 13 owns those, though this file requires that compaction preserve evidence chains as specified in §11.5
 - memory promotion, salience scoring, recall, decay, or consolidation — File 14 owns those, though this file requires that memory entries whose content originates from a Claim, Artifact, or Evidence record preserve their entity identity
 - run lifecycle, the capability-call pipeline, hook execution, cancellation, streaming, or postcondition validation — File 04 owns those
@@ -166,7 +166,7 @@ An `Artifact` is not:
 - a `Block` — the block is the version's content carrier; the artifact is the cross-version identity. A trivial single-version artifact still has an entity record; the cost is one row.
 - a workspace file — workspace files are one materialization shape (per `MaterializationPolicy: InWorkspace`); the artifact identity does not require disk materialization and may span multiple files or no files.
 - a transcript entry — transcripts may reference artifacts as children of `MessageAssistant` blocks, but the artifact identity is independent of the transcript.
-- a UI element — the same artifact may be rendered in a chat card, an inspector pane, a gallery thumbnail, a comparison board, or an artifact-specific viewer without changing the artifact.
+- a UI element — the same artifact may be rendered in a conversation card, an inspector pane, a gallery thumbnail, a comparison board, or an artifact-specific viewer without changing the artifact.
 - a stored projection — the artifact entity is the source of truth for its identity and its cross-version metadata. Materialized paths, retrieval indices, and surface projections are derived.
 
 ### 3.2 Required Fields
@@ -211,8 +211,8 @@ Every artifact declares its `artifact_kind` at creation. The canonical closed ca
 - `Document` — a textual document: markdown, plain text, structured rich-text, prose report
 - `Note` — a short note or memo distinct from a full document; the entity layer is minimal
 - `Report` — a structured report combining text, charts, citations; typically composed over child blocks
-- `Lesson` — a teacher-domain lesson with sections, examples, exercises (per Teacher domain spec)
-- `Curriculum` — a teacher-domain ordered lesson sequence with prerequisites and progress affordances
+- `Lesson` — a Teacher-surface lesson with sections, examples, exercises (per Teacher surface spec)
+- `Curriculum` — a Teacher-surface ordered lesson sequence with prerequisites and progress affordances
 - `Quiz` — an assessment artifact with prompts, answer keys, grading policy, and feedback rules
 - `ExerciseSet` — a set of practice tasks with expected outputs or solution guidance
 - `FlashcardSet` — a spaced-repetition or study-card collection with fronts, backs, tags, and optional media
@@ -221,11 +221,11 @@ Every artifact declares its `artifact_kind` at creation. The canonical closed ca
 **Code and patches:**
 
 - `CodePatch` — a structured patch over one or more files; carries diff content and target paths
-- `Macro` — a recorded GUI or web action sequence replayable via the appropriate domain's macro executor
+- `Macro` — a recorded GUI or web action sequence replayable via the appropriate surface's macro executor
 
 **Data and tables:**
 
-- `Dataset` — structured tabular or columnar data (per Data Processor domain spec); may reference external storage for large datasets
+- `Dataset` — structured tabular or columnar data (per Data Processor surface spec); may reference external storage for large datasets
 - `Chart` — a generated chart, plot, or visualization; typically inline data plus a renderer hint
 - `Table` — structured tabular data presented inline; small-row count distinguishes from `Dataset`
 
@@ -234,18 +234,18 @@ Every artifact declares its `artifact_kind` at creation. The canonical closed ca
 - `Image` — a generated or captured image
 - `Audio` — a generated or captured audio clip
 - `Video` — a generated or captured video clip
-- `ScreenshotSeries` — an ordered set of screenshots with optional annotations (typically GUI Control or Web domain output)
+- `ScreenshotSeries` — an ordered set of screenshots with optional annotations (typically GUI Control or Web surface output)
 
 **Web and browser:**
 
-- `BrowserExtract` — a structured extract from one or more web pages (per Web domain spec); typically includes text, structured sections, citations
+- `BrowserExtract` — a structured extract from one or more web pages (per Web surface spec); typically includes text, structured sections, citations
 - `WebDocument` — a self-contained HTML/CSS/JS document the user may want to keep, embed, or share
 
 **Notebooks and computational artifacts:**
 
-- `Notebook` — a notebook-style ordered set of cells (per Data Processor domain spec): SQL, transform, chart, code, text, AI cells
+- `Notebook` — a notebook-style ordered set of cells (per Data Processor surface spec): SQL, transform, chart, code, text, AI cells
 - `Diagram` — a structured diagram (Mermaid, Tldraw, hand-drawn, or rendered): system architecture, flowchart, whiteboard scene
-- `PromptFragment` — a reusable prompt fragment authored by user or agent; persisted as artifact for cross-conversation reuse
+- `InstructionFragment` — reusable instruction-source content authored by user or agent; persisted as artifact for cross-conversation reuse
 
 **Workflow and reuse:**
 
@@ -259,9 +259,9 @@ Every artifact declares its `artifact_kind` at creation. The canonical closed ca
 
 **Extension:**
 
-- `Custom { namespace, name }` — domain-specific artifact kind registered by a subsystem, plugin, or user-defined extension through the proposal-first registration mechanism (per `capability.runtime-mutation`, File 05 §16.2). The `namespace` matches the canonical sourcing taxonomy (per `capability.capability-source`, File 05 §9.1). The `name` is the kind id within that namespace.
+- `Custom { namespace, name }` — specialized artifact kind registered by a subsystem, surface, plugin, or user-defined extension through the proposal-first registration mechanism (per `capability.runtime-mutation`, File 05 §16.2). The `namespace` matches the canonical sourcing taxonomy (per `capability.capability-source`, File 05 §9.1). The `name` is the kind id within that namespace.
 
-The closed catalogue is canonical for cross-cutting reasoning. The `Custom` extension is canonical for domain specialization. Every artifact at runtime belongs to exactly one of these — no artifact ever has an unparseable kind.
+The closed catalogue is canonical for cross-cutting reasoning. The `Custom` extension is canonical for specialization. Every artifact at runtime belongs to exactly one of these — no artifact ever has an unparseable kind.
 
 ### 4.2 Kind Composition Rules
 
@@ -271,8 +271,8 @@ The catalogue is not free-form. The following composition rules apply:
 - `Dataset` artifacts whose row count or byte size exceeds the inline-size threshold (per `block.inline-size-threshold`, File 08 §4.2) must use `External` content; small datasets may use `Inline`
 - `Image`, `Audio`, `Video`, `ScreenshotSeries` artifacts must use `External` content (per the file-management spec's image/audio/video size considerations); inline payloads for these kinds are an Explicit Rejection (§21)
 - `CodePatch` artifacts may use `Inline` for small patches; large patches default to `External` and carry the diff format hint in metadata
-- `Macro` artifacts use `Inline` content for the macro DSL (per the GUI Control or Web domain macro format) regardless of size, because macros are inspected and edited as structured records
-- `WorkflowTemplate`, `Adapter`, `Validator`, `PromptFragment` artifacts are typically `Inline` for inspectability; they may use `External` only when the payload genuinely exceeds practical inline storage
+- `Macro` artifacts use `Inline` content for the macro DSL (per the GUI Control or Web surface macro format) regardless of size, because macros are inspected and edited as structured records
+- `WorkflowTemplate`, `Adapter`, `Validator`, `InstructionFragment` artifacts are typically `Inline` for inspectability; they may use `External` only when the payload genuinely exceeds practical inline storage
 - `Custom` artifacts inherit their composition rules from the kind's registration declaration
 
 These rules are enforced at version-commit time by the artifact commit validator.
@@ -400,7 +400,7 @@ A new `ArtifactVersion` is created when one of the following capability invocati
 
 - `artifact.create` — first version of a new artifact; assigns `artifact_id`, `version_number = 1`, `parent_version_id = null`
 - `artifact.commit_version` — subsequent versions; takes the new content (Inline / External / Composed), the artifact_id, an optional derivation summary, and an optional new title; commits the new `Artifact`-kind block, sets `parent_version_id` to the prior current version, advances `version_number`, updates the entity's `current_version_block_id`
-- `file.edit` or `file.create` on a path that maps to an existing `Artifact: InWorkspace` materialization — the file-management subsystem (per File 08's file-block contract and the future Coder domain spec's file-edit flow) commits a sibling `Artifact`-kind block as the new version; the entity record updates to point at the new version
+- `file.edit` or `file.create` on a path that maps to an existing `Artifact: InWorkspace` materialization — the file-management subsystem (per File 08's file-block contract and the future Coder surface spec's file-edit flow) commits a sibling `Artifact`-kind block as the new version; the entity record updates to point at the new version
 - `artifact.merge` — produces a new version composed over two or more existing versions (typically for best-of-N selection or for explicit version merges); the new version's `parent_version_id` is set to one parent (the merge's principal parent), and additional parents are linked through `derives_from` edges per `block.canonical-edge-kinds` (File 08 §5.2)
 
 Version commit boundaries match `block.commit-boundary-set` (File 08 §7.6) — `accepted assistant turn`, `capability completion`, `inspector apply`, `workflow node complete`, `import`, `consolidation`, `manual draft commit`, or a subsystem-internal boundary that the capability declares.
@@ -423,7 +423,7 @@ Anchor: `artifact.artifact-materialization`
 
 - `InWorkspace` — the artifact version's content is written to a workspace path. The path is computed from `(workspace_id, artifact_id, artifact_kind, version_id)` per the workspace-materialization spec (the future Workspaces and Materialization spec defines the path-resolution algorithm; the canonical default places artifacts under `<workspace>/.atlas/artifacts/<artifact_id>/<version_id>/` with a kind-typed leaf filename). Default for `Document`, `CodePatch`, `Notebook`, `Image`, `Audio`, `Video`, `Chart` artifact kinds whose containing scope is workspace or narrower.
 - `ExternalRef` — the artifact version's content lives in external storage (cloud bucket, content-addressed external store, MCP-server-hosted resource). The version-block uses `BlockContent::External` with the appropriate storage_ref. Materialization is the act of binding the external reference; no local file is written by default. The user may opt to cache an external artifact locally; cache state is per-installation and does not change the artifact's identity.
-- `None` — the artifact has no materialization beyond the version-block itself. Used for `Note`, `PromptFragment`, `Validator`, `Adapter` artifacts whose content is fully consumed inline. The version-block's `BlockContent::Inline` payload is the artifact.
+- `None` — the artifact has no materialization beyond the version-block itself. Used for `Note`, `InstructionFragment`, `Validator`, `Adapter` artifacts whose content is fully consumed inline. The version-block's `BlockContent::Inline` payload is the artifact.
 
 The `MaterializationPolicy` is part of the entity record. Changing it requires the `artifact.update_materialization_policy` capability and creates an audit-visible event (§20). Changes apply to new versions; existing versions retain their original policy.
 
@@ -543,7 +543,7 @@ A `Claim` block is a canonical extension to `block.kind-catalogue` (File 08 §3.
 A `Claim` is not:
 
 - a fact — the claim is the assertion that something is the case; whether the assertion is supported is a separate matter resolved through evidence linking
-- a chat message — a `MessageAssistant` block may contain text that asserts something; the assertion only becomes a `Claim` entity when explicitly published via `claim.publish` or automatically extracted under settings opt-in
+- a conversation message — a `MessageAssistant` block may contain text that asserts something; the assertion only becomes a `Claim` entity when explicitly published via `claim.publish` or automatically extracted under settings opt-in
 - a memory entry — `Memory` blocks (per `block.kind-catalogue`, File 08 §3.1) may consolidate claims into long-term knowledge; the memory mechanics are File 14's concern
 - a knowledge-base entry — File 12 defines knowledge entries; they may reference claims through `cites` or `references`, but a claim is not by default a knowledge entry
 
@@ -575,7 +575,7 @@ Effective `ClaimStatus`, withdrawal, supersession, and explicit override reason 
 - `Identity` — asserts identity or non-identity ("commit a and commit b have the same effect", "file X is unrelated to file Y")
 - `Summary` — asserts that a longer body of evidence summarizes to a given claim
 - `Negation` — asserts that something is not the case
-- `Custom { namespace, name }` — domain-specific kind
+- `Custom { namespace, name }` — specialized kind
 
 ### 9.4 `ClaimStatus`
 
@@ -660,7 +660,7 @@ Publication commits a new `Claim`-kind block per `block.commit-boundary-set` (Fi
 Automatic claim extraction is opt-in per scope (default off) and task-specific. It is strongest for web research, source-dependent reports, knowledge-base work, validation output, and other flows where cited assertions are valuable; it is not a default requirement for ordinary task execution. When enabled:
 
 - a designated extractor model runs post-commit on accepted `MessageAssistant` blocks within the configured scope
-- candidate claims are identified by the extractor against a configured policy prompt (registry-managed per `policy.agent-exposure-policy-settings` (File 06 §16.4)'s pattern); each candidate is a tuple `(claim_text, claim_kind, confidence_class, source_span)`
+- candidate claims are identified by the extractor against a configured extraction model-request template (registry-managed per `policy.agent-exposure-policy-settings` (File 06 §16.4)'s pattern); each candidate is a tuple `(claim_text, claim_kind, confidence_class, source_span)`
 - each candidate is committed as a `Claim` block via the same `claim.publish` capability, with derived status initially resolving to `Candidate` and the extracted source-span as anchor
 - extracted claims default to `Sensitive` until user review (regardless of the source block's sensitivity); the `claim.review` UI surfaces them for explicit acceptance or rejection
 
@@ -668,15 +668,15 @@ The settings governing extraction (per §19):
 
 - `claim.auto_extraction.enabled` per scope (default false)
 - `claim.auto_extraction.model_id` — the extractor model
-- `claim.auto_extraction.policy_prompt_id` — the extraction prompt
+- `claim.auto_extraction.model_request_template_id` — the extraction model-request template
 - `claim.auto_extraction.minimum_confidence_class` — discard candidates below this class
 - `claim.auto_extraction.review_required` — when true, extracted claims wait in `Candidate` status until explicit user review; when false, they proceed to derived status immediately
 
-Automatic extraction always emits per-extraction `ClaimAutoExtracted` events with the extractor model identity, the policy prompt id, the source block reference, and the extracted candidate.
+Automatic extraction always emits per-extraction `ClaimAutoExtracted` events with the extractor model identity, the model-request template id, the source block reference, and the extracted candidate.
 
 ### 10.3 Boundary
 
-Extraction is a content-analysis operation that produces `Claim` blocks through the normal capability pipeline. The extractor model selection, policy prompt registration, and confidence-threshold tuning are settings concerns. The retrieval and memory subsystems may consume extracted claims as inputs, but those mechanics are owned by Files 12 and 14.
+Extraction is a content-analysis operation that produces `Claim` blocks through the normal capability pipeline. The extractor model selection, model-request template registration, and confidence-threshold tuning are settings concerns. The retrieval and memory subsystems may consume extracted claims as inputs, but those mechanics are owned by Files 12 and 14.
 
 ## 11. `Evidence`
 
@@ -843,7 +843,7 @@ File 09 specifies the content shape and the staleness-fingerprint contract:
 `ObservationKind` is closed canonical with the standard `Custom { namespace, name }` extension:
 
 - `FileSnapshot` — content snapshot of a file at a path; payload includes content hash, mtime, byte length
-- `AccessibilityTreeSnapshot` — captured accessibility tree from a desktop application (per GUI Control domain spec); payload includes role-based filtered tree
+- `AccessibilityTreeSnapshot` — captured accessibility tree from a desktop application (per GUI Control surface spec); payload includes role-based filtered tree
 - `Screenshot` — pixel-data screenshot; payload references the external image blob; metadata includes scale factor, capture region, optional OCR text
 - `BrowserDom` — captured DOM extract from a web page; payload includes URL, captured HTML, optional viewport metadata
 - `NetworkResponseSnapshot` — captured HTTP response (status, headers, body); used for replayable web automation
@@ -853,7 +853,7 @@ File 09 specifies the content shape and the staleness-fingerprint contract:
 - `EnvironmentSnapshot` — captured environment variables, current working directory, shell version, OS version
 - `RepositoryState` — captured git state (branch, commit, working-tree status, staged changes)
 - `WorkspaceSnapshot` — captured workspace state (open files, materialized artifacts, active settings)
-- `Custom { namespace, name }` — domain-specific observation kind
+- `Custom { namespace, name }` — specialized observation kind
 
 ### 13.3 `StalenessFingerprint`
 
@@ -878,7 +878,7 @@ Observations participate in replay (per `run.ledger-events-commits`, File 04 §2
 
 ### 13.5 Boundary
 
-Observations are blocks; their content carriage is File 08's concern. This file specifies the kind catalogue, the staleness-fingerprint contract, and the replay use. Per-domain observation production rules (e.g., GUI Control's three-tier perception, Web's fetch tiers) are owned by those domain specs; their committed observations conform to the canonical contract here.
+Observations are blocks; their content carriage is File 08's concern. This file specifies the kind catalogue, the staleness-fingerprint contract, and the replay use. Surface- and subsystem-specific observation production rules (e.g., GUI Control's three-tier perception, Web's fetch tiers) are owned by those specs; their committed observations conform to the canonical contract here.
 
 ## 14. `Validation` and `Critique`
 
@@ -898,7 +898,7 @@ A `Validation` block's content carries:
 - `outcome` — typed `ValidationOutcome` enum: `Passed`, `Failed`, `Inconclusive`
 - `validated_target_id` — `block_id` (or `artifact_id` plus version reference, or `claim_id`) of the target being validated
 - `validator_kind` — typed enum: `Deterministic`, `ModelMediated`, `UserManual`
-- `validator_reference` — for `Deterministic`, the validator capability id; for `ModelMediated`, the validator model id plus policy prompt id; for `UserManual`, the user id
+- `validator_reference` — for `Deterministic`, the validator capability id; for `ModelMediated`, the validator model id plus policy model-request template id; for `UserManual`, the user id
 - `failure_details` — when `outcome` is `Failed`, structured details (rule violated, expected value, actual value)
 - `inconclusive_reason` — when `outcome` is `Inconclusive`, structured reason
 - `latency_ms` — runtime spent validating
@@ -936,7 +936,7 @@ The derivation is recomputed on every read of the target's validation state. Cac
 The `run.termination` (File 04 §22) completion-verification hook surface produces `Validation` blocks. The integration:
 
 - a deterministic check (postcondition validator) registered through `run.hook-integration` (File 04 §23.3)'s hook mechanism commits a `Validation` block with `validator_kind: Deterministic`, `validator_reference` set to the validator capability id, and `outcome` set to the check's result
-- a model-mediated check (designated model evaluating the target against an expected outcome) commits a `Validation` block with `validator_kind: ModelMediated`, `validator_reference` set to the model id and policy prompt id, and `outcome` set to the model's verdict
+- a model-mediated check (designated model evaluating the target against an expected outcome) commits a `Validation` block with `validator_kind: ModelMediated`, `validator_reference` set to the model id and policy model-request template id, and `outcome` set to the model's verdict
 - a user-applied validation (the user clicking "Mark validated" on an artifact) commits a `Validation` block with `validator_kind: UserManual`
 
 `validation.run(target_id, validation_kind?)` is the canonical capability for explicit validation invocation. Its tier is resolved from the validator capability and touched resources: pure read validators that only produce `Validation`/`Evidence` blocks are `ReadOnly`; validators that execute code, mutate files, use credentials, publish externally, or change sandbox state inherit the appropriate write or approval tier.
@@ -953,7 +953,7 @@ A critique may produce a validation (by recommending the validator be run); the 
 
 ### 14.5 Boundary
 
-Validation and critique are block-level records; this file specifies their content, the validation-state derivation, and the hook-surface integration. Per-domain validators (Coder's type checkers, Data Processor's data-validation framework, Teacher's quiz graders) register through the canonical mechanism and produce the canonical block shapes.
+Validation and critique are block-level records; this file specifies their content, the validation-state derivation, and the hook-surface integration. Surface- and subsystem-specific validators (Coder's type checkers, Data Processor's data-validation framework, Teacher's quiz graders) register through the canonical mechanism and produce the canonical block shapes.
 
 ## 15. `Provenance`
 
@@ -1054,7 +1054,7 @@ File 09 declares the following canonical entity-level capabilities. Each is a bu
 **Observation capabilities:**
 
 - `observation.commit(observation_kind, payload, observation_subject, staleness_fingerprint?, capture_context?)` — explicit observation commit; usually `ReadOnly` when recording a read result, but escalates when the observation is published to a reusable catalogue or touches sensitive resources
-- the per-domain observation-producing capabilities (file.read, web.fetch, gui.snapshot, browser.snapshot, data.profile, etc.) commit `Observation` blocks as part of their normal execution per their declared `output_block_kinds`
+- the surface- and subsystem-specific observation-producing capabilities (file.read, web.fetch, gui.snapshot, browser.snapshot, data.profile, etc.) commit `Observation` blocks as part of their normal execution per their declared `output_block_kinds`
 
 **Validation capabilities:**
 
@@ -1077,11 +1077,11 @@ Every capability above declares the canonical `capability.declaration` (File 05 
 - `touched_resources` declarations name the entity pools the capability reads or writes; this file declares extension resource classes (`artifact-pool`, `claim-pool`, `evidence-link-pool`, `provenance-cache`) registered through `capability.extension-resource-classes` (File 05 §6.3)'s extension mechanism
 - `replay_class` declarations follow `capability.replay-class` (File 05 §7.3): most artifact/claim/evidence operations are `effect_replayable_with_policy` because re-publishing identical content would create duplicate entities; provenance queries are `deterministic_replayable`
 - durable result blocks produced by a read-only capability do not by themselves raise the tier; explicit publication to reusable entity pools, external destinations, or broader scopes does
-- `data_sensitivity` defaults to `Public` for entity capabilities; subsystems may declare narrower defaults per their domain (e.g., a teacher domain's `lesson.publish` may default to `Sensitive` when the lesson contains learner-private content)
+- `data_sensitivity` defaults to `Public` for entity capabilities; subsystems may declare narrower defaults per their surface or specialization (e.g., a Teacher surface's `lesson.publish` may default to `Sensitive` when the lesson contains learner-private content)
 
 ### 16.3 Boundary
 
-Capabilities are declared per File 05; their execution flows through `run.call-pipeline` (File 04 §8.2)'s pipeline; their approval flows through File 06's policy machinery; their surfacing follows File 07's composition algorithm. This file specifies the canonical entity-capability set as built-in declarations; per-domain extensions register additional capabilities through the same canonical mechanism.
+Capabilities are declared per File 05; their execution flows through `run.call-pipeline` (File 04 §8.2)'s pipeline; their approval flows through File 06's policy machinery; their surfacing follows File 07's composition algorithm. This file specifies the canonical entity-capability set as built-in declarations; surface- and subsystem-specific extensions register additional capabilities through the same canonical mechanism.
 
 ## 17. Cross-Surface Interoperability
 
@@ -1097,10 +1097,10 @@ Anchor: `artifact.per-surface-projections`
 
 Each surface projects the entity pool through surface-specific filters:
 
-- the Coder surface presents `CodePatch`, `Document` (markdown), `Notebook` (when domain-relevant), and the file-system view of materialized artifacts; the inspector shows artifact lifecycle and review state
+- the Coder surface presents `CodePatch`, `Document` (markdown), `Notebook` (when surface-relevant), and the file-system view of materialized artifacts; the inspector shows artifact lifecycle and review state
 - the Web surface presents `BrowserExtract`, `WebDocument`, `Image` (page screenshots), `Citation` (cited sources), and the Research Canvas projection of evidence-link graphs
 - the Data Processor surface presents `Dataset`, `Chart`, `Notebook`, `Table`, plus the data-lineage projection of `derives_from` edges
-- the Teacher surface presents `Lesson`, `Curriculum`, `Quiz`, `ExerciseSet`, `FlashcardSet`, `Rubric`, plus custom teacher-domain artifact kinds for specialized pedagogy and learner-progress projections
+- the Teacher surface presents `Lesson`, `Curriculum`, `Quiz`, `ExerciseSet`, `FlashcardSet`, `Rubric`, plus custom Teacher-surface artifact kinds for specialized pedagogy and learner-progress projections
 - the GUI Control surface presents `Macro`, `ScreenshotSeries`, `Observation` (UI tree snapshots), plus action-replay projections
 - the System Agent surface presents change records as artifact-like outputs with rollback projections (the future System Agent spec declares its specific kinds)
 - the Memory surface (substrate-service) presents `Memory`-kind blocks (per `block.kind-catalogue`, File 08 §3.1) and the knowledge-base projection over claims and citations
@@ -1206,7 +1206,7 @@ Every entity mechanism in this file is configurable through settings (per `core.
 - `claim.evidence_threshold` — minimum aggregate confidence required for `Supported` status (default `Plausible`)
 - `claim.auto_extraction.enabled` per scope
 - `claim.auto_extraction.model_id`
-- `claim.auto_extraction.policy_prompt_id`
+- `claim.auto_extraction.model_request_template_id`
 - `claim.auto_extraction.minimum_confidence_class` (default `Plausible`)
 - `claim.auto_extraction.review_required` (default true)
 - `claim.surface_display.confidence_class_filter` — minimum class to surface by default
@@ -1254,9 +1254,9 @@ Every entity mechanism in this file is configurable through settings (per `core.
 
 **Agent exposure dimensions** (per `policy.agent-exposure-policy-settings`, File 06 §16.4 and `block.settings` (File 08 §14)):
 
-- `artifact.kind_catalogue_visible_to_agent` — whether the agent sees the canonical and custom artifact kinds in model-request text (default `InPrompt` for canonical, `OnRequest` for custom)
-- `claim.confidence_class_exposure` — whether `ClaimConfidenceClass` is part of model-request rendering of claims (default `InPrompt`)
-- `evidence.relation_exposure` — whether `EvidenceRelation` and confidence appear in model-request rendering of evidence-link edges (default `InPrompt`)
+- `artifact.kind_catalogue_visible_to_agent` — whether the agent sees the canonical and custom artifact kinds in model-request text (default `InModelRequest` for canonical, `OnRequest` for custom)
+- `claim.confidence_class_exposure` — whether `ClaimConfidenceClass` is part of model-request rendering of claims (default `InModelRequest`)
+- `evidence.relation_exposure` — whether `EvidenceRelation` and confidence appear in model-request rendering of evidence-link edges (default `InModelRequest`)
 - `provenance.query_exposure` — whether provenance queries are surfaced to the agent as primary or borrowable capabilities (default `Borrowable`)
 
 ### 19.2 Settings-Key Convention
@@ -1300,7 +1300,7 @@ Every committed entity-relevant input change, mutation, or query emits a typed e
 - `ClaimStatusOverridden { claim_id, new_status, reason, actor }`
 - `ClaimWithdrawn { claim_id, reason, actor }`
 - `ClaimSuperseded { prior_claim_id, new_claim_id, derivation_summary }`
-- `ClaimAutoExtracted { claim_id, source_block_id, extractor_model_id, policy_prompt_id }`
+- `ClaimAutoExtracted { claim_id, source_block_id, extractor_model_id, model_request_template_id }`
 - `ClaimReviewCompleted { claim_id, decision, reviewer_id }`
 
 **Evidence events:**
@@ -1393,7 +1393,7 @@ Later specs must follow these rules:
 - The model strategy, profiles, and selection spec must allow per-claim-confidence-class model selection (e.g., low-confidence claim publication may use a cheaper model, high-confidence requires the user's primary model).
 - The provider layer, rate limits, and usage accounting spec must record per-call provider/model attribution that the provenance layer consumes through `provenance.query_replay_trace`.
 - The world model and state-awareness spec must treat artifacts, claims, and observations as part of the world state available to agents; the available-capability set must filter entity capabilities based on the entity catalogue (e.g., `artifact.commit_version` requires the artifact entity to exist).
-- The perception and observation pipelines spec must produce `Observation` blocks conforming to §13's contract (kind, payload, staleness fingerprint) and route observations through the canonical `observation.commit` path for cross-domain inspection.
+- The perception and observation pipelines spec must produce `Observation` blocks conforming to §13's contract (kind, payload, staleness fingerprint) and route observations through the canonical `observation.commit` path for cross-surface/subsystem inspection.
 - The storage and persistence spec must store the entity-record field sets, the version metadata records, the evidence-link edge metadata, the materialized-paths records, and the tombstone rows per the contracts in §18; it must rebuild derived state (lifecycle, status, evidence-set closure) deterministically from the source action log and graph.
 - The sync, import, export, and data portability spec must preserve artifact identity, claim identity, evidence-link relations, and provenance chains across export and import; imported entities receive `Import` producer records per `block.block` (File 08 §2.2) and continue to participate in provenance queries through the future cross-installation mapping table.
 - The security, credentials, and trust boundaries spec must treat `Secret`-sensitivity citations, observations, and evidence with the same redaction discipline `block.sensitivity` (File 08 §9) establishes for `Secret` blocks; raw secrets in observations must be redacted at commit.

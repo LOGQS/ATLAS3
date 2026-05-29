@@ -26,7 +26,7 @@ This file defines:
 This file does not define:
 
 - the policy engine, lease evaluation, approval UI, or runtime tier resolution mechanics — File 06 owns those
-- tool-surface zones, prompt visibility, deferred loading, or capability-borrowing UX — File 07 owns those
+- tool-surface zones, model-request visibility, deferred loading, or capability-borrowing UX — File 07 owns those
 - run lifecycle, execution graph, hook execution mechanics, or runtime input coercion mechanics — File 04 owns those
 - routing or `RunIntent` selection — File 03 owns those
 - block schema, artifact lifecycle, evidence model — Files 08 and 09 own those
@@ -42,7 +42,7 @@ Resolved design:
 - Capability is the single operation primitive; earlier Action-style interfaces are superseded by the full Capability contract.
 - The registry stores immutable, versioned declarations with identity, schema, touched resources, effects, risk, preview, postcondition, and presentation metadata.
 - Work surfaces, substrate services, plugins, MCP servers, workflows, scripts, and user-defined operations all register capabilities through the same contract.
-- Capability declarations are metadata, not approval decisions, prompt surfaces, execution records, or UI widgets.
+- Capability declarations are metadata, not approval decisions, model-request surfaces, execution records, or UI widgets.
 - Later policy, tool-surface, execution, automation, and plugin specs consume this contract instead of inventing parallel operation metadata.
 
 ## 1. Chosen Model
@@ -86,8 +86,8 @@ A `Capability` is a typed, named, registered, versioned operation the system can
 A `Capability` is not:
 
 - a UI button or menu item (those are presentations of one or more capabilities)
-- a chat message kind (capability invocations produce typed blocks; the message is the transcript carrier)
-- a model prompt fragment (the prompt may describe a capability, but the capability exists in the registry independent of any prompt)
+- a conversation message kind (capability invocations produce typed blocks; the message is the transcript carrier)
+- model-request text content (the model request may describe a capability, but the capability exists in the registry independent of any rendered request)
 - a transient runtime concept (capabilities have durable identity and version)
 - a single function pointer (the contract is the declaration; the resolved handler binding is one field of the registered entry)
 
@@ -191,7 +191,7 @@ Plus declaration-owned additions:
 
 - `terminates_sequence`: optional bool — when true, signals to batch-execution callers that this capability changes external state in ways that invalidate queued sibling calls; used for safe sequencing of state-mutating capabilities
 - `replay_class`: `deterministic_replayable`, `snapshot_replayable`, `effect_replayable_with_policy`, `not_replayable` (§7.3)
-- `classification_mode`: per-field directive that names how each of the above fields is determined — `Deterministic` (declared once, fixed) or `ModelMediated { policy_prompt_id }` (a designated model classifies per call against a configured policy prompt) — applied to fields that cannot be statically declared for all calls (`reversibility_class` for shell-style capabilities). The declaration names the mode; the per-call resolved value lives on the invocation record (§11).
+- `classification_mode`: per-field directive that names how each of the above fields is determined — `Deterministic` (declared once, fixed) or `ModelMediated { policy_model_request_template_id }` (a designated model classifies per call against a configured policy model-request template) — applied to fields that cannot be statically declared for all calls (`reversibility_class` for shell-style capabilities). The declaration names the mode; the per-call resolved value lives on the invocation record (§11).
 
 ### 3.7 Validation Fields
 
@@ -428,7 +428,7 @@ Anchor: `capability.classification-mode`
 For declaration fields where a single static value is not meaningful (a `shell.exec` cannot declare one `reversibility_class` for all bash commands), the declaration carries a per-field `classification_mode`:
 
 - `Deterministic` — the declared static value applies for every call
-- `ModelMediated { policy_prompt_id }` — a designated classifier model evaluates the specific call against the configured policy prompt and returns a per-call value; the prompt is registry-managed and inspectable
+- `ModelMediated { policy_model_request_template_id }` — a designated classifier model evaluates the specific call against the configured policy model-request template and returns a per-call value; the template is registry-managed and inspectable
 
 `classification_mode` is per-field, not per-capability. A capability may declare `reversibility_class` as model-mediated while declaring `concurrency` as static. The model-mediated mode pays an extra model-call cost per dispatch and is therefore used selectively; the default is `Deterministic`.
 
@@ -571,7 +571,7 @@ A `RegisteredCapability` is the live registry entry produced when a `CapabilityD
 
 Registry state mutates. Settings changes, plugin updates, MCP server reconnection, platform changes, and trust overrides update the registered entry without changing the declaration. A declaration's `(id, version)` is immutable for the registered entry's lifetime; producing a new declaration version produces a new registered entry that supersedes the old (per §16.4 update semantics).
 
-Mutations emit registry events (§12.2) so surfaces, settings, and the action-discovery projection react.
+Mutations emit registry events (§12.2) so surfaces, settings, and the capability-discovery projection react.
 
 ### 10.3 Inactive Entries Remain Inspectable
 
@@ -604,7 +604,7 @@ Per-call resolved facts that are not declaration fields:
 - invocation arguments (after schema validation and any declared input-validator corrections per §8.1)
 - resolved permission tier (the value returned by `TierResolver` per §5.2)
 - resolved touched resources (the concrete resources produced by evaluating typed expressions against the arguments per §6)
-- resolved model-mediated classifications (per-field values produced by `ModelMediated { policy_prompt_id }` classifiers per §7.2)
+- resolved model-mediated classifications (per-field values produced by `ModelMediated { policy_model_request_template_id }` classifiers per §7.2)
 - selected backend binding instance (which MCP server connection, which Wasm module instance) at the moment of dispatch
 - policy decision (lease consulted, approval mode chosen, contradiction-checks performed) — per File 06
 - proposal id, ledger entry id, event sequence
@@ -638,7 +638,7 @@ The registry resolves; the executor invokes. The registry owns: registration, lo
 
 Anchor: `capability.events`
 
-Registration emits `CapabilityRegistered`, unregistration emits `CapabilityUnregistered`, update emits `CapabilityUpdated`, enable/disable emits `CapabilityEnabledChanged`, registry-state mutations (binding rebound, trust override applied, collision resolved, availability changed) emit `CapabilityRegistryStateChanged`. Subscribers (surfaces, settings, the action-discovery projection for agents) react to these events.
+Registration emits `CapabilityRegistered`, unregistration emits `CapabilityUnregistered`, update emits `CapabilityUpdated`, enable/disable emits `CapabilityEnabledChanged`, registry-state mutations (binding rebound, trust override applied, collision resolved, availability changed) emit `CapabilityRegistryStateChanged`. Subscribers (surfaces, settings, the capability-discovery projection for agents) react to these events.
 
 ### 12.3 Registration Mechanics
 
@@ -651,7 +651,7 @@ Registration is declarative and idempotent. A subsystem, plugin, or runtime regi
 5. Computes registry state (registered_at, declared_trust_hint, source_instance reference)
 6. Inserts the registered entry into the live registry
 7. Emits `CapabilityRegistered`
-8. Updates derived projections (action-discovery for the agent, command-palette index, voice-command map, automation trigger-target list)
+8. Updates derived projections (capability-discovery for the agent, command-palette index, voice-command map, automation trigger-target list)
 
 Registration may fail with typed errors: `IdentifierCollision`, `InvalidDeclaration`, `HandlerUnresolved`, `SchemaTooNew`, `SourceConflict`, `UnparseableResourceExpression`. Failed registrations leave the registry unchanged.
 
@@ -746,7 +746,7 @@ Source priority does not auto-override. A user-defined capability that wishes to
 
 ### 14.3 Layered Resources
 
-Skills, instruction packs, prompt fragments, and workflow templates are not capabilities; they are separate primitives with their own layered resolution (per File 04 and the future capability-extension and skill specs). File 05 does not specify layering for those resources. Where a capability ingests such a layered resource, the capability declares the layer policy (`project > workspace > user > plugin > builtin` or equivalent) and consumes the resolved value.
+Skills, instruction packs, instruction fragments, and workflow templates are not capabilities; they are separate primitives with their own layered resolution (per File 04 and the future capability-extension and skill specs). File 05 does not specify layering for those resources. Where a capability ingests such a layered resource, the capability declares the layer policy (`project > workspace > user > plugin > builtin` or equivalent) and consumes the resolved value.
 
 ### 14.4 Cross-Source Coexistence
 
@@ -840,7 +840,7 @@ Capabilities may register, update, and unregister at runtime:
 
 Registration is a capability call. Capability registration, plugin installation, MCP connection, external-API definition import, user-script registration, and subsystem registration are themselves capabilities. They flow through the `run.call-pipeline` (File 04 §8.2) execution pipeline and the policy layer like any other call. Runtime registration APIs are not privileged side doors; the agent cannot self-promote registration without user approval.
 
-Registration proposals preview source, declared permissions, declared touched resources, declared replay class, declared trust hint, persistence scope, and backend kind so the user can make an informed accept/configure/deny decision. The exact proposal shape and approval mode is configurable per source class. The default behavior must keep ATLAS3 safe; users can override the default per source (auto-approve trusted sources, prompt-each-time for untrusted, deny outright) so customizability and safety co-exist.
+Registration proposals preview source, declared permissions, declared touched resources, declared replay class, declared trust hint, persistence scope, and backend kind so the user can make an informed accept/configure/deny decision. The exact proposal shape and approval mode is configurable per source class. The default behavior must keep ATLAS3 safe; users can override the default per source (auto-approve trusted sources, ask-each-time for untrusted, deny outright) so customizability and safety co-exist.
 
 ### 16.3 `enabled`
 
@@ -942,10 +942,10 @@ Dimensions and ownership:
 - per-capability cost-model overrides and budget caps — declaration carries the dimension; budget enforcement lives in the runtime/budget layer
 - per-capability telemetry enablement and verbosity — declaration carries the dimension; resolution lives in the future Telemetry spec
 - per-source user trust overrides — registered entry carries the override separately from source-authored trust; effective trust is resolved by File 06
-- registry-wide collision behavior (warn vs reject vs prompt-on-override) — registry-owned
+- registry-wide collision behavior (warn vs reject vs ask-on-override) — registry-owned
 - discovery-capability enablement (`tool.search`, `mcp.search`, `extensions.search_registry`) — registry-owned
 - alias deprecation enforcement (warn vs refuse on use of deprecated aliases) — registry-owned
-- runtime-registration enablement: whether the agent is permitted to invoke `tools.register_custom`, `extensions.install`, `subsystems.register`, and equivalent registration capabilities at all (off, prompt-each-time, allowlist of trusted sources, allow) — declaration carries the dimension; resolution lives in File 06 and the future Extension/Plugin specs
+- runtime-registration enablement: whether the agent is permitted to invoke `tools.register_custom`, `extensions.install`, `subsystems.register`, and equivalent registration capabilities at all (off, ask-each-time, allowlist of trusted sources, allow) — declaration carries the dimension; resolution lives in File 06 and the future Extension/Plugin specs
 - per-capability availability-predicate overrides for users who want to expose normally-hidden capabilities at their own risk — declaration carries the dimension; resolution lives in the future world-state spec
 - platform-availability surface visibility (whether `unavailable_platform` entries appear in the default discovery view or only in advanced settings) — registry/surface-owned
 - source-approval risk thresholds and defer/cancel fallback behavior — registered entry carries the relevant source state; resolution lives in File 06
@@ -974,7 +974,7 @@ The following shapes are wrong for this layer:
 - capability handlers that touch resources or invoke other capabilities outside their declared scope — this is "capability leakage" and violates the contract
 - source trust rewriting declared fields — the registered declaration is the contract; trust state is separate registry metadata; effective tier is computed by policy at call time
 - argument-aware permission-tier expressed as duplicate id variants — use `TierResolver::Dynamic` instead
-- prompt-only capability extension (extending agent behavior by injecting instructions into the system prompt without registering a capability) — agent-invokable behavior must register
+- model-request-only capability extension (extending agent behavior by injecting instructions into model-request instructions without registering a capability) — agent-invokable behavior must register
 - runtime registration that bypasses the user's approval — the user must explicitly approve the registration capability invocation; the agent cannot self-promote without that approval
 - capability ids that conflict with the namespace separators or the source-prefix conventions
 - declaring a closure-backed capability with `replay_class` above `not_replayable` — closures are not portable across processes and breaking that invariant breaks reproducibility

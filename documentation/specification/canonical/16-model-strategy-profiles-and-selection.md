@@ -38,7 +38,7 @@ Resolved design:
 
 - Stable model facts, provider/account offerings, and runtime state are separate inputs. Model Strategy consumes all three but owns only selection semantics.
 - `ModelCapabilityDescriptor` is provider-invariant and capability-focused. Pricing, free-tier status, speed, rate limits, availability, credentials, provider health, and retry timing are not descriptor fields.
-- `ModelProfile` is a registered model-use configuration. It is not a File 15 `Profile`, execution mode, participation level, provider configuration, or user account.
+- `ModelProfile` is a registered model-use configuration. It is not a File 15 `Profile`, execution mode, interaction shape, provider configuration, or user account.
 - Workload selection is expressed as hard requirements plus preferences, not a single task label or confidence threshold.
 - Selection is deterministic, explainable, replayable, and recorded per model-bound step.
 - Fallback never relaxes hard requirements silently. Compatibility is revalidated after model change and after final context assembly.
@@ -227,7 +227,7 @@ A `ModelProfile` is not:
 - a provider account
 - a provider transport configuration
 - an execution mode
-- a participation level
+- an interaction shape
 - a frontend presentation state
 
 ### 4.2 Required Fields
@@ -273,7 +273,7 @@ Profiles may declare semantic behavioral intents:
 - latency posture
 - cost posture
 - cache-continuity preference
-- prompt/style template reference consumed by File 13
+- model-request/style template reference consumed by File 13
 - stop-sequence preference
 
 These are intents, not provider wire fields. Provider adapters map resolved intents to provider-native request parameters in File 17.
@@ -481,7 +481,7 @@ It must record:
 - data-boundary decision reference
 - final tie-breaker explanation
 
-The record stores enough to replay and inspect the decision without dumping raw provider/account secrets or full prompt contents. Route records and ledger entries reference the selection record rather than duplicating the full decision.
+The record stores enough to replay and inspect the decision without dumping raw provider/account secrets or full model-request contents. Route records and ledger entries reference the selection record rather than duplicating the full decision.
 
 ## 9. Fallback Policy
 
@@ -516,9 +516,9 @@ Fallback consumes typed provider/model failures from File 17:
 
 File 17 may retry the same model before surfacing one of these failures. Once File 16 is asked to act, fallback means selecting a different compatible candidate or surfacing the failure.
 
-### 9.3 Actions
+### 9.3 Fallback Responses
 
-Allowed fallback actions:
+Allowed fallback responses:
 
 - `RetryWithModel { provider_id, model_id }`
 - `RetryWithProfile { profile_id }`
@@ -528,7 +528,7 @@ Allowed fallback actions:
 - `SurfaceToUser { options }`
 - `StopWithTypedFailure { reason }`
 
-Fallback actions must preserve all hard workload requirements unless the user or an explicit policy authorizes relaxation. Relaxation must be visible and recorded.
+Fallback responses must preserve all hard workload requirements unless the user or an explicit policy authorizes relaxation. Relaxation must be visible and recorded.
 
 ### 9.4 Revalidation
 
@@ -610,7 +610,7 @@ Cost class may exist as a user-facing projection for settings and UI, but its de
 
 Anchor: `model.cache-semantics`
 
-Prompt caching affects model selection only through provider-invariant inputs:
+Model-request caching affects model selection only through provider-invariant inputs:
 
 - descriptor cache-candidate support
 - context assembly's logical cache-marker candidates
@@ -684,7 +684,7 @@ The following shapes are wrong for this layer:
 - silent fallthrough from a concrete user-pinned model
 - silently dropping required reasoning, structured output, native tools, modality, or privacy constraints
 - storing model-dependent values as unkeyed scalars
-- treating `ModelProfile` as a File 15 profile layer, execution mode, autonomy level, or participation level
+- treating `ModelProfile` as a File 15 profile layer, execution mode, autonomy level, or interaction shape
 - freezing one selected model for every model-bound step in a run
 - hidden automatic multi-model fan-out
 
@@ -701,6 +701,6 @@ Later specs must follow these rules:
 - File 10 must record selection, fallback, model-call attribution, provider/runtime snapshot references, and cache/usage attribution through durable ledger/event records.
 - File 13 must consume descriptor request limits, capability records, behavioral intents, and cache-candidate support; it owns assembly, token counting, cache-marker candidates, and final pre-dispatch data-boundary revalidation.
 - File 15 must resolve all model-strategy settings through the canonical source stack; File 16 must not create a second profile or override cascade.
-- Surface/domain specs may declare default `ModelProfile`s and role preferences, but must not implement private model-selection logic.
+- Surface and subsystem specs may declare default `ModelProfile`s and role preferences, but must not implement private model-selection logic.
 - Automation and workflow specs may pin a `ModelProfile`, concrete model, or full selection plan at save time; execution still records the effective selection used at runtime.
 - Evaluation specs should measure model-selection correctness, fallback correctness, cost prediction, cache effectiveness, data-boundary filtering, and role-specific model quality using `ModelSelectionRecord`s as primary artifacts.

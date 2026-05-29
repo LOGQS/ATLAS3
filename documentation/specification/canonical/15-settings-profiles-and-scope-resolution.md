@@ -38,7 +38,7 @@ The resolved design:
 
 - Settings are typed, constrained, scoped, source-attributed, agent-exposure-controlled, reactive, and inspectable.
 - Durable setting scopes are intentionally small: `Global`, `Workspace`, and `Conversation`.
-- Profiles are named local setup contexts, similar to local accounts for configuration purposes. They are not authentication identities, security principals, autonomy modes, participation levels, or execution architectures.
+- Profiles are named local setup contexts, similar to local accounts for configuration purposes. They are not authentication identities, security principals, autonomy modes, interaction shapes, or execution architectures.
 - Profiles contribute ordered profile layers to resolution. They do not silently write setting rows just because they are selected.
 - Runtime-specific variation uses explicit invocation overlays, not fake durable scopes.
 - TOML is an optional local explicit layer, not a second settings system.
@@ -49,7 +49,7 @@ The resolved design:
 
 Anchor: `settings.chosen-model`
 
-Every setting is declared by a `SettingDefinition`, resolved through one source stack, and read or written through one settings service. No subsystem reads settings storage directly, parses the TOML overlay directly, stores settings in browser local storage, invents per-domain config files, or creates a parallel settings hierarchy.
+Every setting is declared by a `SettingDefinition`, resolved through one source stack, and read or written through one settings service. No subsystem reads settings storage directly, parses the TOML overlay directly, stores settings in browser local storage, invents per-subsystem or per-surface config files, or creates a parallel settings hierarchy.
 
 The model has four distinct concepts:
 
@@ -233,8 +233,8 @@ A profile context is not:
 - an authentication account
 - a security principal
 - a permission boundary
-- an autonomy dial
-- a participation level
+- a backend autonomy control
+- an interaction shape
 - an execution mode
 
 Profile contexts influence settings by activating profile layers and by selecting which explicit values are considered part of the active setup where the storage spec supports profile-partitioned user preference state. They do not change the capability or policy model by themselves.
@@ -329,7 +329,7 @@ If a user wants to freeze a profile's current resolved values against future upd
 
 ### 7.4 Boundary
 
-Profiles are settings-layer inputs. They do not grant permission, mutate capability contracts, create execution modes, or define participation levels. They can select policy templates and tool-surface preferences, but Files 06 and 07 still evaluate those systems.
+Profiles are settings-layer inputs. They do not grant permission, mutate capability contracts, create execution modes, or define interaction shapes. They can select policy templates and tool-surface preferences, but Files 06 and 07 still evaluate those systems.
 
 ## 8. Agent Exposure
 
@@ -339,9 +339,9 @@ Anchor: `settings.agent-exposure`
 
 Every definition declares `agent_exposure`:
 
-- `Hidden` - the agent cannot discover the key or value through settings capabilities, listings, errors, search, or prompt assembly.
+- `Hidden` - the agent cannot discover the key or value through settings capabilities, listings, errors, search, or model-request assembly.
 - `OnRequest` - the agent may request an authorized representation through `settings.read` or `settings.inspect`.
-- `InPrompt` - context assembly may include an authorized representation in the model request.
+- `InModelRequest` - context assembly may include an authorized representation in the model request.
 
 ### 8.2 Rendering Classes
 
@@ -353,7 +353,7 @@ Exposure determines whether the agent may see a setting. `agent_rendering` deter
 - `PolicyFactOnly`
 - `NeverInline`
 
-`InPrompt` never means raw insertion by default. Context assembly renders settings as attributed assembly parts with the correct authority class and redaction state.
+`InModelRequest` never means raw insertion by default. Context assembly renders settings as attributed assembly parts with the correct authority class and redaction state.
 
 ### 8.3 Write Boundary
 
@@ -561,12 +561,12 @@ Anchor: `settings.explicit-rejections`
 The following shapes are wrong for this layer:
 
 - browser local storage or session storage as a settings store
-- per-domain config files as live settings sources
+- per-subsystem or per-surface config files as live settings sources
 - environment variables as runtime settings overrides
-- profiles implemented as autonomy dials, participation levels, or execution modes
+- profiles implemented as backend autonomy controls, interaction shapes, or execution modes
 - profile activation that silently copies defaults into explicit setting rows
 - progressive disclosure implemented as a canonical stored level
-- agent access to `Hidden` settings by listing, error inference, search, prompt rendering, or write proposal
+- agent access to `Hidden` settings by listing, error inference, search, model-request rendering, or write proposal
 - raw secret material in settings, TOML, sync, export, logs, events, snapshots, or agent context
 - settings capabilities modeled as environment-variable access
 - time-based polling for settings correctness

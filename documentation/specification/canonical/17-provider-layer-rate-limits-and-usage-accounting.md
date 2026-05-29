@@ -39,7 +39,7 @@ This file does not define:
 - the `Block` schema, `BlockKind` catalogue, or commit boundary â€” File 08 owns those
 - the `ExecutionLedger` row schema or the `EventEnvelope` field set â€” File 10 owns those; this file specifies what per-call attribution the ledger must record
 - the version graph or `ContextVersion` mechanics â€” File 11 owns those
-- retrieval indexes, knowledge-base construction, or RAG â€” File 12 owns those
+- retrieval indexes, knowledge-base construction, or retrieval-augmented generation — File 12 owns those
 - the model-request assembly algorithm, token-counting budget, or the `CacheMarker` candidate-production rules â€” File 13 owns those; this file consumes those outputs
 - memory recall, store, or consolidation â€” File 14 owns those
 - the settings source stack, scope resolution, or profile layering â€” File 15 owns those
@@ -772,7 +772,7 @@ Adapters extract `cache_creation_tokens` and `cache_read_tokens` from provider r
 
 ### 16.4 Cache Break Detection
 
-Adapters that support pre-and-post call cache fingerprinting (system-prompt hash, tool-list hash, marker placement hash) may detect unexpected cache breaks and emit `CacheBreakDetected` per Â§22 with the change vectors identified. Detection is opt-in.
+Adapters that support pre-and-post call cache fingerprinting (governing-instruction hash, callable-declaration hash, marker placement hash) may detect unexpected cache breaks and emit `CacheBreakDetected` per §22 with the change vectors identified. Detection is opt-in.
 
 ### 16.5 No Cache Mechanics in Other Files
 

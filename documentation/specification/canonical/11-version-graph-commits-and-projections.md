@@ -30,7 +30,7 @@ This file defines:
 - garbage collection and pruning — the closed canonical retention policy set, typed tombstone / compaction / payload-deletion operations, and the user-controlled storage-reclamation surface from `core.non-destructive-by-default` (File 01 §7.13)
 - the canonical version-graph event vocabulary on the unified event bus (per `ledger.event-stream`, File 10 §5) — `PendingOpApplied`, `VersionCommitted`, `VersionSwitched`, `BranchCreated`, `VersionLabelled`, `VersionTombstoned`, `VersionRangeCompacted`, `VersionPayloadHardDeleted`, `MaterializedViewRebuilt`, `MaterializedViewIntegrityViolated`
 - the settings dimensions every mechanism in this file exposes, with the agent-exposure rules per `policy.agent-exposure-policy-settings` (File 06 §16.4)
-- the closed set of explicit rejections covering parallel checkpoint systems, mutable diffs, time-based pruning, snapshot-as-full-prompt-audit, version-as-storage-shape, and forgery
+- the closed set of explicit rejections covering parallel checkpoint systems, mutable diffs, time-based pruning, snapshot-as-full-model-request-audit, version-as-storage-shape, and forgery
 - the canonical contract every later spec consumes when it produces a versioned artefact, declares a snapshot identity, builds a derived projection, queries history, or replays an execution
 
 This file does not define:
@@ -43,7 +43,7 @@ This file does not define:
 - the `ExecutionLedger` row format, the `EventEnvelope` field set, or the live-bus delivery contract — File 10 owns those; this file specifies which version-graph events flow through the canonical bus and which corresponding ledger entry kinds record them
 - the storage on-disk layout, the per-table physical schema, replication mechanics, projection-store realisation, or indexing strategy — the future Storage and Persistence spec owns those; this file specifies what must be durable and what must be reconstructable
 - the cross-device sync transport, the libsql embedded-replica mechanics, the conflict-detection pipeline, or import / export bundle format — the future Sync, Import, Export, and Data Portability spec owns those; this file specifies that the version-tree-aware merge is the canonical conflict-resolution semantics
-- retrieval, indexing, knowledge-base mechanics, or RAG hybrid-search algorithms — File 12 owns those; this file specifies that retrieval indexes are projections rebuildable from the durable substrates
+- retrieval, indexing, knowledge-base mechanics, retrieval-augmented generation mechanics, or hybrid-search algorithms — File 12 owns those; this file specifies that retrieval indexes are projections rebuildable from the durable substrates
 - context-assembly, compaction algorithms, token-budget mechanics, or per-policy block selection — File 13 owns those; this file specifies the materialized view as the canonical context-assembly input and the typed boundary at which compaction passes commit
 - memory promotion, salience scoring, recall, or decay — File 14 owns those; this file specifies that memory entries that consolidate prior blocks are linked via `consolidates` edges from `block.canonical-edge-kinds` (File 08 §5.2) and participate in the version graph as ordinary blocks
 - model strategy, provider routing, rate-limit reconciliation, or provider-health tracking — Files 16 and 17 own those
@@ -97,7 +97,7 @@ The version graph composes with adjacent layers:
 - File 06 owns lease lifecycle and approval; this file owns the version-graph commits that record lease grants and reuses File 06's "projection over events" pattern for the materialized view
 - File 07 owns tool-surface composition; this file owns the registry-snapshot identity that anchors a run's surface composition for replay
 
-`ContextVersion` supersedes any earlier vocabulary that named the same primitive: "version node", "history snapshot", "context snapshot", "chat state node", "checkpoint commit", "session checkpoint", "context-version row". `VersionDiff` supersedes "version delta", "context diff", "snapshot diff". `VersionOpSummary` supersedes "commit type", "version reason", "version label". `ContextOp` supersedes "context operation", "atomic context change", "inspector action". `Snapshot` supersedes "snapshot id", "frozen state record", "point-in-time reference". `Projection` supersedes "derived view", "materialized view", "read model", "computed view", "cache" (when applied to durably-derivable read-side data). Earlier names from source material map into these canonical typed shapes.
+`ContextVersion` supersedes any earlier vocabulary that named the same primitive: "version node", "history snapshot", "context snapshot", "conversation state node", "checkpoint commit", "session checkpoint", "context-version row". `VersionDiff` supersedes "version delta", "context diff", "snapshot diff". `VersionOpSummary` supersedes "commit type", "version reason", "version label". `ContextOp` supersedes "context operation", "atomic context change", "inspector operation". `Snapshot` supersedes "snapshot id", "frozen state record", "point-in-time reference". `Projection` supersedes "derived view", "materialized view", "read model", "computed view", "cache" (when applied to durably-derivable read-side data). Earlier names from source material map into these canonical typed shapes.
 
 ## 2. Boundaries with Adjacent Layers
 
@@ -217,7 +217,7 @@ A `ContextVersion`:
 
 A `ContextVersion` is not:
 
-- a snapshot of full prompt context — assembled prompts are reconstructable from the materialized view at the version, not stored on the version row
+- a snapshot of full model-request context — assembled model requests are reconstructable from the materialized view at the version, not stored on the version row
 - a copy of block content — content lives in the block pool per File 08; the version references blocks by `block_id`
 - a UI element — surfaces (the conversation transcript, the coder history panel, the comparison board, the inspector timeline) are projections of the version graph; the canonical row is independent of presentation
 - a row in any single storage backend — the storage layer chooses physical layout subject to the persistence contract (§18)
@@ -637,7 +637,7 @@ If `pending_ops` is non-empty when `switch_to_version` is called:
 - The user may configure `versioning.switch_with_pending_behaviour` to one of:
   - `Discard` — discard the buffer, switch, warn
   - `Commit` — commit the buffer first (as a `ContextEdit`), then switch
-  - `Prompt` — open a typed-confirmation flow (per `policy.permission-floor-typed-confirmation`, File 06 §7) asking the user to choose Commit / Discard / Cancel
+  - `AskUser` — open a typed-confirmation flow (per `policy.permission-floor-typed-confirmation`, File 06 §7) asking the user to choose Commit / Discard / Cancel
 
 ### 8.6 Strategic-Cache Nodes
 
@@ -915,7 +915,7 @@ This mechanism is shared across:
 - validator and adapter updates (§12.5)
 - description regeneration (per `block.description-immutability`, File 08 §10.4)
 - composed-block child changes (per `block.cross-reference-vs-containment`, File 08 §4.4)
-- prompt-fragment updates and reusable-policy-rule updates
+- instruction-fragment updates and reusable-policy-rule updates
 
 ### 12.2 File Edits
 
@@ -1026,7 +1026,7 @@ The canonical typed snapshot identities, each addressable as `<kind>_snapshot_id
 
 **`settings_snapshot_id`** — addresses the effective settings source stack at the named version per File 15. Resolution captures explicit durable values, active profile context and profile layers, invocation overlays when used, definition versions, locality metadata, validation diagnostics that affected resolution, and redaction-safe overlay/default source metadata. The TOML file itself remains per-device and unsynced, but if execution depended on a TOML-provided non-secret value, the snapshot records the effective resolved value or a redaction-safe placeholder so replay and audit can explain what happened.
 
-**`world_snapshot_id`** — addresses the world-model state at the named version per `core.world-model` (File 01 §6.7). Resolution: the world model maintains its own durable substrate (active subsystem/surface, mounted panels, focused element, available actions, active workspaces, etc.); the snapshot resolves to the world state at the anchor timestamp through the world-model service's replay path.
+**`world_snapshot_id`** — addresses the world-model state at the named version per `core.world-model` (File 01 §6.7). Resolution: the world model maintains its own durable substrate (active surface and owning subsystem, mounted panels, focused element, available capabilities/control affordances, active workspaces, etc.); the snapshot resolves to the world state at the anchor timestamp through the world-model service's replay path.
 
 **`policy_snapshot_id`** — addresses the active policy rule set, lease set, approval templates, and contradiction-check rules at the named version per File 06. Resolution: walk the policy-event ledger entries from boot to the anchor; the result is the policy state at that moment, including all live leases (per `policy.persistence`, File 06 §11.6's projection pattern).
 
@@ -1538,7 +1538,7 @@ Every version-graph mechanism in this file is configurable through settings (per
 **Buffer dimensions:**
 
 - `versioning.in_session_redo_enabled` — whether `redo_pending` is supported
-- `versioning.switch_with_pending_behaviour` — `Discard` | `Commit` | `Prompt`
+- `versioning.switch_with_pending_behaviour` — `Discard` | `Commit` | `AskUser`
 - `versioning.pending_buffer_max_size` — soft cap on `pending_ops` length before forcing a `ContextEdit` commit
 
 **Materialized-view dimensions:**
@@ -1575,9 +1575,9 @@ Every version-graph mechanism in this file is configurable through settings (per
 
 **Agent-exposure dimensions** (per `policy.agent-exposure-policy-settings`, File 06 §16.4):
 
-- `versioning.version_tree_visible_to_agent` — `OnRequest` | `Hidden` | `InPrompt`
-- `versioning.commit_boundary_set_visible_to_agent` — `InPrompt` (the agent knows the boundary kinds)
-- `versioning.context_op_vocabulary_visible_to_agent` — `OnRequest` (the agent can list operations through `tool.search`); `InPrompt` for the commonly-used subset (Mask, Drop, Pin, Recover)
+- `versioning.version_tree_visible_to_agent` — `OnRequest` | `Hidden` | `InModelRequest`
+- `versioning.commit_boundary_set_visible_to_agent` — `InModelRequest` (the agent knows the boundary kinds)
+- `versioning.context_op_vocabulary_visible_to_agent` — `OnRequest` (the agent can list operations through `tool.search`); `InModelRequest` for the commonly-used subset (Mask, Drop, Pin, Recover)
 - `versioning.history_query_capabilities_default_zone` — `Borrowable` | `Primary` | `Disabled` — defines the surface zone for `context.list_versions`, `provenance.query_lineage`, and related queries
 
 ### 22.2 Settings-Key Convention
@@ -1618,7 +1618,7 @@ The following shapes are wrong for this layer:
 - **Time-based mask / drop / lifecycle transitions** — per `block.lifecycle-transition-rules` (File 08 §6.7) and File 01 constraints, no implicit time-based lifecycle transition. Compaction policies invoke explicit `Mask` / `Drop` operations driven by their own logic, never by clock time.
 - **Treating `ContextVersion` and `Block` as the same primitive** — `ContextVersion` is the version-graph node addressing a conversation's view-state. `Block` is the durable content carrier. A conversation has many versions; each version references many blocks; blocks live in the unified pool addressable by any conversation. The two are distinct primitives that compose.
 - **Treating `Projection` as authoritative for any durable fact** — projections are derived. Any durable fact that exists only in a projection is invalid. The substrate must produce the fact; the projection reads it.
-- **Snapshot-as-full-prompt-audit** — capturing the full assembled prompt context as a separate audit record at every model call is the wrong shape. File 11 reconstructs the materialized view input; File 13, File 07, and File 10 reconstruct the final model request, callable declarations, snapshots, and provider invocation record.
+- **Snapshot-as-full-model-request-audit** — capturing the full assembled model-request context as a separate audit record at every model call is the wrong shape. File 11 reconstructs the materialized view input; File 13, File 07, and File 10 reconstruct the final model request, callable declarations, snapshots, and provider invocation record.
 - **`expected_view_hash` as the source of truth for view content** — the hash is a verification artifact; the action log is the substrate. A hash mismatch triggers rebuild, never trust-the-hash-over-the-substrate.
 - **Operation sequence as reconstruction source** — the committed `VersionDiff` is the canonical reconstruction input. Operation-sequence ledger facts are audit and UI inspection data; switching and rebuilds must not depend on replaying every pending operation event.
 - **Forging a `VersionCommitted` ledger entry without producing a version row** — per `ledger.forgery-guards` (File 10 §3.7), ledger entries that name a version_id must reference an existing version; orphan references are rejected at ledger commit.

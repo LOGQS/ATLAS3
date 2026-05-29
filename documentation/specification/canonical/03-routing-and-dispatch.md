@@ -32,8 +32,8 @@ This file resolves routing, model selection, fast-path, workspace selection, and
 
 Resolved design:
 
-- Routing is a first-class runtime step, not hidden prompt logic.
-- A RunIntent describes the selected work line, execution entry, model route, context policy, and capability surface; it is not merely a domain label.
+- Routing is a first-class runtime step, not hidden model-request logic.
+- A RunIntent describes the selected work line, execution entry, model route, context policy, and capability surface; it is not merely a surface/subsystem label.
 - Router output may include fast-path results or failures, but that work is visible to execution and ledgering.
 - Router context is compact, policy-governed, and independently configurable from main-model context.
 - Presentation is a user-controllable projection; routing may inform it but does not own frontend participation mode.
@@ -131,7 +131,7 @@ The frame inputs are organized into four categories.
 - current active intent thread, if any
 - current active task, if any
 - compact prior routing summaries, previous route records, or selected history when the active router context policy uses them (per §6 and File 13)
-- active world model snapshot (active surface, focused element, mounted panels, selection, available actions, current ui_mode)
+- active world model snapshot (active surface, focused element, mounted panels, selection, available capabilities/control affordances, current ui_mode)
 
 **Capability-and-policy context**
 
@@ -159,7 +159,7 @@ Richer policies may be selected through settings, profiles, or conversation over
 - `recent_blocks`: adds a small selected set of recent transcript blocks
 - `pinned_and_referenced`: adds blocks the user has pinned, referenced, or attached
 - `expanded_for_ambiguity`: increases the included context when deterministic prechecks (§3.2) signal ambiguity
-- custom policies registered by domains, plugins, or users
+- custom policies registered by subsystems, plugins, or users
 
 Changing router context policy changes what the router sees. It must not change the meaning of `RunIntent`, bypass durable route recording, omit a category required for a valid `RunIntent`, or make full raw conversation replay the fixed default.
 
@@ -183,7 +183,7 @@ Representative precheck patterns:
 - deterministic state-flag routing (e.g., a highlighted code selection unambiguously routes to a code-edit capability)
 - cached prior routing decision under identical inputs when the cache key is still valid
 
-Prechecks are ordered. Order and per-precheck enablement are settings; a precheck that resolves the route short-circuits later prechecks in the chain. The mechanism by which capabilities, plugins, domains, or user configuration contribute additional prechecks is owned by the capability, settings, and hooks specs, not this file.
+Prechecks are ordered. Order and per-precheck enablement are settings; a precheck that resolves the route short-circuits later prechecks in the chain. The mechanism by which capabilities, plugins, subsystems, or user configuration contribute additional prechecks is owned by the capability, settings, and hooks specs, not this file.
 
 ### 3.3 Router
 
@@ -324,7 +324,7 @@ Allowed values:
 
 - `respond_inline`
 - `respond_with_tools`
-- `domain_runtime`
+- `surface_runtime`
 - `multi_step_agent`
 
 `model_route`
@@ -370,7 +370,7 @@ Observability fields for the routing decision: the source of the decision (one o
 - frontend posture
 - visible layout
 - whether a workspace panel must open
-- whether the user is in a chat-first or workspace-first experience
+- whether the user is in a conversation-first or workspace-first experience
 
 Those are presentation concerns.
 
@@ -505,9 +505,9 @@ Examples:
 
 Anchor: `routing.surface-capability-selection`
 
-### 8.1 Domains Are Not Hard Fences
+### 8.1 Surfaces and Subsystems Are Not Hard Fences
 
-Routing must not treat domains as isolated silos.
+Routing must not treat surfaces or subsystems as isolated silos.
 
 A request may:
 
@@ -524,7 +524,7 @@ Routing must choose:
 - zero or more supporting surfaces
 - relevant capability families
 
-This is stronger than one-domain routing and simpler than full execution planning.
+This is stronger than single-surface/subsystem routing and simpler than full execution planning.
 
 ### 8.3 Tool Surface Strategy
 
@@ -674,7 +674,7 @@ Anchor: `routing.mid-execution-reroute`
 
 A mid-execution reroute changes the route of an in-flight run to a different surface, model, capability family, or execution entry before the original route's work is complete. Reroute may be triggered by:
 
-- the executing model, when it determines it lacks the right surface, model, capability family, policy scope, or domain runtime for the current work, and emits a reroute request with reasoning
+- the executing model, when it determines it lacks the right surface, model, capability family, policy scope, or surface runtime for the current work, and emits a reroute request with reasoning
 - the runtime environment, when a watchdog, validator, monitor, stuck or loop detector, capability-availability change, provider-health change, rate-limit event, or other typed runtime signal triggers a reroute
 - the user, through explicit intervention (interject, takeover, override) during execution
 
@@ -735,7 +735,7 @@ Anchor: `routing.explicit-rejections`
 
 The following shapes are wrong for this layer:
 
-- one-domain routing as the only route output
+- single-surface/subsystem routing as the only route output
 - treating frontend presentation as router-owned backend truth
 - requiring a separate heavy continuity-analysis pass on top of normal routing
 - making intent-thread creation a mandatory tool call
