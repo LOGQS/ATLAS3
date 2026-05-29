@@ -20,7 +20,7 @@ This file defines:
 - per-version derived state maps — `BlockLifecycle` (per `block.block-lifecycle-non-destructive-edits`, File 08 §6.1), `PinState` (per `block.block-lifecycle-non-destructive-edits`, File 08 §6.1), `ArtifactLifecycle` / `ReviewState` / `ValidationState` (per `artifact.artifact-lifecycle-states`, File 09 §5), `ClaimStatus` (per `artifact.claim-status`, File 09 §9.4) all derived from the version-graph action log
 - sibling-block versioning over the block pool — the canonical interaction with `block.edit-semantics` (File 08 §6.2) edit semantics and the `supersedes` edge
 - artifact version chains as a specialisation of sibling-block versioning, including the entity-record `current_version_block_id` pointer (per `artifact.artifact`, File 09 §3.2) and the per-`ContextVersion` resolution rule
-- `Snapshot` — the closed canonical typed-reference vocabulary the ledger, runs, capability invocations, and replay use to address registry / settings / world / policy / pricing / routing state at a point in time
+- `Snapshot` — the closed canonical typed-reference vocabulary the ledger, runs, capability invocations, and replay use to address registry / settings / world / policy / pricing / routing state at a durable anchor
 - version-graph-backed projections — the concrete projection contract used by the materialized view, derived state maps, snapshot views, and version-history surfaces, inheriting the general primitive from `core.projection` (File 01 §6.11)
 - replay semantics — the three closed canonical replay modes (`Inspect`, `SimulateDeterministic`, `FullRerun`) per `ledger.replay-semantics` (File 10 §11) and the version-graph data they require
 - forensic reconstruction — the "what did the model see at moment X" query surface plus the closed canonical comparison-and-diff operations
@@ -39,7 +39,7 @@ This file does not define:
 - the `Artifact` entity record field set, `ArtifactKind` catalogue, materialization policy, tombstone shape, or artifact-specific behaviours — File 09 owns those; this file specifies how artifact versions participate in the version graph
 - the run lifecycle, capability-call pipeline, retry / reroute / branch mechanics at the run level, cancellation, pending-operations promotion to artifacts, or completion-verification — File 04 owns those; this file specifies which run-level transitions correspond to commit boundaries
 - the policy evaluation algorithm, approval flows, lease lifecycle, or contradiction-checking — File 06 owns those; this file specifies that lease state is a projection over policy events (per `policy.persistence`, File 06 §11.6)
-- the tool-surface composition algorithm or surface zoning — File 07 owns those; this file specifies that the tool surface is a projection (per `surface.chosen-model`, File 07 §1) and that registry snapshots address registry state at a point in time
+- the tool-surface composition algorithm or surface zoning — File 07 owns those; this file specifies that the tool surface is a projection (per `surface.chosen-model`, File 07 §1) and that registry snapshots address registry state at a durable anchor
 - the `ExecutionLedger` row format, the `EventEnvelope` field set, or the live-bus delivery contract — File 10 owns those; this file specifies which version-graph events flow through the canonical bus and which corresponding ledger entry kinds record them
 - the storage on-disk layout, the per-table physical schema, replication mechanics, projection-store realisation, or indexing strategy — the future Storage and Persistence spec owns those; this file specifies what must be durable and what must be reconstructable
 - the cross-device sync transport, the libsql embedded-replica mechanics, the conflict-detection pipeline, or import / export bundle format — the future Sync, Import, Export, and Data Portability spec owns those; this file specifies that the version-tree-aware merge is the canonical conflict-resolution semantics
@@ -97,7 +97,7 @@ The version graph composes with adjacent layers:
 - File 06 owns lease lifecycle and approval; this file owns the version-graph commits that record lease grants and reuses File 06's "projection over events" pattern for the materialized view
 - File 07 owns tool-surface composition; this file owns the registry-snapshot identity that anchors a run's surface composition for replay
 
-`ContextVersion` supersedes any earlier vocabulary that named the same primitive: "version node", "history snapshot", "context snapshot", "conversation state node", "checkpoint commit", "session checkpoint", "context-version row". `VersionDiff` supersedes "version delta", "context diff", "snapshot diff". `VersionOpSummary` supersedes "commit type", "version reason", "version label". `ContextOp` supersedes "context operation", "atomic context change", "inspector operation". `Snapshot` supersedes "snapshot id", "frozen state record", "point-in-time reference". `Projection` supersedes "derived view", "materialized view", "read model", "computed view", "cache" (when applied to durably-derivable read-side data). Earlier names from source material map into these canonical typed shapes.
+`ContextVersion` supersedes any earlier vocabulary that named the same primitive: "version node", "history snapshot", "context snapshot", "conversation state node", "checkpoint commit", "session checkpoint", "context-version row". `VersionDiff` supersedes "version delta", "context diff", "snapshot diff". `VersionOpSummary` supersedes "commit type", "version reason", "version label". `ContextOp` supersedes "context operation", "atomic context change", "inspector operation". `Snapshot` supersedes "snapshot id", "frozen state record", "point-in-time reference". `Projection` supersedes "derived view", "materialized view", "read model", "computed view", "cache" (when applied to durably-derivable read-side data). Earlier names from source material map into these canonical typed shapes; the canonical interpretation is durable-anchor addressing, not wall-clock lookup.
 
 ## 2. Boundaries with Adjacent Layers
 
@@ -1012,7 +1012,7 @@ Anchor: `version.snapshots`
 
 ### 14.1 Definition
 
-A snapshot is a typed, durable, addressable reference to the state of a canonical substrate (registry, settings, world, policy, pricing, routing) at a point in time. Snapshots are not stored copies of substrate content; they are identities the ledger, run records, capability invocations, and replay machinery carry to address substrate state for forensic queries and deterministic replay. The snapshot resolves to substrate state through the canonical replay machinery (§15).
+A snapshot is a typed, durable, addressable reference to the state of a canonical substrate (registry, settings, world, policy, pricing, routing) at a durable anchor. Snapshots are not stored copies of substrate content; they are identities the ledger, run records, capability invocations, and replay machinery carry to address substrate state for forensic queries and deterministic replay. The snapshot resolves to substrate state through the canonical replay machinery (§15).
 
 Snapshot identity includes the snapshot kind, stable id, anchor, substrate schema/version, and resolver contract. Snapshot ids are unique within the installation and never reassigned.
 
@@ -1022,11 +1022,11 @@ Anchor: `version.closed-canonical-snapshot-catalogue`
 
 The canonical typed snapshot identities, each addressable as `<kind>_snapshot_id`:
 
-**`registry_snapshot_id`** — addresses the `RegisteredCapability` state at the named version per `capability.registered-capability` (File 05 §10). Resolution: walk the capability-registration ledger entries (per `ledger.entry-kind-catalogue`, File 10 §4.1 `CapabilityRegistered`, `CapabilityUnregistered`, `CapabilityUpdated`, `CapabilityEnabledChanged`, `CapabilityAvailabilityChanged`, `CapabilityRegistryStateChanged`) from the install boot to the snapshot's anchor timestamp; the result is the registered-capability set with their `enabled`, `availability_status`, `resolved_backend_binding`, `trust_state`, `active_aliases`, and registered declaration version at that moment.
+**`registry_snapshot_id`** — addresses the `RegisteredCapability` state at the named version per `capability.registered-capability` (File 05 §10). Resolution: walk the capability-registration ledger entries (per `ledger.entry-kind-catalogue`, File 10 §4.1 `CapabilityRegistered`, `CapabilityUnregistered`, `CapabilityUpdated`, `CapabilityEnabledChanged`, `CapabilityAvailabilityChanged`, `CapabilityRegistryStateChanged`) from the install boot to the snapshot's substrate anchor; the result is the registered-capability set with their `enabled`, `availability_status`, `resolved_backend_binding`, `trust_state`, `active_aliases`, and registered declaration version at that anchor.
 
 **`settings_snapshot_id`** — addresses the effective settings source stack at the named version per File 15. Resolution captures explicit durable values, active profile context and profile layers, invocation overlays when used, definition versions, locality metadata, validation diagnostics that affected resolution, and redaction-safe overlay/default source metadata. The TOML file itself remains per-device and unsynced, but if execution depended on a TOML-provided non-secret value, the snapshot records the effective resolved value or a redaction-safe placeholder so replay and audit can explain what happened.
 
-**`world_snapshot_id`** — addresses the world-model state at the named version per `core.world-model` (File 01 §6.7). Resolution: the world model maintains its own durable substrate (active surface and owning subsystem, mounted panels, focused element, available capabilities/control affordances, active workspaces, etc.); the snapshot resolves to the world state at the anchor timestamp through the world-model service's replay path.
+**`world_snapshot_id`** — addresses the world-model state at the named version per `core.world-model` (File 01 §6.7). Resolution: the world model maintains its own durable substrate (active surface and owning subsystem, mounted panels, focused element, available capabilities/control affordances, active workspaces, etc.); the snapshot resolves by walking that substrate to the world-substrate sequence anchor through the world-model service's replay path.
 
 **`policy_snapshot_id`** — addresses the active policy rule set, lease set, approval templates, and contradiction-check rules at the named version per File 06. Resolution: walk the policy-event ledger entries from boot to the anchor; the result is the policy state at that moment, including all live leases (per `policy.persistence`, File 06 §11.6's projection pattern).
 
@@ -1061,7 +1061,7 @@ Anchor: `version.snapshot-resolution`
 `resolve_snapshot(snapshot_kind, snapshot_id) -> SubstrateState` walks the appropriate substrate's event stream:
 
 1. Identify the substrate by `snapshot_kind`
-2. Identify the substrate's anchor timestamp by `snapshot_id`
+2. Identify the substrate anchor and sequence position by `snapshot_id`
 3. Walk the substrate's durable event log from the substrate's boot or a storage-owned baseline to the anchor
 4. Apply each event to the substrate's projection
 5. Return the resolved state
@@ -1084,7 +1084,7 @@ Resolution walks the event log from the relevant substrate baseline, if one exis
 
 ### 14.7 Boundary
 
-Snapshots define addressable substrate identity at a point in time. The substrates (registry, settings, world, policy, pricing, routing) own their own event logs and projection mechanics; this section owns the typed snapshot-identity catalogue and the resolution contract. The resolution machinery is owned by the substrate's own projection layer; this file declares the contract.
+Snapshots define addressable substrate identity at a durable anchor. The substrates (registry, settings, world, policy, pricing, routing) own their own event logs and projection mechanics; this section owns the typed snapshot-identity catalogue and the resolution contract. The resolution machinery is owned by the substrate's own projection layer; this file declares the contract.
 
 ## 15. Replay Semantics
 
