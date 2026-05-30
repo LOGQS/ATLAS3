@@ -125,7 +125,7 @@ State awareness is consulted for context: the active surface, focused element, p
 
 ### 2.4 Boundary
 
-File 06 is the runtime evaluation layer. It owns no storage schema, no UI rendering, no execution mechanics, and no capability declarations. Storage of leases and policy events is the future Storage and Persistence spec's concern; presentation of approval prompts and lease management UIs is the future UI Shell and UI Customization specs' concern; the actual execution of approved capability calls is File 04's concern.
+File 06 is the runtime evaluation layer. It owns no storage schema, no UI rendering, no execution mechanics, and no capability declarations. Storage of leases and policy events is File 20's concern; presentation of approval prompts and lease management UIs is the future UI Shell and UI Customization specs' concern; the actual execution of approved capability calls is File 04's concern.
 
 ## 3. The Approval Router
 
@@ -651,7 +651,7 @@ Built-in rules are user-customizable: the user may disable, narrow, widen, repla
 
 Anchor: `policy.persistence`
 
-Leases are durable. They survive process restarts. The storage schema is the future Storage and Persistence spec's concern; File 06 specifies the field set the storage schema must support, the lease event vocabulary the storage receives, and the resolution rules the runtime applies on read.
+Leases are durable. They survive process restarts. The storage schema is File 20's concern; File 06 specifies the field set the storage schema must support, the lease event vocabulary the storage receives, and the resolution rules the runtime applies on read.
 
 A lease's state changes (grant, narrow, revoke, transition to Stale) are recorded as policy events with full envelope. The lease itself is the projection over those events; the events are the source of truth.
 
@@ -659,7 +659,7 @@ Active and Stale leases are not pruned by storage without a policy-layer state t
 
 ### 11.7 Boundary
 
-Leases are an evaluation primitive owned by File 06. Their persistence schema, storage-side projections, sync behavior across devices, and import/export semantics are owned by the future Storage and Persistence spec and the future Sync, Import, Export, and Data Portability spec.
+Leases are an evaluation primitive owned by File 06. Their persistence schema, storage-side projections, sync behavior across devices, and import/export semantics are owned by File 20 and the future Sync, Import, Export, and Data Portability spec.
 
 ## 12. Approval-Policy Templates
 
@@ -724,7 +724,7 @@ A capability invocation may have multiple templates applicable: the capability's
 
 ### 12.7 Boundary
 
-Templates are policy-evaluation declarations. Their storage schema, version evolution, and import/export behavior are owned by the future Storage and Persistence and Sync specs. Their UI presentation (the template editor, the validator-chain visualizer, the approval-text preview) is owned by the future UI specs. File 06 specifies the field set, the validator verdict semantics, and the composition order.
+Templates are policy-evaluation declarations. Their storage schema, version evolution, and import/export behavior are owned by File 20 and the future Sync spec. Their UI presentation (the template editor, the validator-chain visualizer, the approval-text preview) is owned by the future UI specs. File 06 specifies the field set, the validator verdict semantics, and the composition order.
 
 ## 13. Approval UI Surface Contract
 

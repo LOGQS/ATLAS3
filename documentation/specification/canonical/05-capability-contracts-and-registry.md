@@ -226,7 +226,7 @@ Anchor: `capability.composition-fields`
 ### 3.11 Cost and Telemetry Fields
 
 - `cost_model`: optional cost-prediction declaration (per-call expected cost; per-token, per-byte, per-second, or fixed)
-- `telemetry_schema`: declared event types the capability emits beyond the canonical execution events; the future storage spec extends the schema, the canonical declaration names the minimum
+- `telemetry_schema`: declared event types the capability emits beyond the canonical execution events; File 20 extends the schema, the canonical declaration names the minimum
 
 ### 3.12 Backend Descriptor
 
@@ -238,7 +238,7 @@ The descriptor is declarative. The resolved live binding (the actual service met
 
 ### 3.13 Boundary
 
-The declaration field set above is the canonical minimum. The future storage spec and File 06 may attach additional metadata (telemetry attribution beyond the minimum, per-capability rate-limit scopes, capability-specific configuration). Such extensions must be additive and must not change the meaning of fields named here.
+The declaration field set above is the canonical minimum. File 20 and File 06 may attach additional metadata (telemetry attribution beyond the minimum, per-capability rate-limit scopes, capability-specific configuration). Such extensions must be additive and must not change the meaning of fields named here.
 
 The declaration is wire-stable through `schema_version`. Where a registry encounters a supported earlier declaration format, it normalizes the declaration to the current format at registration. Because ATLAS3 is local-only with no existing user base or persisted third-party declarations, no migration framework is required at present (per project constraints); when external declarations begin to persist, normalization-on-load applies and is a concern of the registry, not of the caller.
 

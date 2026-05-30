@@ -41,7 +41,7 @@ This file does not define:
 - the policy evaluation algorithm, approval flows, lease lifecycle, or contradiction-checking — File 06 owns those; this file specifies that lease state is a projection over policy events (per `policy.persistence`, File 06 §11.6)
 - the tool-surface composition algorithm or surface zoning — File 07 owns those; this file specifies that the tool surface is a projection (per `surface.chosen-model`, File 07 §1) and that registry snapshots address registry state at a durable anchor
 - the `ExecutionLedger` row format, the `EventEnvelope` field set, or the live-bus delivery contract — File 10 owns those; this file specifies which version-graph events flow through the canonical bus and which corresponding ledger entry kinds record them
-- the storage on-disk layout, the per-table physical schema, replication mechanics, projection-store realisation, or indexing strategy — the future Storage and Persistence spec owns those; this file specifies what must be durable and what must be reconstructable
+- the storage on-disk layout, the per-table physical schema, replication mechanics, projection-store realisation, or indexing strategy — File 20 owns those; this file specifies what must be durable and what must be reconstructable
 - the cross-device sync transport, the libsql embedded-replica mechanics, the conflict-detection pipeline, or import / export bundle format — the future Sync, Import, Export, and Data Portability spec owns those; this file specifies that the version-tree-aware merge is the canonical conflict-resolution semantics
 - retrieval, indexing, knowledge-base mechanics, retrieval-augmented generation mechanics, or hybrid-search algorithms — File 12 owns those; this file specifies that retrieval indexes are projections rebuildable from the durable substrates
 - context-assembly, compaction algorithms, token-budget mechanics, or per-policy block selection — File 13 owns those; this file specifies the materialized view as the canonical context-assembly input and the typed boundary at which compaction passes commit
@@ -239,7 +239,7 @@ Every `ContextVersion` carries at minimum:
 - `label` — optional `String`; user-assigned name; mutable through the `label_version` operation (§17.4), not through diff updates
 - `bookmarked` — `bool`; user-marked retention preference exempting the version from garbage-collection retention policies (§19.4); mutable through the `bookmark_version` operation
 - `snapshot_refs` — typed map of snapshot identities the version anchors (§13): `registry_snapshot_id`, `settings_snapshot_id`, `world_snapshot_id`, `policy_snapshot_id`, `pricing_snapshot_id`, `routing_snapshot_id`, plus registered extension keys; entries unused for a given commit are absent rather than null-padded
-- `version_schema_version` — version of the canonical row shape, so the future Storage spec can normalise supported earlier shapes during registration
+- `version_schema_version` — version of the canonical row shape, so File 20 can normalise supported earlier shapes during registration
 - `diff_hash` — SHA-256 over the canonical serialised `VersionDiff` payload; supports materialized-view integrity verification (§7.6) and forgery guards (§19.5)
 - `expected_view_hash` — optional SHA-256 over the canonical serialised materialized view at this version, used as an integrity sentinel for path-walk verification (§7.6 and §8.4); present when the storage layer chose to record it; absent versions are still valid
 
@@ -1317,7 +1317,7 @@ Per §19, cross-device sync preserves the version graph's branching topology. Co
 
 ### 18.6 Boundary
 
-Persistence is the storage layer's responsibility. This section specifies what the storage layer must persist (the field set above) and what it must reconstruct (the computed views). The storage schema, replication, indexing, and migration mechanics are owned by the future Storage and Persistence spec.
+Persistence is the storage layer's responsibility. This section specifies what the storage layer must persist (the field set above) and what it must reconstruct (the computed views). The storage schema, replication, indexing, and migration mechanics are owned by File 20.
 
 ## 19. Cross-Device Sync and Conflict Resolution
 

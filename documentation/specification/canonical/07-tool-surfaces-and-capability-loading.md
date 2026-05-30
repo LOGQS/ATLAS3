@@ -31,7 +31,7 @@ This file does not define:
 - run lifecycle, the capability-call pipeline, hook execution, cancellation, streaming, or postcondition validation — File 04 owns those
 - block schema, artifact lifecycle, evidence model, or the version graph — later specs own those
 - the per-surface specifications themselves (Coder, Web, Teacher, Data Processor, GUI Control, System Agent) — those later specs declare their `SubsystemSurfaceSpec` to the contract this file defines
-- the storage schema for surface state, `BorrowGrant`s, policy leases, or settings — the future Storage and Persistence spec owns those
+- the storage schema for surface state, `BorrowGrant`s, policy leases, or settings — File 20 owns those
 - UI rendering choices (palette layout, voice cadence, shortcut display) — File 07 specifies the data contract, the future UI Shell and UI Customization specs render
 - MCP transport mechanics, plugin install lifecycle internals, provider rate limits, or sandbox primitives — the future MCP and External Integrations, Extension and Plugin System, and Sandbox specs own those; File 17 owns provider concerns
 
@@ -120,7 +120,7 @@ Every `ResolvedToolSurface` is recorded as a surface snapshot in the execution l
 
 A `ToolSurface` is the projection layer over the Capability Registry. It owns no declarations of its own. The same canonical algorithm runs for every invoker kind; per-kind variation lives in the invocation-lens filter step (§11) and the presentation rendering owned by later UI specs.
 
-The future Storage and Persistence spec owns durability of recorded surface snapshots and user-customization settings. The future UI Shell and Customization specs own how a `ResolvedToolSurface` is rendered to humans. File 07 specifies the data contract; storage and UI consume it.
+File 20 owns durability of recorded surface snapshots and user-customization settings. The future UI Shell and Customization specs own how a `ResolvedToolSurface` is rendered to humans. File 07 specifies the data contract; storage and UI consume it.
 
 ## 3. The Zone Model
 
@@ -417,7 +417,7 @@ A `BorrowGrant` carries:
 - `grant_origin`: `tool_borrow_call`
 - `revocation_conditions`: standard scope expiry, explicit user revoke, capability unregistration, source unavailability, declaration-version incompatibility, or settings change that disables borrowing for the target
 
-`BorrowGrant` uses the same scope vocabulary as File 06 leases where applicable (`run`, `intent_thread`, `task`, `conversation`, `workspace`, `global`, `reusable_policy_rule`), but it is not selected by policy evaluation and is not a policy decision. It is stored and audited with surface state; a future storage spec may co-locate it physically with policy leases, but the semantics stay separate.
+`BorrowGrant` uses the same scope vocabulary as File 06 leases where applicable (`run`, `intent_thread`, `task`, `conversation`, `workspace`, `global`, `reusable_policy_rule`), but it is not selected by policy evaluation and is not a policy decision. It is stored and audited with surface state; File 20 may co-locate it physically with policy leases, but the semantics stay separate.
 
 If the approval `Lease` for a `tool.borrow_persistent` call is later revoked, existing `BorrowGrant`s survive under their own revocation conditions. Revoking that approval `Lease` means future persistent borrow calls require re-approval; it does not retroactively remove already-granted `BorrowGrant`s.
 
@@ -971,7 +971,7 @@ Per `routing.edit` (File 03 §11.2), editing a prior user message invalidates th
 
 ### 14.6 Boundary
 
-File 07 specifies what is computed versus what is durable, and how reconstruction works. The actual storage of `BorrowGrant`s, policy leases, settings, and ledger entries is owned by the future Storage and Persistence spec. The actual replay machinery is owned by File 10. File 07 names the persistence contract; storage realizes it.
+File 07 specifies what is computed versus what is durable, and how reconstruction works. The actual storage of `BorrowGrant`s, policy leases, settings, and ledger entries is owned by File 20. The actual replay machinery is owned by File 10. File 07 names the persistence contract; storage realizes it.
 
 ## 15. MCP and Plugin Tool Integration
 
@@ -1225,7 +1225,7 @@ The canonical principles later specs must follow:
 - consume the persistence contract (§14) — `ToolSurface` is computed; durable state lives in the registry, settings, `BorrowGrant` records, and consumed surface snapshots; later specs do not introduce a parallel durable surface store
 - consume the discovery-capabilities ledger discipline — every `tool.borrow`, `tool.search`, `mcp.search`, `tool.inspect` is recorded; later specs that perform discovery-like operations declare new capabilities through the canonical mechanism rather than bypassing the ledger
 - File 13 consumes the rendered `Primary` and `Borrowable` outputs of the composition algorithm as part of the model request; it does not invent its own surface; it places the surface in the canonical request position (§11.1) and applies cache markers as appropriate
-- the future Storage and Persistence spec stores `BorrowGrant`s, settings, ledger entries, and consumed surface snapshots per the contracts here; it does not introduce parallel durability paths
+- File 20 stores `BorrowGrant`s, settings, ledger entries, and consumed surface snapshots per the contracts here; it does not introduce parallel durability paths
 - File 15 implements settings resolution, profile contexts, profile layers, locality, and agent exposure for the dimensions in §18; it does not redefine the dimensions
 - the future Extension and Plugin System spec and MCP and External Integrations spec hand their registered capabilities through the unified Capability Registry per `capability.sourcing` (File 05 §9); the surface composition picks them up automatically
 - the future Workspaces and Materialization spec defines workspace boundaries; the surface composition consumes workspace_id from `scope_context` as one of the resolution inputs; workspace switching emits the appropriate `SurfaceSettingsChanged` event

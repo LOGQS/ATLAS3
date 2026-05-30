@@ -23,7 +23,7 @@ This file defines:
 
 This file does not define:
 
-- the perception sensor pipeline — screen capture, accessibility-tree traversal, OCR, audio capture, browser DOM extraction, screenshot diffing, and other observation-capture mechanics — the future Perception and Observation Pipelines spec owns those; this file owns the state model those observations update and the contract by which they update it
+- the perception sensor pipeline — screen capture, accessibility-tree traversal, OCR, audio capture, browser DOM extraction, screenshot diffing, and other observation-capture mechanics — File 19 owns those; this file owns the state model those observations update and the contract by which they update it
 - the `Observation`, `Citation`, `Artifact`, `Claim`, `Evidence`, or `Block` schema — Files 08 and 09 own those; this file consumes them
 - the execution ledger row format, event envelope, or hook dispatch — File 10 owns those; this file specifies which world facts flow through as transient events and which commit as durable ledger entries
 - the version-graph commit, materialized view, or snapshot-resolution machinery itself — File 11 owns those; this file specifies what `world_snapshot_id` addresses and how the world model resolves it
@@ -33,7 +33,7 @@ This file does not define:
 - retrieval, indexing, or knowledge-base curation — File 12 owns those
 - workspace identity, materialization, or worktree lifecycle — the future Workspaces and Materialization spec owns those; the world model references active workspaces as entities
 - sandbox primitives, process isolation, credential storage, trust state, or per-surface runtimes (Coder, Web, Data Processor, Teacher, GUI Control, System Agent) — the future Sandbox, Security, and per-surface specs own those; they declare which world entities and observations they produce
-- storage schema, sync transport, or UI rendering — the future Storage, Sync, and UI specs own those
+- storage schema, sync transport, or UI rendering — File 20 and the future Sync and UI specs own those
 
 ## Source Resolution
 
@@ -119,7 +119,7 @@ The boundary with Memory is sharp and load-bearing. Memory (File 14) stores dura
 
 Context assembly reads world-state snapshots as one of its sources (`context.chosen-model` (File 13 §1), `context.assembly-algorithm` (File 13 §6) step 3) and renders them into the `RuntimeState` region (`context.semantic-regions`, File 13 §3) as `trusted_runtime_fact` assembly parts (`context.authority-classes`, File 13 §2.3). §11 of this file defines how the world model is exposed to assembly: a compact world-snapshot part, refreshed per model-bound iteration, carrying a `world_snapshot_id` for replay, compactable to a one-line summary under budget pressure. The world model never performs model-request assembly itself; it supplies the source.
 
-### 2.11 With future Perception (File 19), Workspaces (File 24), per-surface, Security, and Sandbox specs
+### 2.11 With Perception (File 19) and future Workspaces (File 24), per-surface, Security, and Sandbox specs
 
 The Perception and Observation Pipelines spec owns the sensor/capture mechanics — how a screenshot, accessibility tree, audio stream, browser DOM, or file-system change is captured. This file owns the state model those captures update and the contract by which they update it (§8). The boundary: perception produces structured observations and signals; the world model is the live projection those observations maintain. The Workspaces and Materialization spec owns workspace identity and materialization; the world model references active workspaces as entities. Per-surface specs (Coder, Web, Data Processor, Teacher, GUI Control, System Agent) and the System Agent spec declare which world entities and observations they produce and which named availability checks they register; they consume and contribute to the one world model and never introduce a private state model. The Security spec owns secret material and the credential vault; the world model carries sensitivity tags and references, never secret payloads. The Sandbox spec owns process/sandbox isolation; the world model references active sandboxes and processes as entities and liveness facts.
 
@@ -150,7 +150,7 @@ The world model is not:
 
 ### 3.3 Boundary
 
-The world model defines what is true about the environment now and how that truth is observed, recorded, and exposed. It does not define how the environment is sensed (File 19), how the truth is acted upon (Files 04, 06, 07), or how it is stored on disk (future Storage spec).
+The world model defines what is true about the environment now and how that truth is observed, recorded, and exposed. It does not define how the environment is sensed (File 19), how the truth is acted upon (Files 04, 06, 07), or how it is stored on disk (File 20).
 
 ## 4. `WorldEntity`
 
@@ -338,7 +338,7 @@ A single tier cannot satisfy the three constraints simultaneously: `version.snap
 
 ### 7.4 Boundary
 
-The tier model defines what is recorded and how it resolves. The physical substrate (which table, which log) is the future Storage spec's concern; the observation-block mechanics are File 09's; the transient-event delivery is File 10's. This file defines the tier semantics.
+The tier model defines what is recorded and how it resolves. The physical substrate (which table, which log) is File 20's concern; the observation-block mechanics are File 09's; the transient-event delivery is File 10's. This file defines the tier semantics.
 
 ## 8. Observation and State Update
 
@@ -384,7 +384,7 @@ On process restart or after an offline interval, the world model reconstructs it
 
 ### 8.8 Boundary
 
-This file owns the update contract, the self-registration rule, the freshness/staleness model, and reconciliation. File 19 owns capture; File 09 owns observation blocks; File 04 owns stale-state revalidation and orphan reconciliation at the run level; the future Storage spec owns the durable substrate's physical form.
+This file owns the update contract, the self-registration rule, the freshness/staleness model, and reconciliation. File 19 owns capture; File 09 owns observation blocks; File 04 owns stale-state revalidation and orphan reconciliation at the run level; File 20 owns the durable substrate's physical form.
 
 ## 9. State-Aware Capability Availability
 
@@ -465,7 +465,7 @@ The world model is a `Projection` per `version.version-graph-backed-projections`
 
 ### 10.5 Boundary
 
-This file owns the snapshot identity, the durable substrate's logical content, and the resolution contract. File 11 owns the snapshot-catalogue placement and the generic resolution machinery; the future Storage spec owns the substrate's physical layout and the baseline/checkpoint optimization; File 09 owns the observation blocks the `Observed` tier references.
+This file owns the snapshot identity, the durable substrate's logical content, and the resolution contract. File 11 owns the snapshot-catalogue placement and the generic resolution machinery; File 20 owns the substrate's physical layout and the baseline/checkpoint optimization; File 09 owns the observation blocks the `Observed` tier references.
 
 ## 11. Exposure and Consumption
 
@@ -535,7 +535,7 @@ The world model exposes its operations through the canonical Capability Registry
 - `world.register_surface(surface_spec)` / `world.register_panel(panel_state)` / `world.unregister_panel(panel_id)` — surface and panel self-registration (§8.1); update-only producer operations scoped to the registering producer
 - `world.update(patch)` — applies a typed partial update to the world model from a declared producer (§8.2); the producer may update only the entities and facts it owns
 - `world.set_focus(panel_id)` / `world.set_selection(selection)` — focus and selection updates from the owning surface
-- `world.ingest_observation(observation_ref, affected_entities, update_intent)` — consumes an existing `Observation` block or structured observation signal as an `Observed`-tier fact and links affected entities by `observes`; Observation block creation is owned by File 09 and the future Perception spec
+- `world.ingest_observation(observation_ref, affected_entities, update_intent)` — consumes an existing `Observation` block or structured observation signal as an `Observed`-tier fact and links affected entities by `observes`; Observation block creation is owned by File 09 and File 19
 - `world.evaluate_availability(scope)` — returns the available-capability list for a scope (§9); `ReadOnly`, `ConcurrencySafe`, deterministic over the snapshot
 - `world.evaluate_check(check_name, scope)` — evaluates a named availability check (§9.3) against the scope's snapshot
 - `world.resolve_snapshot(world_snapshot_id)` — resolves a snapshot identity to a `WorldSnapshot` (§10); `ReadOnly`, `deterministic_replayable`
@@ -573,7 +573,7 @@ On restart, the live world model is reconstructed from the durable substrate and
 
 ### 14.4 Boundary
 
-This file specifies what is durable, computed, and reconstructable. The future Storage spec realizes the physical substrate, the baseline/checkpoint optimization, and the table layout; the future Sync spec decides which world facts cross devices (most are device-local: displays, processes, sandboxes, foreground application; few are syncable).
+This file specifies what is durable, computed, and reconstructable. File 20 realizes the physical substrate, the baseline/checkpoint optimization, and the table layout; the future Sync spec decides which world facts cross devices (most are device-local: displays, processes, sandboxes, foreground application; few are syncable).
 
 ## 15. Settings
 
@@ -621,7 +621,7 @@ The following shapes are wrong for this layer:
 - unnormalized foreground/context churn as world state — producers must suppress unstable source artifacts according to their registered normalization policy before emitting world-state changes
 - raw secret content in any world fact, durable record, observation, or exposed snapshot — `Secret` facts carry safe descriptions only (§4.2, §7.3, `ledger.sensitivity-aware-persistence-retention` (File 10 §10))
 - treating the world model as the perception sensor pipeline — capture mechanics belong to File 19; the world model owns the state those captures update (§8.4)
-- creating `Observation` blocks through the world-model layer — File 09 and the future Perception spec own observation creation; the world model ingests observation references and structured signals
+- creating `Observation` blocks through the world-model layer — File 09 and File 19 own observation creation; the world model ingests observation references and structured signals
 - mutating a substrate the world model does not own through a world-model update — updates reflect what producers report; they never change runs, files, blocks, or memory (§8.2)
 
 ## 17. Consequences for Later Specs

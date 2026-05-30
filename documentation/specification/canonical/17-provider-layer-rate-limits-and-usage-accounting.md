@@ -30,27 +30,27 @@ This file defines:
 
 This file does not define:
 
-- model selection, `ModelProfile` resolution, workload classification, or `FallbackPolicy` actions â€” File 16 owns those
-- routing, `RunIntent` field meanings, or router context policy â€” File 03 owns those
-- run lifecycle, the capability-call pipeline, cancellation primitives, or hook execution â€” File 04 owns those
-- the `CapabilityDeclaration` field set, registry operations, or runtime registration â€” File 05 owns those
-- policy evaluation, approvals, leases, or typed-confirmation â€” File 06 owns those
-- tool-surface composition or zoning â€” File 07 owns those
-- the `Block` schema, `BlockKind` catalogue, or commit boundary â€” File 08 owns those
-- the `ExecutionLedger` row schema or the `EventEnvelope` field set â€” File 10 owns those; this file specifies what per-call attribution the ledger must record
-- the version graph or `ContextVersion` mechanics â€” File 11 owns those
+- model selection, `ModelProfile` resolution, workload classification, or `FallbackPolicy` actions — File 16 owns those
+- routing, `RunIntent` field meanings, or router context policy — File 03 owns those
+- run lifecycle, the capability-call pipeline, cancellation primitives, or hook execution — File 04 owns those
+- the `CapabilityDeclaration` field set, registry operations, or runtime registration — File 05 owns those
+- policy evaluation, approvals, leases, or typed-confirmation — File 06 owns those
+- tool-surface composition or zoning — File 07 owns those
+- the `Block` schema, `BlockKind` catalogue, or commit boundary — File 08 owns those
+- the `ExecutionLedger` row schema or the `EventEnvelope` field set — File 10 owns those; this file specifies what per-call attribution the ledger must record
+- the version graph or `ContextVersion` mechanics — File 11 owns those
 - retrieval indexes, knowledge-base construction, or retrieval-augmented generation — File 12 owns those
-- the model-request assembly algorithm, token-counting budget, or the `CacheMarker` candidate-production rules â€” File 13 owns those; this file consumes those outputs
-- memory recall, store, or consolidation â€” File 14 owns those
-- the settings source stack, scope resolution, or profile layering â€” File 15 owns those
-- credential vault internals, OS keyring integration, secret encryption, or trust-state cryptography â€” the future Security spec owns those; this file specifies the vault-reference contract and the namespace
-- MCP transport mechanics for tool servers â€” the future MCP and External Integrations spec owns those; this file is for model/inference providers, not tool providers
-- sandbox primitives, process isolation, or sandboxed-runtime details â€” the future Sandbox spec owns those
-- physical storage layout, on-disk schema, or index strategy â€” the future Storage spec owns those
-- cross-device sync transport â€” the future Sync spec owns those
-- UI rendering of provider lists, model pickers, usage dashboards, billing views, rate-limit indicators, or credential management surfaces â€” the future UI specs own those
-- packaging, installer behavior, or platform integration â€” the future Packaging spec owns those
-- concrete provider names, model names, exact pricing values, exact tokenizer crate identifiers, or vendor-specific wire-format details outside the boundaries listed in Â§6.5
+- the model-request assembly algorithm, token-counting budget, or the `CacheMarker` candidate-production rules — File 13 owns those; this file consumes those outputs
+- memory recall, store, or consolidation — File 14 owns those
+- the settings source stack, scope resolution, or profile layering — File 15 owns those
+- credential vault internals, OS keyring integration, secret encryption, or trust-state cryptography — the future Security spec owns those; this file specifies the vault-reference contract and the namespace
+- MCP transport mechanics for tool servers — the future MCP and External Integrations spec owns those; this file is for model/inference providers, not tool providers
+- sandbox primitives, process isolation, or sandboxed-runtime details — the future Sandbox spec owns those
+- physical storage layout, on-disk schema, or index strategy — File 20 owns those
+- cross-device sync transport — the future Sync spec owns those
+- UI rendering of provider lists, model pickers, usage dashboards, billing views, rate-limit indicators, or credential management surfaces — the future UI specs own those
+- packaging, installer behavior, or platform integration — the future Packaging spec owns those
+- concrete provider names, model names, exact pricing values, exact tokenizer crate identifiers, or vendor-specific wire-format details outside the boundaries listed in §6.5
 
 ## Source Resolution
 
@@ -62,7 +62,7 @@ Resolved design:
 - `ProviderProfile` is a declarative shape that lets one transport implementation serve many providers that share a wire format. Hand-coded adapters remain valid; the profile is the recommended path, not the required path.
 - Streaming, error classification, retry, health, rate limits, credentials, capability normalization, cache rendering, and tokenizer dispatch all carry typed cross-provider primitives so that File 16, File 04, File 10, File 13, and File 15 never branch on provider identity.
 - Provider-specific wire syntax, header injection, model-list shape, error-code mapping, parameter clamping rules, and tokenizer libraries are adapter responsibilities. The canonical layer defines the contract these adapters meet.
-- Per-call attribution is keyed by `(provider_id, model_id, tokenizer_id, role)` and stored as typed records. Cost is never a stored unkeyed scalar â€” it is derived from records and pricing snapshots at audit, projection, or display time. This obeys File 01 Â§8.
+- Per-call attribution is keyed by `(provider_id, model_id, tokenizer_id, role)` and stored as typed records. Cost is never a stored unkeyed scalar — it is derived from records and pricing snapshots at audit, projection, or display time. This obeys `core.explicit-rejections` (File 01 §8).
 - Provider health, rate-limit state, and capability snapshots are runtime projections over the adapter's accumulated observations. File 16 reads them as `ProviderRuntimeSnapshot` and `ProviderOfferingProjection`; File 17 owns their content.
 - Transport-level retry stays inside the provider layer. Model-level fallback to a different model returns through File 16's `FallbackPolicy`. The boundary is sharp: same `(provider_id, model_id)` retry happens here; switching `(provider_id, model_id)` is File 16's decision.
 
@@ -85,23 +85,23 @@ It owns:
 
 The layer has the following primitives:
 
-- `WireFamily { family_id }` â€” the registry reference naming an adapter wire family without embedding provider-specific constants in canonical text
+- `WireFamily { family_id }` — the registry reference naming an adapter wire family without embedding provider-specific constants in canonical text
 
-- `ProviderAdapter` â€” the typed contract every provider implementation must meet
-- `ProviderProfile` â€” the declarative recipe most adapters are realized from
-- `ProviderInstance` â€” a configured live binding of an adapter to credentials, account, base URL, and runtime overrides
-- `ProviderRegistry` â€” the registry holding registered adapters, instances, and their runtime state
-- `ProviderRequest` and `ProviderResponse` â€” the typed call envelopes carried across the adapter boundary
-- `ProviderStreamChunk` â€” the typed streaming-delta envelope
-- `ProviderError` and `ErrorClassification` â€” the typed error vocabulary and per-error retry advice
-- `ProviderHealth` â€” the runtime health state machine
-- `RateLimitState` and `RateLimitSnapshot` â€” the canonical rate-limit accounting and reconciliation records
-- `ProviderCredential`, `ProviderAccount`, and `CredentialPool` â€” the credential addressability model
-- `ModelCatalogEntry` â€” the per-model record cached from `ProviderAdapter::refresh_models`
-- `TokenSource`, `TokenizerId`, and `TokenCount` â€” the tokenizer dispatch and accuracy hierarchy
-- `TokenUsageRecord` â€” the per-call attribution record
-- `ModelPricing` and `PricingSnapshot` â€” the derived-cost inputs
-- `ProviderRuntimeSnapshot` and `ProviderOfferingProjection` â€” the read-only projections exposed to File 16
+- `ProviderAdapter` — the typed contract every provider implementation must meet
+- `ProviderProfile` — the declarative recipe most adapters are realized from
+- `ProviderInstance` — a configured live binding of an adapter to credentials, account, base URL, and runtime overrides
+- `ProviderRegistry` — the registry holding registered adapters, instances, and their runtime state
+- `ProviderRequest` and `ProviderResponse` — the typed call envelopes carried across the adapter boundary
+- `ProviderStreamChunk` — the typed streaming-delta envelope
+- `ProviderError` and `ErrorClassification` — the typed error vocabulary and per-error retry advice
+- `ProviderHealth` — the runtime health state machine
+- `RateLimitState` and `RateLimitSnapshot` — the canonical rate-limit accounting and reconciliation records
+- `ProviderCredential`, `ProviderAccount`, and `CredentialPool` — the credential addressability model
+- `ModelCatalogEntry` — the per-model record cached from `ProviderAdapter::refresh_models`
+- `TokenSource`, `TokenizerId`, and `TokenCount` — the tokenizer dispatch and accuracy hierarchy
+- `TokenUsageRecord` — the per-call attribution record
+- `ModelPricing` and `PricingSnapshot` — the derived-cost inputs
+- `ProviderRuntimeSnapshot` and `ProviderOfferingProjection` — the read-only projections exposed to File 16
 
 These primitives carry the entire provider-invariant surface. Other specs consume them; they do not extend them with parallel constructs.
 
@@ -120,25 +120,25 @@ Anchor: `provider.boundaries-with-adjacent-layers`
 
 File 16 consumes three projections from this layer: `ModelCapabilityDescriptor` (per `(provider_id, model_id)`), `ProviderOfferingProjection` (provider/account availability, effective pricing, region, data handling), and `ProviderRuntimeSnapshot` (current health, rate-limit posture, in-flight capacity, credential state, known retryability). File 17 produces all three. File 17 does not select models, score candidates, or evaluate `ModelProfile`s.
 
-File 16's `FallbackPolicy` consumes typed `ProviderError` variants defined in Â§10. Once a call exits this layer with one of those errors, model-level fallback is File 16's decision. Until then, transport-level retry against the same `(provider_id, model_id)` and credential-pool rotation within the same account stay inside this layer.
+File 16's `FallbackPolicy` consumes typed `ProviderError` variants defined in §10. Once a call exits this layer with one of those errors, model-level fallback is File 16's decision. Until then, transport-level retry against the same `(provider_id, model_id)` and credential-pool rotation within the same account stay inside this layer.
 
-File 16's behavioral intents (`reasoning_posture`, `sampling_posture`, `output_length_posture`, `latency_posture`, and the resolved parameter values from Â§10.2 of that file) are consumed by `ProviderAdapter::build_request` and serialized to provider-native parameters per Â§8.
+File 16's behavioral intents (`reasoning_posture`, `sampling_posture`, `output_length_posture`, `latency_posture`, and the resolved parameter values from §10.2 of that file) are consumed by `ProviderAdapter::build_request` and serialized to provider-native parameters per §8.
 
 ### 2.2 With File 04 (Execution and Run Model)
 
-File 04 Â§8.2 defines the capability-call pipeline; model-bound work that flows through that pipeline reaches this layer when a model invocation is dispatched. File 04 Â§17.3 owns the cancellation primitive; this layer propagates the cancellation signal into adapter calls and stream consumers, and records partial usage on cancellation as specified in Â§9.4.
+`run.call-pipeline` (File 04 §8.2) defines the capability-call pipeline; model-bound work that flows through that pipeline reaches this layer when a model invocation is dispatched. `run.cancellation` (File 04 §17.3) owns the cancellation primitive; this layer propagates the cancellation signal into adapter calls and stream consumers, and records partial usage on cancellation as specified in §9.4.
 
-File 04 Â§20.1 forbids provider retry and rate-limit handling in the execution layer. This file owns those mechanics. File 04 surfaces typed errors when transport-level retry exhausts; the execution layer chooses recovery from Â§20.2 of File 04.
+`run.boundary-rule` (File 04 §20.1) forbids provider retry and rate-limit handling in the execution layer. This file owns those mechanics. File 04 surfaces typed errors when transport-level retry exhausts; the execution layer chooses recovery from §20.2 of File 04.
 
 ### 2.3 With File 10 (Execution Ledger, Event Stream, and Hooks)
 
-File 10 Â§4 enumerates the canonical `LedgerEntryKind` catalogue; the model-call entries (`ModelCallStarted`, `ModelCallCompleted`, `ModelCallStreamingDelta`, `ModelCallFailed`, `ProviderHealthChanged`, `RateLimitSnapshotReconciled`, `TokenCountEstimationTelemetry`) and the related event kinds (`ProviderModelsRefreshed`, `RateLimitHit`, `CapabilityProbed`, `CredentialRotated`, `ParameterClamped`, `CacheBreakDetected`) are emitted by this layer. File 10 owns the entry shape; this file specifies what per-call attribution every model-call entry must carry (`TokenUsageRecord` per Â§18, cost computed from per-model pricing per Â§19, never an unkeyed scalar per File 01 Â§8).
+`ledger.entry-kinds` (File 10 §4) enumerates the canonical `LedgerEntryKind` catalogue; the model-call entries (`ModelCallStarted`, `ModelCallCompleted`, `ModelCallStreamingDelta`, `ModelCallFailed`, `ProviderHealthChanged`, `RateLimitSnapshotReconciled`, `TokenCountEstimationTelemetry`) and the related event kinds (`ProviderModelsRefreshed`, `RateLimitHit`, `CapabilityProbed`, `CredentialRotated`, `ParameterClamped`, `CacheBreakDetected`) are emitted by this layer. File 10 owns the entry shape; this file specifies what per-call attribution every model-call entry must carry (`TokenUsageRecord` per §18, cost computed from per-model pricing per §19, never an unkeyed scalar per `core.explicit-rejections`, File 01 §8).
 
-File 10 Â§10's sensitivity classification (`Public`/`Sensitive`/`Secret`) governs persistence; this file specifies which provider-layer events carry which sensitivity, and the rule that raw credentials, raw request bodies, and resolved secret material never enter durable persistence.
+`ledger.sensitivity-aware-persistence-retention` (File 10 §10)'s sensitivity classification (`Public`/`Sensitive`/`Secret`) governs persistence; this file specifies which provider-layer events carry which sensitivity, and the rule that raw credentials, raw request bodies, and resolved secret material never enter durable persistence.
 
 ### 2.4 With File 13 (Context Assembly and Compaction)
 
-File 13 Â§10 owns token counting at the assembly boundary (request-size estimation against the active model's request limits) and produces the `BudgetReport`. File 17 owns the tokenizer dispatch table, the per-model tokenizer identity, and the provider-exception list. The `(block_id, tokenizer_id)` LRU cache contract is shared: File 13 populates and consumes it for assembly; File 17 populates it during parse with provider-reported counts when available, which take precedence over local-tokenizer counts. The `tokenizer_id` namespace is defined here (Â§17).
+`context.token-counting` (File 13 §10) owns token counting at the assembly boundary (request-size estimation against the active model's request limits) and produces the `BudgetReport`. File 17 owns the tokenizer dispatch table, the per-model tokenizer identity, and the provider-exception list. The `(block_id, tokenizer_id)` LRU cache contract is shared: File 13 populates and consumes it for assembly; File 17 populates it during parse with provider-reported counts when available, which take precedence over local-tokenizer counts. The `tokenizer_id` namespace is defined here (§17).
 
 `context.cache-marker-candidates` (File 13 §11) produces logical `CacheMarker` candidates with provider-invariant anchors, stability metadata, sensitivity eligibility, fingerprints, and source references. `provider.cache-marker-translation` (File 17 §16) translates those candidates to provider-native cache behavior, applies provider-declared marker limits and cache constraints, and reports cache hit accounting back through `TokenUsageRecord`. Minimum cacheable size and retention behavior belong to provider offering or adapter policy metadata, not `ModelCapabilityDescriptor`.
 
@@ -146,7 +146,7 @@ File 13 Â§10 owns token counting at the assembly boundary (request-size estima
 
 All provider-layer settings (preferred providers, excluded providers, excluded models, custom provider configurations, per-account credential references, rate-limit budgets, retry caps, cache enablement and retention preference, tokenizer overrides, model-catalog maintenance policy, cost-tracking opt-in, unknown-cost policy, parameter clamping defaults) are declared as `SettingDefinition`s and resolved through File 15's source stack. File 17 reads resolved values; it does not implement a second cascade.
 
-Secret material is stored in the vault per File 15 Â§10. This file specifies the vault namespace and the access pattern; vault internals belong to the future Security spec.
+Secret material is stored in the vault per `settings.secret-boundary` (File 15 §10). This file specifies the vault namespace and the access pattern; vault internals belong to the future Security spec.
 
 ### 2.6 With File 03 (Routing and Dispatch)
 
@@ -166,11 +166,11 @@ A `ProviderAdapter` is a typed binding that connects Atlas's runtime to one mode
 
 An adapter is:
 
-- contract-driven â€” its method set is closed canonical
-- inspectable â€” its `provider_id`, `display_name`, declared capabilities, registered models, and runtime state are queryable through the registry
-- composable â€” adapter implementations may be hand-coded or realized from a `ProviderProfile`
-- substitutable â€” two adapters that meet the contract are interchangeable for routing, selection, execution, and accounting purposes
-- versionable â€” adapter implementations carry a `version` and a `compatibility` declaration; version updates pass through the source-approval flow defined by File 06 when the source is a plugin or extension
+- contract-driven — its method set is closed canonical
+- inspectable — its `provider_id`, `display_name`, declared capabilities, registered models, and runtime state are queryable through the registry
+- composable — adapter implementations may be hand-coded or realized from a `ProviderProfile`
+- substitutable — two adapters that meet the contract are interchangeable for routing, selection, execution, and accounting purposes
+- versionable — adapter implementations carry a `version` and a `compatibility` declaration; version updates pass through the source-approval flow defined by File 06 when the source is a plugin or extension
 
 It is not:
 
@@ -185,45 +185,45 @@ It is not:
 
 Every `ProviderAdapter` must support the following typed operations. Method names below are canonical labels; implementation-language signatures are an implementation concern.
 
-- `provider_id` â€” stable provider identifier
-- `display_name` â€” human-readable name
+- `provider_id` — stable provider identifier
+- `display_name` — human-readable name
 - `wire_family` — `WireFamily { family_id }`, a provider-registry reference to the adapter wire family this implementation belongs to
-- `validate_configuration` â€” verify the configured base URL, account, credential reference, and feature flags are coherent without performing a remote call
-- `validate_credentials` â€” perform a minimal remote check (typically the model-list endpoint) and return success or a typed `ProviderError`
-- `list_models` â€” return the current `ModelCatalogEntry` set from the registry's projection
-- `refresh_models` â€” re-query the provider's model catalog and update the registry projection
-- `capabilities` â€” return the `ModelCapabilityDescriptor` for one `(provider_id, model_id)` pair, populated from provider-reported facts, adapter-shipped fallback, and user-supplied overrides per Â§15
-- `build_request` â€” transform the assembled `ProviderRequest` (carrying File 13 assembly output, File 16 behavioral intents, and File 17 cache-marker rendering) into the provider-native wire payload
-- `complete` â€” execute a non-streaming model call, returning `ProviderResponse` or `ProviderError`
-- `stream` â€” execute a streaming model call, returning a typed stream of `ProviderStreamChunk` values terminated by either a final chunk or a typed `ProviderError`
-- `classify_error` â€” return the `ErrorClassification` for a provider-specific error value, including `retryable`, `rate_limited`, `retry_after_ms`, `error_code`, and `recovery_advice`
-- `render_cache_markers` â€” translate File 13's logical `CacheMarker` candidates into provider-native cache annotations, capping to declared marker limits with typed diagnostics on overflow
-- `count_tokens` â€” count tokens for a given content fragment, model, and tokenizer identity, using provider-native counting when available and falling back to the local hierarchy in Â§17
-- `rate_limit_state` â€” return the current `RateLimitState` projection for the requested `RateLimitScope`
-- `reconcile_rate_limits` â€” consume a `RateLimitSnapshot` parsed from response headers and update the per-scope state
-- `runtime_snapshot` â€” return the `ProviderRuntimeSnapshot` projection consumed by File 16
-- `offering_projection` â€” return the `ProviderOfferingProjection` consumed by File 16
-- `close` â€” release any per-instance resources (HTTP clients, subprocesses for subscription wrappers, file watchers, OAuth refresh timers)
+- `validate_configuration` — verify the configured base URL, account, credential reference, and feature flags are coherent without performing a remote call
+- `validate_credentials` — perform a minimal remote check (typically the model-list endpoint) and return success or a typed `ProviderError`
+- `list_models` — return the current `ModelCatalogEntry` set from the registry's projection
+- `refresh_models` — re-query the provider's model catalog and update the registry projection
+- `capabilities` — return the `ModelCapabilityDescriptor` for one `(provider_id, model_id)` pair, populated from provider-reported facts, adapter-shipped fallback, and user-supplied overrides per §15
+- `build_request` — transform the assembled `ProviderRequest` (carrying File 13 assembly output, File 16 behavioral intents, and File 17 cache-marker rendering) into the provider-native wire payload
+- `complete` — execute a non-streaming model call, returning `ProviderResponse` or `ProviderError`
+- `stream` — execute a streaming model call, returning a typed stream of `ProviderStreamChunk` values terminated by either a final chunk or a typed `ProviderError`
+- `classify_error` — return the `ErrorClassification` for a provider-specific error value, including `retryable`, `rate_limited`, `retry_after_ms`, `error_code`, and `recovery_advice`
+- `render_cache_markers` — translate File 13's logical `CacheMarker` candidates into provider-native cache annotations, capping to declared marker limits with typed diagnostics on overflow
+- `count_tokens` — count tokens for a given content fragment, model, and tokenizer identity, using provider-native counting when available and falling back to the local hierarchy in §17
+- `rate_limit_state` — return the current `RateLimitState` projection for the requested `RateLimitScope`
+- `reconcile_rate_limits` — consume a `RateLimitSnapshot` parsed from response headers and update the per-scope state
+- `runtime_snapshot` — return the `ProviderRuntimeSnapshot` projection consumed by File 16
+- `offering_projection` — return the `ProviderOfferingProjection` consumed by File 16
+- `close` — release any per-instance resources (HTTP clients, subprocesses for subscription wrappers, file watchers, OAuth refresh timers)
 
 ### 3.3 Optional Methods
 
 Adapters may expose:
 
-- `get_retry_advice` â€” provider-specific retry direction beyond the generic `ErrorClassification` (used when the provider's documentation differs materially from the canonical advice)
-- `ping` â€” an explicit connectivity test invoked by user-triggered diagnostics (never as a scheduled health probe)
+- `get_retry_advice` — provider-specific retry direction beyond the generic `ErrorClassification` (used when the provider's documentation differs materially from the canonical advice)
+- `ping` — an explicit connectivity test invoked by user-triggered diagnostics (never as a scheduled health probe)
 - `account_usage` — return a normalized `AccountUsageSnapshot` for providers that expose account-level usage endpoints
-- `fetch_recommended_models` â€” return a curated subset of available models when the provider exposes such a recommendation
-- `discover_capabilities` â€” perform probes the provider supports for capability normalization beyond the model list endpoint
+- `fetch_recommended_models` — return a curated subset of available models when the provider exposes such a recommendation
+- `discover_capabilities` — perform probes the provider supports for capability normalization beyond the model list endpoint
 
 ### 3.4 Explicit Non-Fields
 
 The adapter contract must not carry:
 
-- raw credentials in any persistent field â€” credentials flow in at the point of use and leave with the request
-- a `cost_cents` scalar â€” cost is derived per Â§19
-- a free-form retry policy struct â€” retry is governed by `ErrorClassification` and Â§11
-- a hardcoded model-name branching table â€” capability-driven dispatch is the canonical pattern per File 01 Â§8 and the constraint restated in Â§25 of this file
-- provider-specific endpoint paths or wire-format identifiers as user-facing constants â€” they live in the adapter implementation, not the contract
+- raw credentials in any persistent field — credentials flow in at the point of use and leave with the request
+- a `cost_cents` scalar — cost is derived per §19
+- a free-form retry policy struct — retry is governed by `ErrorClassification` and §11
+- a hardcoded model-name branching table — capability-driven dispatch is the canonical pattern per `core.explicit-rejections` (File 01 §8) and the constraint restated in §25 of this file
+- provider-specific endpoint paths or wire-format identifiers as user-facing constants — they live in the adapter implementation, not the contract
 
 ### 3.5 Normalization Responsibility
 
@@ -241,13 +241,13 @@ A profile is:
 
 - registered as provider-registry source artifacts; plugin, imported, or extension profiles pass through File 06 source approval before activation
 - composable with adapter-shipped extensions for provider-specific quirks
-- typed â€” every field is canonical or registered
+- typed — every field is canonical or registered
 
 A profile is not:
 
-- a substitute for the `ProviderAdapter` contract â€” every adapter realized from a profile still implements the full contract
-- a credential â€” it references the credential namespace, never the material
-- a `ModelProfile` â€” File 16 owns that primitive
+- a substitute for the `ProviderAdapter` contract — every adapter realized from a profile still implements the full contract
+- a credential — it references the credential namespace, never the material
+- a `ModelProfile` — File 16 owns that primitive
 
 ### 4.2 Required Fields
 
@@ -298,7 +298,7 @@ A `ProviderInstance` binds a `ProviderAdapter` (typically realized from a `Provi
 - a `ProviderAccount` reference
 - a `credential_ref` resolved through the vault
 - per-instance overrides (custom headers, proxy, mTLS configuration, geographic region, model_id allowlist/blocklist, custom tokenizer override)
-- a `runtime_environment` â€” the typed sandbox or process context for subscription wrappers
+- a `runtime_environment` — the typed sandbox or process context for subscription wrappers
 
 Two instances of the same profile with different `provider_id`s share no mutable runtime state. Their credentials, rate-limit accounting, health state, and usage records are addressed independently.
 
@@ -315,7 +315,7 @@ The `ProviderRegistry` is the projection over registered adapters, profiles, ins
 - runtime-snapshot lookup by `provider_id`
 - offering-projection enumeration consumed by File 16
 
-The registry is event-driven. Registration, unregistration, credential rotation, model-catalog refresh, capability refresh, rate-limit reconciliation, and health transitions emit canonical events per Â§22.
+The registry is event-driven. Registration, unregistration, credential rotation, model-catalog refresh, capability refresh, rate-limit reconciliation, and health transitions emit canonical events per §22.
 
 The registry is not an independent source of provider truth. Capability data is provider-reported, adapter-fallback, or user-supplied; pricing data is provider-reported, user-supplied, or unknown; rate-limit data is header-reconciled or user-configured. The registry caches and exposes these facts with full provenance.
 
@@ -327,10 +327,10 @@ Anchor: `provider.provider-sourcing`
 
 Every provider instance is sourced from one of:
 
-- `Builtin` â€” adapters shipped with Atlas
-- `Plugin { plugin_id }` â€” adapters bundled in a plugin and subject to the source-approval flow from File 06 Â§9
-- `UserDefined` â€” adapters configured by the user through the canonical `provider.register` capability surface
-- `ImportedBundle { bundle_id }` â€” adapters carried inside a portable bundle import
+- `Builtin` — adapters shipped with Atlas
+- `Plugin { plugin_id }` — adapters bundled in a plugin and subject to the source-approval flow from `policy.source-approval-flow` (File 06 §9)
+- `UserDefined` — adapters configured by the user through the canonical `provider.register` capability surface
+- `ImportedBundle { bundle_id }` — adapters carried inside a portable bundle import
 
 ### 6.2 Subscription Wrappers
 
@@ -363,29 +363,29 @@ It carries:
 - the resolved `(provider_id, model_id, account_id)` identity
 - the assembled model request from `context.model-request` (File 13 §2) with semantic regions preserved
 - `assembly_snapshot_ref`, `sensitivity_summary`, `data_boundary_decision_ref`, and provider/account boundary requirements needed to prove the request is authorized before serialization
-- the resolved behavioral intents from File 16 Â§10 (`reasoning_posture`, `sampling_posture`, `output_length_posture`, `latency_posture`, `cost_posture`, `cache_continuity_preference`, `structured_output_posture`, parameter overrides resolved per File 15)
-- the rendered or pending `CacheMarker` candidates from File 13 Â§11
-- the `RunIntent` and `Run` cross-references required for ledger attribution per File 10 Â§2.1
-- the active `policy_snapshot_ref`, `settings_snapshot_ref`, `world_snapshot_ref`, and `registry_snapshot_ref` per File 10 Â§3.6
+- the resolved behavioral intents from `model.behavioral-intent-parameter-resolution` (File 16 §10) (`reasoning_posture`, `sampling_posture`, `output_length_posture`, `latency_posture`, `cost_posture`, `cache_continuity_preference`, `structured_output_posture`, parameter overrides resolved per File 15)
+- the rendered or pending `CacheMarker` candidates from `context.cache-marker-candidates` (File 13 §11)
+- the `RunIntent` and `Run` cross-references required for ledger attribution per `ledger.boundaries-with-adjacent-layers` (File 10 §2.1)
+- the active `policy_snapshot_ref`, `settings_snapshot_ref`, `world_snapshot_ref`, and `registry_snapshot_ref` per `ledger.cross-references` (File 10 §3.6)
 - the role tag for usage attribution (`router`, `responder`, `critic`, `validator`, `planner`, `summarizer`, `completion_verifier`, `child_run_model`, or a registered `Custom { namespace, name }`)
 - the `cancellation_signal` propagated from File 04
 - the `idempotency_key` for safe transport-level retry
 
-The request must not carry resolved secret material. Credential resolution happens inside the adapter at the point of use through the vault reference per Â§14.
+The request must not carry resolved secret material. Credential resolution happens inside the adapter at the point of use through the vault reference per §14.
 
 ### 7.2 Parameter Resolution and Clamping
 
-`ProviderAdapter::build_request` maps behavioral intents to provider-native parameters using the profile's `parameter_mapping` or the hand-coded equivalent. The adapter applies provider-specific clamping when the resolved value is incompatible with the target model (for example, when the target model requires a fixed parameter or rejects an unsupported parameter family). Every clamp emits a `ParameterClamped` event per Â§22 with the requested intent, the resolved value, the clamp applied, and the diagnostic reason. Clamping is observability, not silent rewriting.
+`ProviderAdapter::build_request` maps behavioral intents to provider-native parameters using the profile's `parameter_mapping` or the hand-coded equivalent. The adapter applies provider-specific clamping when the resolved value is incompatible with the target model (for example, when the target model requires a fixed parameter or rejects an unsupported parameter family). Every clamp emits a `ParameterClamped` event per §22 with the requested intent, the resolved value, the clamp applied, and the diagnostic reason. Clamping is observability, not silent rewriting.
 
 When a required behavioral intent cannot be honored at all (the model does not support a required modality, structured-output mode, or reasoning posture), the adapter rejects the request with `ProviderError::CapabilityMismatchDiscovered` so File 16 can reselect.
 
 ### 7.3 Multimodal Payload Assembly
 
-Multimodal inputs (images, audio, video, file attachments) cross the adapter boundary as typed references that the adapter serializes to the provider's expected payload form (inline base64, file IDs, URL references, multipart bodies). Adapters must preserve content sensitivity classifications per File 10 Â§5.2; sensitive material that the active provider must not see fails at the boundary with `ProviderError::PolicyOrDataBoundaryConflict` rather than being silently transmitted.
+Multimodal inputs (images, audio, video, file attachments) cross the adapter boundary as typed references that the adapter serializes to the provider's expected payload form (inline base64, file IDs, URL references, multipart bodies). Adapters must preserve content sensitivity classifications per `ledger.event-envelope` (File 10 §5.2); sensitive material that the active provider must not see fails at the boundary with `ProviderError::PolicyOrDataBoundaryConflict` rather than being silently transmitted.
 
 ### 7.4 Tool and Callable Declarations
 
-Provider-native callable declarations (the tool array carried with the model request) are serialized by the adapter from the `ToolSurface` snapshot per File 07 Â§13. The adapter must respect the model's declared `native_callable_support` per File 16 Â§3.2; when the model does not support native tool calling, the adapter either rejects the request or, if the active `ModelProfile` permits `parser_fallback`, emits a typed diagnostic and lets the response parser recover tool calls from model text per File 16 Â§3.2.
+Provider-native callable declarations (the tool array carried with the model request) are serialized by the adapter from the `ToolSurface` snapshot per `surface.surface-relevant-events` (File 07 §13). The adapter must respect the model's declared `native_callable_support` per `model.model-capability-descriptor` (File 16 §3.2); when the model does not support native tool calling, the adapter either rejects the request or, if the active `ModelProfile` permits `parser_fallback`, emits a typed diagnostic and lets the response parser recover tool calls from model text per `model.model-capability-descriptor` (File 16 §3.2).
 
 ## 8. Parameter Serialization
 
@@ -399,14 +399,14 @@ Every provider-native parameter is produced by `ProviderAdapter::build_request` 
 
 The profile's `parameter_mapping` (or the hand-coded adapter equivalent) declares the per-parameter rule from one of:
 
-- `Identity` â€” pass through with renaming only
-- `Bounded { min, max }` â€” clamp to provider-declared bounds
-- `Fixed { value }` â€” adapter overrides the requested value with a provider-required constant (records the substitution as a `ParameterClamped` diagnostic)
-- `Omit` â€” adapter drops the parameter entirely (provider would reject it)
-- `Mapped { table }` â€” adapter uses a typed lookup table (for example, the canonical `reasoning_effort` enum `Low|Medium|High|Max` to a provider-specific value set)
-- `Synthesized { synthesizer_id }` â€” adapter computes the provider-native value from multiple inputs (for example, reasoning budget tokens from posture plus model class)
-- `Conditional { conditions, branches }` â€” adapter selects among rules based on model identity or compatibility flags
-- `RejectIfRequired` â€” adapter rejects the request with `CapabilityMismatchDiscovered` when the parameter is required and the provider cannot serve it
+- `Identity` — pass through with renaming only
+- `Bounded { min, max }` — clamp to provider-declared bounds
+- `Fixed { value }` — adapter overrides the requested value with a provider-required constant (records the substitution as a `ParameterClamped` diagnostic)
+- `Omit` — adapter drops the parameter entirely (provider would reject it)
+- `Mapped { table }` — adapter uses a typed lookup table (for example, the canonical `reasoning_effort` enum `Low|Medium|High|Max` to a provider-specific value set)
+- `Synthesized { synthesizer_id }` — adapter computes the provider-native value from multiple inputs (for example, reasoning budget tokens from posture plus model class)
+- `Conditional { conditions, branches }` — adapter selects among rules based on model identity or compatibility flags
+- `RejectIfRequired` — adapter rejects the request with `CapabilityMismatchDiscovered` when the parameter is required and the provider cannot serve it
 
 Rules are inspectable, replayable, and auditable. Hidden conditional logic outside the declared mapping is forbidden.
 
@@ -440,9 +440,9 @@ Adapters that consume non-SSE transports (chunked HTTP, WebSocket, NDJSON, subpr
 ### 9.2 Streaming Discipline
 
 - Every stream begins with `StreamStarted` and terminates with either `CompletionReceived` or `StreamError`. Adapters must guarantee one and only one terminal chunk per stream.
-- `RateLimitHeadersObserved` chunks fire when the provider returns updated headers mid-stream or as a streaming usage event. Adapters must surface them at parse time and call `reconcile_rate_limits` per Â§13.
-- `PartialUsageObserved` chunks fire when the provider streams running usage counts (when the provider emits running usage totals or per-chunk usage events). The canonical block-level token-attribution algorithm specified in Â§17.5 consumes these.
-- Mid-stream errors must be surfaced as `StreamError` with a typed `ProviderError` and must not be silently swallowed. Partial output captured before the error is delivered to File 04 per Â§17.3 retention rules.
+- `RateLimitHeadersObserved` chunks fire when the provider returns updated headers mid-stream or as a streaming usage event. Adapters must surface them at parse time and call `reconcile_rate_limits` per §13.
+- `PartialUsageObserved` chunks fire when the provider streams running usage counts (when the provider emits running usage totals or per-chunk usage events). The canonical block-level token-attribution algorithm specified in §17.5 consumes these.
+- Mid-stream errors must be surfaced as `StreamError` with a typed `ProviderError` and must not be silently swallowed. Partial output captured before the error is delivered to File 04 per §17.3 retention rules.
 
 ### 9.3 Cancellation
 
@@ -450,11 +450,11 @@ The `cancellation_signal` carried on every `ProviderRequest` propagates into the
 
 ### 9.4 Partial Outputs
 
-The runtime records partial outputs per the capability semantics defined in File 04 Â§17.3 (`partial_output_meaningful` declarations). At the provider-layer boundary, the adapter is responsible for delivering whatever partial output was generated before cancellation through the stream, not for deciding whether to keep it.
+The runtime records partial outputs per the capability semantics defined in `run.cancellation` (File 04 §17.3) (`partial_output_meaningful` declarations). At the provider-layer boundary, the adapter is responsible for delivering whatever partial output was generated before cancellation through the stream, not for deciding whether to keep it.
 
 ### 9.5 Streaming Aggregation
 
-High-frequency streaming events (`TextDelta`, `ReasoningDelta`, `ToolUseArgumentsDelta`, `RateLimitHeadersObserved` when emitted per chunk) are subject to the aggregation policy declared per File 10 Â§13.4. The ledger records the aggregated `ModelCallStreamingDelta` entry rather than every chunk. Live UI consumers receive every chunk through the event bus.
+High-frequency streaming events (`TextDelta`, `ReasoningDelta`, `ToolUseArgumentsDelta`, `RateLimitHeadersObserved` when emitted per chunk) are subject to the aggregation policy declared per `ledger.subscription-persistence-lifecycle` (File 10 §13.4). The ledger records the aggregated `ModelCallStreamingDelta` entry rather than every chunk. Live UI consumers receive every chunk through the event bus.
 
 ## 10. Provider Error Classification
 
@@ -466,9 +466,9 @@ Every provider error is one of the following canonical variants. Every adapter m
 
 - `AuthenticationFailed { provider_id, account_id, message }`
 - `NotAuthenticated { provider_id, account_id }`
-- `CredentialExhausted { provider_id, account_id, exhausted_until }` â€” used when every key in the active `CredentialPool` is rate-limited or revoked
+- `CredentialExhausted { provider_id, account_id, exhausted_until }` — used when every key in the active `CredentialPool` is rate-limited or revoked
 - `ProviderUnavailable { provider_id, message, retry_advice }`
-- `ProviderDegraded { provider_id, message, retry_advice }` â€” soft signal accompanying degraded responses without full failure
+- `ProviderDegraded { provider_id, message, retry_advice }` — soft signal accompanying degraded responses without full failure
 - `ModelUnavailable { provider_id, model_id, available_at }`
 - `RateLimited { provider_id, model_id, scope, retry_after_ms, limit_type }`
 - `ContextTooLargeForSelectedModel { provider_id, model_id, tokens_supplied, tokens_supported }`
@@ -484,7 +484,7 @@ Every provider error is one of the following canonical variants. Every adapter m
 - `ProviderInternalError { provider_id, message }`
 - `ProviderSpecificError { provider_id, provider_error_code, provider_error_class, scrubbed_message, http_status?, retry_after?, classified_as: ErrorClassification, classification_confidence }` — the declared escape hatch for a provider failure that maps cleanly to none of the named variants above (per the closed-canonical extension path, `core.closed-canonical` (File 01 §6.16)). It still carries a `classified_as: ErrorClassification`, so downstream behavior never depends on the raw provider strings. `scrubbed_message` is secret-scrubbed per §10.5; `provider_error_code` and `provider_error_class` are preserved for telemetry; `classification_confidence` records how certain the adapter's classification is.
 
-This catalogue must align exactly with the typed error vocabulary File 16 Â§9.2 consumes. `RateLimited`, `ModelUnavailable`, `CapabilityMismatchDiscovered`, `ContextTooLargeForSelectedModel`, `RequestRejectedByProvider`, `ProviderUnavailable`, and `PolicyOrDataBoundaryConflict` are the File 16 fallback inputs; the remaining variants are transport-level and stay inside this layer until they exhaust per Â§11. A `ProviderSpecificError` routes by its `classified_as.recovery_advice` like any other variant.
+This catalogue must align exactly with the typed error vocabulary `model.fallback-policy` (File 16 §9.2) consumes. `RateLimited`, `ModelUnavailable`, `CapabilityMismatchDiscovered`, `ContextTooLargeForSelectedModel`, `RequestRejectedByProvider`, `ProviderUnavailable`, and `PolicyOrDataBoundaryConflict` are the File 16 fallback inputs; the remaining variants are transport-level and stay inside this layer until they exhaust per §11. A `ProviderSpecificError` routes by its `classified_as.recovery_advice` like any other variant.
 
 Fallback and retry logic consume the `ErrorClassification` (§10.2), never raw provider strings. Every variant — including `ProviderSpecificError` — yields one, so an unrecognized provider failure is classified, not passed through untyped.
 
@@ -492,12 +492,12 @@ Fallback and retry logic consume the `ErrorClassification` (§10.2), never raw p
 
 Every typed error carries an `ErrorClassification` produced by `ProviderAdapter::classify_error`. It declares:
 
-- `retryable` â€” boolean, authoritative for transport-level retry per Â§11
-- `rate_limited` â€” boolean, true only when the error is a rate-limit error and the retry direction is to back off rather than to fail
-- `retry_after_ms` â€” explicit delay before the next attempt when provider-suggested
-- `error_code` â€” provider-reported code preserved for telemetry
-- `recovery_advice` â€” typed enum from `BackoffAndRetry`, `RotateCredential`, `RefreshAuth`, `StripUnsupportedParameter`, `ReconcileRateLimits`, `WaitForReset`, `FailoverToDifferentModel`, `FailoverToDifferentProvider`, `RejectAndReturnToCaller`, or `Custom { namespace, name }`
-- `severity` â€” `Fatal`, `Transient`, or `Unknown`. `Fatal` takes priority when patterns co-occur; an error matching both an authentication signal and a transient signal is `Fatal`. This prevents silent retries through authentication failures.
+- `retryable` — boolean, authoritative for transport-level retry per §11
+- `rate_limited` — boolean, true only when the error is a rate-limit error and the retry direction is to back off rather than to fail
+- `retry_after_ms` — explicit delay before the next attempt when provider-suggested
+- `error_code` — provider-reported code preserved for telemetry
+- `recovery_advice` — typed enum from `BackoffAndRetry`, `RotateCredential`, `RefreshAuth`, `StripUnsupportedParameter`, `ReconcileRateLimits`, `WaitForReset`, `FailoverToDifferentModel`, `FailoverToDifferentProvider`, `RejectAndReturnToCaller`, or `Custom { namespace, name }`
+- `severity` — `Fatal`, `Transient`, or `Unknown`. `Fatal` takes priority when patterns co-occur; an error matching both an authentication signal and a transient signal is `Fatal`. This prevents silent retries through authentication failures.
 
 `ErrorClassification` is the only retry-direction signal the retry loop consults. Hidden classification outside the typed advice is forbidden.
 
@@ -519,7 +519,7 @@ The runtime does not treat retry waits as correctness logic. Provider reset hint
 
 ### 10.5 Secret Scrubbing
 
-`ProviderError` instances must not carry resolved credentials, raw request bodies, or unredacted user content. Adapters scrub provider-reported error payloads before producing the typed variant. The error message field is `Sensitive` per File 10 Â§10 by default; carrying `Secret`-classified content in an error rejects at the ledger boundary.
+`ProviderError` instances must not carry resolved credentials, raw request bodies, or unredacted user content. Adapters scrub provider-reported error payloads before producing the typed variant. The error message field is `Sensitive` per `ledger.sensitivity-aware-persistence-retention` (File 10 §10) by default; carrying `Secret`-classified content in an error rejects at the ledger boundary.
 
 ## 11. Transport-Level Retry and Backoff
 
@@ -536,7 +536,7 @@ Every transport-level retry obeys:
 - the `retryable` field on the call's `ErrorClassification` is authoritative
 - when `retry_after_ms` is provider-suggested, the runtime waits at least that long
 - when no provider-suggested delay exists, the runtime computes the next delay through a typed strategy (`ExponentialBackoff { initial_ms, multiplier, cap_ms, jitter_pct }`, `Fixed { delay_ms }`, `DecorrelatedJitter { initial_ms, cap_ms }`, or `Custom { namespace, name }`)
-- the per-error-class retry cap is configurable through settings per Â§24
+- the per-error-class retry cap is configurable through settings per §24
 - the active retry strategy and per-error-class caps are inspectable and recorded on the `ModelCallStarted` ledger entry for replay
 
 ### 11.3 Strategies by Error Class
@@ -567,27 +567,27 @@ Anchor: `provider.provider-health`
 
 ### 12.2 States
 
-- `Healthy` â€” recent calls have succeeded
-- `Degraded { since, contributing_failures }` â€” recent failures observed but the provider is still attempted with logging
+- `Healthy` — recent calls have succeeded
+- `Degraded { since, contributing_failures }` — recent failures observed but the provider is still attempted with logging
 - `Unhealthy { admission_block_reason, contributing_failures, last_failure, retry_after_hint }` — calls are disqualified by default with `ProviderUnavailable`, while explicit diagnostics or user-directed bypass may attempt one call where policy allows
-- `Unknown` â€” no recent observations (newly registered, just reconnected, after restart before any call)
+- `Unknown` — no recent observations (newly registered, just reconnected, after restart before any call)
 
 ### 12.3 Transitions
 
-- successful call â†’ `Healthy`, contributing_failures reset
+- successful call → `Healthy`, contributing_failures reset
 - consecutive failures of `NetworkError`, `TimeoutError`, `ProviderUnavailable`, `ServiceOverloaded`, or `ProviderInternalError` increment the contributing counter
-- crossing the configured `degraded_threshold` (per Â§24) transitions to `Degraded`
+- crossing the configured `degraded_threshold` (per §24) transitions to `Degraded`
 - crossing the configured unhealthy-failure policy transitions to `Unhealthy` with diagnostic retry guidance derived from provider hints and settings
-- `RateLimited`, `ModelUnavailable`, `AuthenticationFailed`, `InvalidRequest`, `ContextTooLargeForSelectedModel`, `CapabilityMismatchDiscovered`, `PolicyOrDataBoundaryConflict`, and `RequestRejectedByProvider` do not contribute to health â€” they are accounted to rate-limit, model-availability, credential, request-shape, or compatibility concerns respectively
+- `RateLimited`, `ModelUnavailable`, `AuthenticationFailed`, `InvalidRequest`, `ContextTooLargeForSelectedModel`, `CapabilityMismatchDiscovered`, `PolicyOrDataBoundaryConflict`, and `RequestRejectedByProvider` do not contribute to health — they are accounted to rate-limit, model-availability, credential, request-shape, or compatibility concerns respectively
 - explicit user reset through the `provider.reset_health` capability returns the state to `Healthy`
 
 ### 12.4 No Active Health Pings
 
-The runtime does not poll providers for health on a schedule. Active probes (`ProviderAdapter::ping`) exist only as a user-triggered diagnostic. Scheduled health pings are explicitly rejected per Â§25. Model-catalog refresh is the implicit connectivity check for providers that expose a model-list endpoint.
+The runtime does not poll providers for health on a schedule. Active probes (`ProviderAdapter::ping`) exist only as a user-triggered diagnostic. Scheduled health pings are explicitly rejected per §25. Model-catalog refresh is the implicit connectivity check for providers that expose a model-list endpoint.
 
 ### 12.5 Health Snapshot in `ProviderRuntimeSnapshot`
 
-`ProviderRuntimeSnapshot` carries the current `ProviderHealth` value, the `contributing_failures` counter, the last typed error observed, and any provider retry hint when `Unhealthy`. File 16 consumes this snapshot during its selection hard-filters per File 16 Â§7.3.
+`ProviderRuntimeSnapshot` carries the current `ProviderHealth` value, the `contributing_failures` counter, the last typed error observed, and any provider retry hint when `Unhealthy`. File 16 consumes this snapshot during its selection hard-filters per `model.model-selection-algorithm` (File 16 §7.3).
 
 ## 13. `RateLimitState` and Header Reconciliation
 
@@ -603,7 +603,7 @@ The canonical scope set is closed:
 - `Key { provider_id, account_id, credential_id }`
 - `Model { provider_id, model_id }`
 
-Limits at every scope may be user-configured downward (more restrictive than the provider's). Provider-reported limits are the ceiling; user limits never exceed them. Multi-account configurations require per-account accounting because limits differ per account; multi-key pools require per-key accounting so the rotation logic in Â§14 can skip exhausted keys.
+Limits at every scope may be user-configured downward (more restrictive than the provider's). Provider-reported limits are the ceiling; user limits never exceed them. Multi-account configurations require per-account accounting because limits differ per account; multi-key pools require per-key accounting so the rotation logic in §14 can skip exhausted keys.
 
 ### 13.2 `RateLimitWindow`
 
@@ -626,7 +626,7 @@ Each scope may hold multiple windows. Windows accumulate independently and are e
 - `tokens_used` and `tokens_limit` (when token-based limits apply)
 - `window_started_at`
 - `window_resets_at`
-- `status` â€” `Ok`, `Warning { remaining_pct }` when above the configured warning threshold, `WillResetSoon` when within the configured pre-reset window, `Limited`, or `Unknown`
+- `status` — `Ok`, `Warning { remaining_pct }` when above the configured warning threshold, `WillResetSoon` when within the configured pre-reset window, `Limited`, or `Unknown`
 
 `status` is a derived projection over `*_used`, `*_limit`, and the current time.
 
@@ -642,13 +642,13 @@ Header reconciliation runs on both successful responses and on `RateLimited` res
 
 ### 13.6 Admission Control
 
-Before issuing a call, the runtime consults `RateLimitService::check_allowed(scope, estimated_tokens) â†’ AllowanceDecision`. The decision is:
+Before issuing a call, the runtime consults `RateLimitService::check_allowed(scope, estimated_tokens) → AllowanceDecision`. The decision is:
 
 - `Allow`
 - `BlockUntil { reason, retry_after_ms }` when any applicable window would be exceeded
 - `Warn { remaining, next_reset_at }` when admission succeeds but the call crosses a configured warning threshold
 
-Pre-call estimation is sourced from File 13 Â§10. Post-call recording uses provider-reported usage (Tier 1 per Â§17) and records the residual against the same `(scope, window)` rows.
+Pre-call estimation is sourced from `context.token-counting` (File 13 §10). Post-call recording uses provider-reported usage (Tier 1 per §17) and records the residual against the same `(scope, window)` rows.
 
 ### 13.7 Burst, Concurrency, and Clock Skew
 
@@ -680,7 +680,7 @@ A `ProviderCredential` is the typed reference to one secret used by an account. 
 - `account_id`
 - `credential_id`
 - `auth_kind` (matching the profile's `auth_kind`)
-- `vault_ref` â€” the canonical namespace key `provider.<provider_id>.<account_id>.<credential_id>` resolved through the vault interface owned by the future Security spec
+- `vault_ref` — the canonical namespace key `provider.<provider_id>.<account_id>.<credential_id>` resolved through the vault interface owned by the future Security spec
 
 Credentials never appear inline. Adapters call the vault at the point of use and discard the resolved material after the request leaves. Resolved credentials never appear in ledger entries, events, settings, exports, or sync payloads.
 
@@ -691,7 +691,7 @@ A `CredentialPool` binds multiple `ProviderCredential` references to one `Provid
 - round-robin selection across credentials
 - per-credential `rate_limited_until` flags that exclude exhausted credentials from rotation
 - explicit credential marking through `mark_rate_limited` invoked by `ProviderAdapter` when a 429 or equivalent error is observed
-- explicit reset on a per-credential basis through `provider.reset_credential` per Â§22.6
+- explicit reset on a per-credential basis through `provider.reset_credential` per §22.6
 
 When every credential in a pool is `rate_limited_until` a future time, the runtime returns `ProviderError::CredentialExhausted` with `exhausted_until` set to the earliest reset. File 16 receives the typed error and may fall back to a different model, provider, or instance.
 
@@ -699,7 +699,7 @@ Pools are opt-in per account. A pool never crosses `ProviderAccount`, provider i
 
 ### 14.4 Credential Rotation Events
 
-Vault updates emit `CredentialRotated` per Â§22. Adapters subscribe and refresh their cached resolution. Rotation never triggers an active health probe; the next call validates the new credential implicitly.
+Vault updates emit `CredentialRotated` per §22. Adapters subscribe and refresh their cached resolution. Rotation never triggers an active health probe; the next call validates the new credential implicitly.
 
 ### 14.5 Account Usage Snapshots
 
@@ -714,10 +714,10 @@ Anchor: `provider.model-catalog-capability-normalization`
 Per `(provider_id, model_id)` the registry holds a `ModelCatalogEntry` carrying:
 
 - `provider_id`, `model_id`, `display_name`
-- the populated `ModelCapabilityDescriptor` consumed by File 16 Â§3
-- `source_provenance` â€” typed declaration of where each capability fact came from (`ProviderReported`, `AdapterShippedFallback`, `UserSupplied`, `Probed`, `Unknown`)
-- `lifecycle_metadata` â€” provider-reported deprecation status, training cutoff hint, release date when reported
-- `pricing_ref` â€” reference to the latest `ModelPricing` snapshot when known, or `Unknown`
+- the populated `ModelCapabilityDescriptor` consumed by `model.model-capability-descriptor` (File 16 §3)
+- `source_provenance` — typed declaration of where each capability fact came from (`ProviderReported`, `AdapterShippedFallback`, `UserSupplied`, `Probed`, `Unknown`)
+- `lifecycle_metadata` — provider-reported deprecation status, training cutoff hint, release date when reported
+- `pricing_ref` — reference to the latest `ModelPricing` snapshot when known, or `Unknown`
 - `last_refreshed_at` for audit/display only
 - `freshness_state` and `freshness_diagnostics` derived from source events, provider signals, adapter updates, credential changes, explicit refresh, or user-enabled maintenance policy
 
@@ -726,8 +726,8 @@ Per `(provider_id, model_id)` the registry holds a `ModelCatalogEntry` carrying:
 File 16 owns the descriptor shape. File 17 populates every field:
 
 - `request_limits`, `streaming_support`, `native_callable_support`, `parser_tool_call_fallback_support`, `multimodal_input_support`, `structured_output_support`, `reasoning_support`, `cache_candidate_support`, `token_accounting_support`, `lifecycle_metadata` are filled from the provider's capabilities endpoint when exposed, otherwise from adapter-shipped fallback, otherwise from user-supplied overrides, otherwise `Unknown`
-- adapters must not derive `output_window` from `context_window` by ratio per File 16 Â§3.2; absent output limits remain `Unknown` and assembly handles them through reserved-output policy
-- adapters must not invent capabilities â€” `Unknown` is a valid descriptor value
+- adapters must not derive `output_window` from `context_window` by ratio per `model.model-capability-descriptor` (File 16 §3.2); absent output limits remain `Unknown` and assembly handles them through reserved-output policy
+- adapters must not invent capabilities — `Unknown` is a valid descriptor value
 
 ### 15.3 Refresh
 
@@ -744,7 +744,7 @@ Background maintenance refresh is permitted only as an opt-in setting and is nev
 
 ### 15.4 Pricing Population
 
-`ModelPricing` carries provider-reported pricing when available, user-supplied pricing when the provider does not expose it, and `Unknown` otherwise. Provider-reported pricing is preferred. Unknown pricing is never silently reclassified as free. Whether `Unknown`-pricing models are eligible for automatic selection is governed by the policy on File 16 Â§11 plus the `unknown_cost_policy` setting per Â§24.
+`ModelPricing` carries provider-reported pricing when available, user-supplied pricing when the provider does not expose it, and `Unknown` otherwise. Provider-reported pricing is preferred. Unknown pricing is never silently reclassified as free. Whether `Unknown`-pricing models are eligible for automatic selection is governed by the policy on `model.cost-budget-selection` (File 16 §11) plus the `unknown_cost_policy` setting per §24.
 
 ### 15.5 Capability Caching and Invalidation
 
@@ -761,14 +761,14 @@ Anchor: `provider.cache-marker-translation`
 ### 16.2 Translation Discipline
 
 - Adapters apply the profile's `cache_marker_strategy` to render markers in the provider's expected wire form (annotation on a content block, separate cached-content resource, no-op for providers with automatic prefix matching)
-- The number of markers is capped by the provider's declared `max_cache_markers` (when applicable); excess candidates are dropped from the lowest-priority end with a typed diagnostic per Â§22
+- The number of markers is capped by the provider's declared `max_cache_markers` (when applicable); excess candidates are dropped from the lowest-priority end with a typed diagnostic per §22
 - The minimum cacheable size (when the provider declares one) is enforced; candidates below the minimum are dropped with a diagnostic
-- Sensitivity-ineligible content is excluded from caching per the rules in File 13 Â§11 and File 10 Â§10
+- Sensitivity-ineligible content is excluded from caching per the rules in `context.cache-marker-candidates` (File 13 §11) and `ledger.sensitivity-aware-persistence-retention` (File 10 §10)
 - requested retention preference, when present as a provider-layer setting or adapter policy, is mapped to supported provider behavior with diagnostics on drop or clamp
 
 ### 16.3 Cache Hit Accounting
 
-Adapters extract `cache_creation_tokens` and `cache_read_tokens` from provider responses where reported and surface them through `TokenUsageRecord` per Â§18. Cache pricing multipliers from `ModelPricing` are consumed by cost computation per Â§19.
+Adapters extract `cache_creation_tokens` and `cache_read_tokens` from provider responses where reported and surface them through `TokenUsageRecord` per §18. Cache pricing multipliers from `ModelPricing` are consumed by cost computation per §19.
 
 ### 16.4 Cache Break Detection
 
@@ -788,9 +788,9 @@ Anchor: `provider.token-source`
 
 The canonical accuracy hierarchy is closed:
 
-- `ProviderNative` â€” counts reported by the provider in the response usage payload; highest accuracy
-- `ProviderCountEndpoint` â€” counts obtained from a provider's dedicated count endpoint where one exists; second-tier accuracy
-- `LocalTokenizer` â€” counts from a local tokenizer library compatible with the model family (per-family BPE, SentencePiece, or equivalent)
+- `ProviderNative` — counts reported by the provider in the response usage payload; highest accuracy
+- `ProviderCountEndpoint` — counts obtained from a provider's dedicated count endpoint where one exists; second-tier accuracy
+- `LocalTokenizer` — counts from a local tokenizer library compatible with the model family (per-family BPE, SentencePiece, or equivalent)
 - `CharacterApproximation` — character-based approximation; lowest accuracy; carries explicit uncertainty and adapter/settings-owned formula metadata
 
 The hierarchy is consulted in priority order. Tier 1 always wins when available.
@@ -816,18 +816,18 @@ The runtime maintains an in-memory LRU cache keyed by `(block_id, tokenizer_id)`
 - holds typed `TokenCount` values carrying `count`, `source`, `tokenizer_id`, and `measured_at`
 - is never persisted to durable storage
 - has a configurable bound; eviction is LRU on pressure
-- requires no invalidation on write because block content is immutable per File 08 Â§6.2
-- is shared between this layer and File 13 Â§10
+- requires no invalidation on write because block content is immutable per `block.edit-semantics` (File 08 §6.2)
+- is shared between this layer and `context.token-counting` (File 13 §10)
 
 A separate `tokenizer_cache` projection persists frequently used token counts keyed by `(block_id, tokenizer_id)` only when the storage spec elects to do so for performance; the in-memory cache is the canonical layer.
 
 ### 17.5 Per-Block Attribution from Streaming Counts
 
-When a streamed response carries running usage counts (`PartialUsageObserved` chunks per Â§9.1), the adapter attributes per-block deltas as the difference between the running total at the chunk that ended a block and the running total at the chunk that started the block. This produces tokenizer-keyed per-block counts at the highest accuracy class without an additional tokenizer call. The counts populate the `(block_id, tokenizer_id)` cache and become the source for the block's contribution to `TokenUsageRecord`.
+When a streamed response carries running usage counts (`PartialUsageObserved` chunks per §9.1), the adapter attributes per-block deltas as the difference between the running total at the chunk that ended a block and the running total at the chunk that started the block. This produces tokenizer-keyed per-block counts at the highest accuracy class without an additional tokenizer call. The counts populate the `(block_id, tokenizer_id)` cache and become the source for the block's contribution to `TokenUsageRecord`.
 
 ### 17.6 Pre-Call Estimation Accuracy Telemetry
 
-When the runtime estimated tokens pre-call (Tier 2 or Tier 3) and Tier 1 counts arrive post-call, the adapter emits `TokenCountEstimationTelemetry` per Â§22 with the estimated count, actual count, and percentage delta. The telemetry feeds the user-facing "your estimates have been averaging X% off" diagnostic and informs future tokenizer-dispatch settings.
+When the runtime estimated tokens pre-call (Tier 2 or Tier 3) and Tier 1 counts arrive post-call, the adapter emits `TokenCountEstimationTelemetry` per §22 with the estimated count, actual count, and percentage delta. The telemetry feeds the user-facing "your estimates have been averaging X% off" diagnostic and informs future tokenizer-dispatch settings.
 
 ### 17.7 Multimodal Counting
 
@@ -850,22 +850,22 @@ Anchor: `provider.token-usage-record`
 Every model-bound call produces one `TokenUsageRecord` carrying at minimum:
 
 - `record_id`
-- `request_id` â€” provider-reported when available, locally generated otherwise
-- `run_id`, `step_id`, `conversation_id`, `intent_thread_id`, `workspace_id` per File 10 Â§3.6
+- `request_id` — provider-reported when available, locally generated otherwise
+- `run_id`, `step_id`, `conversation_id`, `intent_thread_id`, `workspace_id` per `ledger.cross-references` (File 10 §3.6)
 - `provider_id`, `model_id`, `account_id`, `credential_id` (when relevant)
-- `tokenizer_id` â€” the `TokenizerId` used for any counts in this record
-- `role` â€” the workload role tag
+- `tokenizer_id` — the `TokenizerId` used for any counts in this record
+- `role` — the workload role tag
 - `started_at`, `completed_at`, and optional `error_at`
 - `prompt_tokens`, `completion_tokens`
 - `cache_creation_tokens`, `cache_read_tokens`
 - `reasoning_tokens` (optional, populated when the provider reports it)
-- `multimodal_tokens` â€” typed sub-record carrying `image_tokens`, `audio_tokens`, `video_tokens`, `file_tokens`, each optional
+- `multimodal_tokens` — typed sub-record carrying `image_tokens`, `audio_tokens`, `video_tokens`, `file_tokens`, each optional
 - `stop_reason` — normalized provider-call stop reason recorded on File 10 model-call entries; execution-level stop reasons remain File 04-owned
-- `error_class` â€” optional, the typed `ProviderError` discriminant when the call errored
-- `pricing_snapshot_ref` â€” reference to the `PricingSnapshot` consumed for derived cost
-- `policy_snapshot_ref`, `settings_snapshot_ref`, `world_snapshot_ref`, `registry_snapshot_ref` per File 10 Â§3.6
-- `token_count_source` â€” typed `TokenSource` for each token count category (allowing different sources per category)
-- `parameter_clamps` â€” list of typed `ParameterClamped` diagnostics applied to this call
+- `error_class` — optional, the typed `ProviderError` discriminant when the call errored
+- `pricing_snapshot_ref` — reference to the `PricingSnapshot` consumed for derived cost
+- `policy_snapshot_ref`, `settings_snapshot_ref`, `world_snapshot_ref`, `registry_snapshot_ref` per `ledger.cross-references` (File 10 §3.6)
+- `token_count_source` — typed `TokenSource` for each token count category (allowing different sources per category)
+- `parameter_clamps` — list of typed `ParameterClamped` diagnostics applied to this call
 - `idempotency_key`
 
 The record is the canonical durable per-call attribution. File 10 references it from `ModelCallCompleted` and `ModelCallFailed` ledger entries.
@@ -874,14 +874,14 @@ The record is the canonical durable per-call attribution. File 10 references it 
 
 The record must not carry:
 
-- `cost_cents` or any unkeyed cost scalar â€” cost is derived per Â§19
+- `cost_cents` or any unkeyed cost scalar — cost is derived per §19
 - resolved credentials, raw request bodies, raw response bodies, or unredacted sensitive content
-- a single combined token total â€” totals are derived projections over the typed fields
+- a single combined token total — totals are derived projections over the typed fields
 - estimated counts replacing actuals when actuals are available
 
 ### 18.3 Per-Role Attribution
 
-`role` allows aggregation per work-role across a run, task, or conversation. The closed canonical roles match File 16 Â§5.2: `router`, `responder`, `planner`, `summarizer`, `critic`, `validator`, `classifier`, `vision_grounding`, `completion_verifier`, `child_run_model`, or `Custom { namespace, name }`. New canonical role tags are added through canonical-spec change.
+`role` allows aggregation per work-role across a run, task, or conversation. The closed canonical roles match `model.model-workload-requirements` (File 16 §5.2): `router`, `responder`, `planner`, `summarizer`, `critic`, `validator`, `classifier`, `vision_grounding`, `completion_verifier`, `child_run_model`, or `Custom { namespace, name }`. New canonical role tags are added through canonical-spec change.
 
 ### 18.4 Multi-Model Per Run
 
@@ -897,7 +897,7 @@ Anchor: `provider.cost-as-derived-projection`
 
 ### 19.1 Rule
 
-Cost is never stored as an unkeyed scalar in any durable row. This obeys File 01 Â§8 and the ledger-side forgery guard in File 10 Â§3.7.
+Cost is never stored as an unkeyed scalar in any durable row. This obeys `core.explicit-rejections` (File 01 §8) and the ledger-side forgery guard in `ledger.forgery-guards` (File 10 §3.7).
 
 ### 19.2 `ModelPricing`
 
@@ -925,7 +925,7 @@ Per-conversation, per-run, per-task, per-day, per-workspace, per-role, per-accou
 
 ### 19.6 Optional Cost Tracking
 
-Cost tracking is opt-in per File 04 Â§21 budget enforcement and per File 15 settings. When disabled, records still carry the structural fields needed to compute cost later if the user enables it. The system never silently disables tracking when records exist.
+Cost tracking is opt-in per `run.budgets-limits` (File 04 §21) budget enforcement and per File 15 settings. When disabled, records still carry the structural fields needed to compute cost later if the user enables it. The system never silently disables tracking when records exist.
 
 ## 20. Multimodal Usage
 
@@ -933,7 +933,7 @@ Anchor: `provider.multimodal-usage`
 
 ### 20.1 Scope
 
-Provider-reported multimodal usage flows through this layer alongside textual usage. Each modality has its own optional counter on `TokenUsageRecord` per Â§18 and its own optional pricing on `ModelPricing` per Â§19.
+Provider-reported multimodal usage flows through this layer alongside textual usage. Each modality has its own optional counter on `TokenUsageRecord` per §18 and its own optional pricing on `ModelPricing` per §19.
 
 ### 20.2 Adapter Responsibility
 
@@ -949,7 +949,7 @@ Anchor: `provider.provider-runtime-snapshot-provider-offering-projection`
 
 ### 21.1 Definitions
 
-`ProviderRuntimeSnapshot` is the typed projection consumed by File 16 Â§2 carrying:
+`ProviderRuntimeSnapshot` is the typed projection consumed by `model.provider-inputs-consumed-by-model-strategy` (File 16 §2) carrying:
 
 - per-`provider_id` `ProviderHealth`
 - per-`(scope, window)` `RateLimitState` summary
@@ -958,7 +958,7 @@ Anchor: `provider.provider-runtime-snapshot-provider-offering-projection`
 - provider-reported error trends across the last reset window
 - known-retryability hints from recent classifications
 
-`ProviderOfferingProjection` is the typed projection consumed by File 16 Â§2 carrying:
+`ProviderOfferingProjection` is the typed projection consumed by `model.provider-inputs-consumed-by-model-strategy` (File 16 §2) carrying:
 
 - enabled providers and accounts
 - enabled and excluded models per account
@@ -974,7 +974,7 @@ File 16 does not mutate either projection. Mutations flow only from runtime call
 
 ### 21.3 Freshness
 
-Both projections are read-optimised. Their staleness is bounded by the events that drive them; consumers read at call time. Stale projections never substitute for the underlying state; cached projections invalidate on the relevant typed events per Â§22.
+Both projections are read-optimised. Their staleness is bounded by the events that drive them; consumers read at call time. Stale projections never substitute for the underlying state; cached projections invalidate on the relevant typed events per §22.
 
 ## 22. Events Emitted
 
@@ -1001,15 +1001,15 @@ This layer emits through the unified bus and ledger in File 10. Cross-cutting mo
 
 ### 22.2 Event Envelope
 
-Every event carries the canonical envelope from File 10 Â§5.2 with `conversation_id` where applicable, `context_refs` populated with `run_id` / `step_id` / `provider_id` / `account_id` / `credential_id` / `model_id` as appropriate, `sequence_scope` / `sequence` / `timestamp`, and `sensitivity` per Â§23.
+Every event carries the canonical envelope from `ledger.event-envelope` (File 10 §5.2) with `conversation_id` where applicable, `context_refs` populated with `run_id` / `step_id` / `provider_id` / `account_id` / `credential_id` / `model_id` as appropriate, `sequence_scope` / `sequence` / `timestamp`, and `sensitivity` per §23.
 
 ### 22.3 Ledger Boundary
 
-Consequential events also commit as typed ledger entries per File 10 Â§4. `ModelCallStarted`, `ModelCallCompleted`, `ModelCallFailed`, `ProviderHealthChanged`, `RateLimitSnapshotReconciled`, `CredentialRotated`, and `ProviderModelsRefreshed` are durable. High-frequency events (`ModelCallStreamingDelta`, `TokenCountEstimationTelemetry`) are subject to aggregation per File 10 Â§13.4.
+Consequential events also commit as typed ledger entries per `ledger.entry-kinds` (File 10 §4). `ModelCallStarted`, `ModelCallCompleted`, `ModelCallFailed`, `ProviderHealthChanged`, `RateLimitSnapshotReconciled`, `CredentialRotated`, and `ProviderModelsRefreshed` are durable. High-frequency events (`ModelCallStreamingDelta`, `TokenCountEstimationTelemetry`) are subject to aggregation per `ledger.subscription-persistence-lifecycle` (File 10 §13.4).
 
 ### 22.4 Subscribers
 
-Hooks, telemetry, evaluation, billing dashboards, debugging UIs, and the model-strategy layer all subscribe through the unified mechanism in File 10 Â§5. This file emits; consumers subscribe.
+Hooks, telemetry, evaluation, billing dashboards, debugging UIs, and the model-strategy layer all subscribe through the unified mechanism in `ledger.event-stream` (File 10 §5). This file emits; consumers subscribe.
 
 ### 22.5 Per-Call Cardinality
 
@@ -1019,24 +1019,24 @@ Hooks, telemetry, evaluation, billing dashboards, debugging UIs, and the model-s
 
 This layer exposes the following capability families through the canonical registry per File 05:
 
-- `provider.register` â€” register a new provider instance
+- `provider.register` — register a new provider instance
 - `provider.unregister`
-- `provider.update_configuration` â€” update non-credential fields
-- `provider.set_credential` â€” write a vault-backed credential reference
+- `provider.update_configuration` — update non-credential fields
+- `provider.set_credential` — write a vault-backed credential reference
 - `provider.rotate_credential`
-- `provider.reset_credential` â€” reset a credential's rate-limit flag in a pool
+- `provider.reset_credential` — reset a credential's rate-limit flag in a pool
 - `provider.list`
-- `provider.inspect` â€” full inspection of an instance's runtime state including health, rate-limit projections, credential state
+- `provider.inspect` — full inspection of an instance's runtime state including health, rate-limit projections, credential state
 - `provider.refresh_models`
-- `provider.set_descriptor_override` â€” override descriptor fields for local/custom providers
-- `provider.set_pricing_override` â€” override pricing where the provider does not expose it
+- `provider.set_descriptor_override` — override descriptor fields for local/custom providers
+- `provider.set_pricing_override` — override pricing where the provider does not expose it
 - `provider.reset_health`
-- `provider.set_rate_limits` â€” configure user-tightened limits below the provider's ceiling
-- `provider.account_usage` â€” fetch normalized remote usage when the provider exposes it
-- `provider.ping` â€” explicit user-triggered connectivity test
-- `provider.classify_error` â€” explicit invocation of `ProviderAdapter::classify_error` for diagnostics
-- `usage.read` â€” query `TokenUsageRecord`s and aggregated projections
-- `usage.compute_cost` â€” compute derived cost for a query range against the relevant pricing snapshots
+- `provider.set_rate_limits` — configure user-tightened limits below the provider's ceiling
+- `provider.account_usage` — fetch normalized remote usage when the provider exposes it
+- `provider.ping` — explicit user-triggered connectivity test
+- `provider.classify_error` — explicit invocation of `ProviderAdapter::classify_error` for diagnostics
+- `usage.read` — query `TokenUsageRecord`s and aggregated projections
+- `usage.compute_cost` — compute derived cost for a query range against the relevant pricing snapshots
 
 Exact declarations, permission tiers, touched-resource expressions, preview behavior, leases, and approval rules belong to Files 05 and 06. Write-like provider capabilities (set_credential, rotate_credential, register, unregister, update_configuration, set_descriptor_override, set_pricing_override, set_rate_limits) require typed approvals per File 06.
 
@@ -1046,7 +1046,7 @@ Anchor: `provider.sensitivity-redaction-secret-boundary`
 
 ### 23.1 Default Classification
 
-Provider-layer events default to `Public` per File 10 Â§5.2 except where credentials or sensitive content are involved.
+Provider-layer events default to `Public` per `ledger.event-envelope` (File 10 §5.2) except where credentials or sensitive content are involved.
 
 ### 23.2 Sensitive Events
 
@@ -1059,15 +1059,15 @@ The following events default to `Sensitive`:
 
 ### 23.3 Secret Material
 
-Resolved credentials, raw API keys, vault-decoded OAuth tokens, signed-request signatures, and unredacted user content explicitly marked `Secret` per File 10 Â§10 never enter durable persistence. The commit validator rejects ledger entries whose payload contains `Secret` material per File 10 Â§3.7.
+Resolved credentials, raw API keys, vault-decoded OAuth tokens, signed-request signatures, and unredacted user content explicitly marked `Secret` per `ledger.sensitivity-aware-persistence-retention` (File 10 §10) never enter durable persistence. The commit validator rejects ledger entries whose payload contains `Secret` material per `ledger.forgery-guards` (File 10 §3.7).
 
 ### 23.4 Adapter Responsibility
 
-Adapters scrub provider-reported error bodies for known credential patterns and unredacted user content before producing typed `ProviderError` values. Profiles may declare typed scrubbing rules. Scrubbing is part of the contract; the adapter that ships without it fails the registration-time validation in Â§5.2.
+Adapters scrub provider-reported error bodies for known credential patterns and unredacted user content before producing typed `ProviderError` values. Profiles may declare typed scrubbing rules. Scrubbing is part of the contract; the adapter that ships without it fails the registration-time validation in §5.2.
 
 ### 23.5 Sync, Export, Telemetry
 
-`RateLimitState` is per-device and excluded from sync per Â§13.8. `TokenUsageRecord`s sync per the settings spec's locality declarations. Credentials never sync. Exports redact `Sensitive` payloads unless the user explicitly includes them.
+`RateLimitState` is per-device and excluded from sync per §13.8. `TokenUsageRecord`s sync per the settings spec's locality declarations. Credentials never sync. Exports redact `Sensitive` payloads unless the user explicitly includes them.
 
 ### 23.6 The Backend Secret Boundary
 
@@ -1121,7 +1121,7 @@ Every behavior in this file that is meaningful for users, workspaces, conversati
 - per-modality estimation constants where adapter defaults are user-overridable
 - parameter-clamping behavior (`silent_with_diagnostic`, `surface_to_user`, `fail`) per parameter or globally
 - header reconciliation behavior (when to trust provider headers above local-counter state)
-- streaming aggregation policies inherited from File 10 Â§13.4
+- streaming aggregation policies inherited from `ledger.subscription-persistence-lifecycle` (File 10 §13.4)
 - subscription-wrapper subprocess defaults (sandbox profile, HOME override behavior, allowed CLI flags)
 - gateway-incompatibility detection rule registration
 - user-controlled `provider.refresh_models` maintenance policy beyond event-driven refresh
@@ -1139,13 +1139,13 @@ The following shapes are wrong for this layer:
 
 - hardcoded provider-name branching outside provider adapter normalization
 - provider-specific API names, model names, pricing constants, tokenizer crate names, or wire-format header strings embedded in canonical layer text
-- model-name pattern matching in any layer above the adapter (the rule from File 16 Â§15 restated)
+- model-name pattern matching in any layer above the adapter (the rule from `model.explicit-rejections`, File 16 §15 restated)
 - treating subscription wrappers (CLI binaries, seat-based subscription APIs) as a separate tier outside the canonical `ProviderAdapter` contract
 - treating MCP tool servers as model providers through this layer
-- driver-kind crash on unknown â€” unknown drivers degrade to `Unknown` with diagnostic, not panic
+- driver-kind crash on unknown — unknown drivers degrade to `Unknown` with diagnostic, not panic
 - silent automatic provider-instance instantiation without registration through the canonical capability surface
 - scheduled active health pings on a fixed interval (event-driven and user-triggered only)
-- silent silent fallthrough on `AuthenticationFailed` â€” auth failures are not retryable
+- silent silent fallthrough on `AuthenticationFailed` — auth failures are not retryable
 - silently retrying through `Fatal` `ErrorClassification`
 - cost stored as an unkeyed scalar in any durable row
 - token counts stored on `Block` rows or persisted without `(block_id, tokenizer_id)` keying
@@ -1184,17 +1184,17 @@ Later specs must follow these rules:
 - File 16 must consume `ModelCapabilityDescriptor`, `ProviderOfferingProjection`, and `ProviderRuntimeSnapshot` from this layer; it must not query provider-specific data directly
 - File 16 must classify model-level fallback through the typed `ProviderError` variants this layer produces; it must not invent provider classifications
 - File 04 must propagate the cancellation signal through `ProviderRequest` and consume partial `TokenUsageRecord`s on cancellation
-- File 04 must surface `ContextTooLargeForSelectedModel` to the context layer per File 04 Â§20.1 without retrying at the execution boundary
+- File 04 must surface `ContextTooLargeForSelectedModel` to the context layer per `run.boundary-rule` (File 04 §20.1) without retrying at the execution boundary
 - File 10 must record `TokenUsageRecord`-attributed `ModelCallStarted`, `ModelCallCompleted`, and `ModelCallFailed` entries with provider/model/account/credential/tokenizer/role keying; it must reject entries whose payload contains `Secret` material per the existing forgery guards
 - File 13 must consume the `(block_id, tokenizer_id)` cache contract, produce logical `CacheMarker` candidates this layer translates, and source request-size limits from `ModelCapabilityDescriptor` provided here
 - File 15 must register every provider-layer setting through the canonical source stack; it must not invent a parallel cascade
 - The future Security and Credentials spec must implement the vault interface this layer references through `vault.get("provider.<provider_id>.<account_id>.<credential_id>")` and emit `CredentialRotated` events consumed here
-- The future Storage and Persistence spec must persist `TokenUsageRecord`s with their full keyed attribution and the cross-references this file enumerates; it must persist `RateLimitState` per-device and exclude it from cross-device sync per Â§13.8
+- File 20 must persist `TokenUsageRecord`s with their full keyed attribution and the cross-references this file enumerates; it must persist `RateLimitState` per-device and exclude it from cross-device sync per §13.8
 - The future Sync, Import, Export spec must respect the per-event sensitivity classifications declared here and the per-`SettingDefinition` locality declarations the settings spec carries
 - The future MCP and External Integrations spec must not subsume the model-provider layer; MCP for tools is a tool-provider concern with its own provider-adapter analogue, not a route through this layer
 - The future Sandbox spec must support subscription-wrapper subprocess lifecycle in the sandbox primitives declared there (process groups, HOME isolation, shadow homes)
 - The future UI specs must render per-call attribution, derived cost, rate-limit projections, credential states, provider health, and model-catalog freshness from the projections this layer produces; they must not maintain a parallel provider-state store
 - The future Telemetry, Logging, and Observability spec must consume `ModelCallStarted` / `ModelCallCompleted` / `TokenCountEstimationTelemetry` / `ProviderHealthChanged` / `RateLimitSnapshotReconciled` / `ParameterClamped` / `CacheBreakDetected` events without inventing parallel emission paths
 - The future Evaluation and Benchmarking spec should use `TokenUsageRecord` and `PricingSnapshot` references as primary artifacts for cost-correctness, cache-effectiveness, and tokenizer-accuracy measurements
-- Plugin and extension specs that register adapters or profiles must pass through the source-approval flow in File 06 Â§9; they must implement the full `ProviderAdapter` contract and produce the same typed projections
+- Plugin and extension specs that register adapters or profiles must pass through the source-approval flow in `policy.source-approval-flow` (File 06 §9); they must implement the full `ProviderAdapter` contract and produce the same typed projections
 - Domain specs that introduce siblings to model providers (STT, TTS, image, embedding) should adopt the same provider-adapter pattern with sibling traits sharing the credential, rate-limit, usage, and event infrastructure declared here, without forcing those siblings into the LLM-specific surface this file defines

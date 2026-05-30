@@ -2,7 +2,7 @@
 
 ## Status
 
-Canonical. This file defines the physical and logical storage substrate for ATLAS3. It realizes the persistence contracts that Files 01–19 declare and delegate to "the future Storage and Persistence spec." Later canonical files may refine it, but may not contradict it.
+Canonical. This file defines the physical and logical storage substrate for ATLAS3. It realizes the persistence contracts that Files 01–19 previously delegated to the Storage and Persistence spec. Later canonical files may refine it, but may not contradict it.
 
 ## Scope
 
@@ -26,7 +26,7 @@ This file defines:
 
 This file does not define:
 
-- the semantic durability contracts themselves — what is durable, computed, or reconstructable for each substrate is owned by that substrate's file (`block.block-persistence-contract`, File 08 §13; `artifact.persistence-contract`, File 09 §18; the ledger durability contract, File 10 §3.5/§10; `version.persistence-contract`, File 11 §18; `context.persistence-settings`, File 13 §20; the memory persistence contract, File 14; `settings.logical-persistence`, File 15 §17; the provider usage/rate-limit durability rules, File 17; `world.persistence-contract`, File 18 §14; `perception.persistence`, File 19 §16). This file realizes them; it does not re-own them
+- the semantic durability contracts themselves — what is durable, computed, or reconstructable for each substrate is owned by that substrate's file (`block.block-persistence-contract`, File 08 §13; `artifact.persistence-contract`, File 09 §18; the ledger durability contract, `ledger.execution-ledger`, File 10 §3.5; `ledger.sensitivity-aware-persistence-retention`, File 10 §10; `version.persistence-contract`, File 11 §18; `context.persistence-settings`, File 13 §20; the memory persistence contract, File 14; `settings.logical-persistence`, File 15 §17; the provider usage/rate-limit durability rules, File 17; `world.persistence-contract`, File 18 §14; `perception.persistence`, File 19 §16). This file realizes them; it does not re-own them
 - the sync transport, embedded-replica replication protocol, conflict-resolution semantics, import/export bundle format, or cross-device merge — the future Sync, Import, Export, and Data Portability spec owns those; this file owns only the physical partition the sync layer replicates and the per-device partition it never touches. The version-tree-aware merge semantics remain `version.cross-device-sync-conflict-resolution` (File 11 §19)
 - the credential-vault internals, the encryption cryptography, key derivation, the OS-keyring integration, and trust state — the future Security, Credentials, and Trust Boundaries spec owns those; this file owns only the vault file's existence, location, and the boundary that raw `Secret` material never enters the durable substrate (`secret.backend-boundary`, File 17 §23.6)
 - workspace identity, materialized workspace directories, the disk-to-block materialization mirror, worktree management, and per-surface file layout — the future Workspaces and Materialization spec owns those; this file owns the content-addressed blob store those materializations resolve external content from, not the workspace mirror
@@ -128,14 +128,14 @@ Each prior file enumerates its durable field set and delegates realization here.
 
 The storage layer must durably persist at least the following source-of-truth families, each per its owning file's field set:
 
-- the **execution ledger** — append-only `LedgerEntry` records with their structural fields, cross-reference map, per-kind payload, and `entry_schema_version` (File 10 §3.5)
-- the **block pool and edge set** — immutable `Block` records and committed `BlockEdge` records with their content variant, content hash, metadata, and `block_schema_version` (File 08 §13.1)
-- the **version graph** — `ContextVersion` rows with parentage, merge sources, `op_summary`, compact `diff`, labels, bookmarks, snapshot references, `diff_hash`, `expected_view_hash`, and `version_schema_version`; the per-conversation mutable head (`current_version_id`, `pending_ops`) (File 11 §18.1)
-- the **entity layer** — artifact entity records, artifact-version metadata, claim records, evidence-link edge metadata, validation and critique records (File 09 §18.1)
-- the **policy layer** — `Lease` records, approval-policy templates, scope-level overrides, and policy event records (File 06 §11.6)
-- the **surface layer** — durable `BorrowGrant` records (File 07 §14.1)
-- **settings** — explicit scoped values, profile contexts and layer order, definition source/version references, orphaned values, overlay enablement metadata, and redaction-safe audit metadata (File 15 §17)
-- the **world model** — the durable-tier world-state-change log and registered custom entity, relation, and check extensions (File 18 §14.1)
+- the **execution ledger** — append-only `LedgerEntry` records with their structural fields, cross-reference map, per-kind payload, and `entry_schema_version` (`ledger.execution-ledger`, File 10 §3.5)
+- the **block pool and edge set** — immutable `Block` records and committed `BlockEdge` records with their content variant, content hash, metadata, and `block_schema_version` (`block.what-is-durably-stored`, File 08 §13.1)
+- the **version graph** — `ContextVersion` rows with parentage, merge sources, `op_summary`, compact `diff`, labels, bookmarks, snapshot references, `diff_hash`, `expected_view_hash`, and `version_schema_version`; the per-conversation mutable head (`current_version_id`, `pending_ops`) (`version.persistence-contract`, File 11 §18.1)
+- the **entity layer** — artifact entity records, artifact-version metadata, claim records, evidence-link edge metadata, validation and critique records (`artifact.persistence-contract`, File 09 §18.1)
+- the **policy layer** — `Lease` records, approval-policy templates, scope-level overrides, and policy event records (`policy.persistence`, File 06 §11.6)
+- the **surface layer** — durable `BorrowGrant` records (`surface.persistence-reconstruction`, File 07 §14.1)
+- **settings** — explicit scoped values, profile contexts and layer order, definition source/version references, orphaned values, overlay enablement metadata, and redaction-safe audit metadata (`settings.logical-persistence`, File 15 §17)
+- the **world model** — the durable-tier world-state-change log and registered custom entity, relation, and check extensions (`world.persistence-contract`, File 18 §14.1)
 - **memory** — memory entries and their tier, scope, provenance, salience, validity, and retention metadata (File 14)
 - the **knowledge base** — curated knowledge entries (File 12)
 - **provider accounting** — per-call `TokenUsageRecord`s with full `(provider_id, model_id, tokenizer_id)` keying and their cross-references (File 17)
@@ -145,7 +145,7 @@ The storage layer must durably persist at least the following source-of-truth fa
 
 - Every source-of-truth record carries a `*_schema_version` stamp identifying the schema under which it was written, so that normalization-on-load (§10) can interpret records written by an earlier schema without rewriting them.
 - Every record identity is globally unique, stable, and never reused, within a single per-install identity namespace (no per-surface identity namespaces). Identities are device-independent and survive sync (`core.canonical-encoding`, File 01 §6.15; the UUID-identity rule from `atlas3-core/CONSTRAINTS.md`).
-- A model-dependent scalar — a token count, a cache statistic, a cost — is never stored as an unkeyed value on any source-of-truth row. It is keyed by `(provider_id, model_id, tokenizer_id)` (File 17) or `(block_id, tokenizer_id)` (File 08 §13.2), or it is a projection computed on demand (`core.explicit-rejections`, File 01 §8; `ledger.forgery-guards`, File 10 §3.7). The forgery guards Files 10 and 04 define are enforced at the substrate write boundary, not only in the executor.
+- A model-dependent scalar — a token count, a cache statistic, a cost — is never stored as an unkeyed value on any source-of-truth row. It is keyed by `(provider_id, model_id, tokenizer_id)` (File 17) or `(block_id, tokenizer_id)` (`block.what-is-computed`, File 08 §13.2), or it is a projection computed on demand (`core.explicit-rejections`, File 01 §8; `ledger.forgery-guards`, File 10 §3.7). The forgery guards Files 10 and 04 define are enforced at the substrate write boundary, not only in the executor.
 - A cross-partition reference (a device-local record referencing a syncable record, per §8) is a soft identity reference, not an enforced foreign key. Resolution returns a typed state: `Present`, `NotFetched`, `PolicyHidden`, `DeviceLocalUnavailable`, `DeletedOrTombstoned`, or `DanglingCorrupt`. Absence is tolerated only when the typed state is expected by locality, sync, lifecycle, or policy; an unexpected dangling source-of-truth reference is an integrity finding.
 - Raw `Secret`-classified material never enters the durable substrate. Only a `safe_description` and an opaque vault reference persist (`ledger.sensitivity-aware-persistence-retention`, File 10 §10; `secret.backend-boundary`, File 17 §23.6).
 
@@ -215,7 +215,7 @@ External block content, captured perception payloads, artifact externalizations,
 
 ### 6.3 Rule
 
-- A payload is stored inline on its substrate record when it is below the inline threshold and externalized to the blob store above it. The threshold is a setting, per-kind-overridable (`blocks.inline_size_threshold_bytes`, File 08 §14.1; `files.inline_text_threshold`); it is not a hardcoded constant. A producer choosing externalization records a `BlobRef`, not the bytes, on the substrate.
+- A payload is stored inline on its substrate record when it is below the inline threshold and externalized to the blob store above it. The threshold is a setting, per-kind-overridable (`blocks.inline_size_threshold_bytes`, `block.settings`, File 08 §14.1; `files.inline_text_threshold`); it is not a hardcoded constant. A producer choosing externalization records a `BlobRef`, not the bytes, on the substrate.
 - A blob's address is the hash of its content computed over the declared `CanonicalEncoding` for blob addressing (`core.canonical-hash`, File 01 §7.14). The same content yields the same address on every device; cross-device address equality is a deduplication optimization, never the correctness basis for sync (`core.canonical-hash`, File 01 §7.14).
 - Blob writes are staged before substrate commit. Content is written to a staging location in the same filesystem boundary, verified against its content hash, made durable, then promoted to its content-addressed location. The substrate transaction then writes the `BlobRef`, reference metadata, and owning source-of-truth record together. If the substrate transaction aborts after staging, the staged blob is orphaned and startup reconciliation may delete it; if the substrate commits and the addressed bytes are missing or hash-invalid, that is blob corruption.
 - Blob lifetime is reference-counted. Each substrate record that references a blob contributes a reference; removing the last reference makes the blob eligible for garbage collection. Reference counts are substrate metadata maintained transactionally with the referencing records; blob bytes are immutable content-addressed payloads outside the relational transaction.
@@ -245,13 +245,13 @@ Responsive reads and query workloads require derived views — the materialized 
 The canonical projection set includes at least:
 
 - the **materialized context view** (`context_view`) — the active version's block set with position, lifecycle state, and pin state, rebuilt by walking the version action log (`version.persistence-contract`, File 11 §18.2; `block.what-is-computed`, File 08 §13.2)
-- **per-version derived state maps** — `BlockLifecycle`, `PinState`, `ArtifactLifecycle`, `ReviewState`, `ValidationState`, `ClaimStatus`, `TaskRevision`, derived from the version action log (File 11 §18.2; File 09)
+- **per-version derived state maps** — `BlockLifecycle`, `PinState`, `ArtifactLifecycle`, `ReviewState`, `ValidationState`, `ClaimStatus`, `TaskRevision`, derived from the version action log (`version.persistence-contract`, File 11 §18.2; File 09)
 - **retrieval and search indexes** — vector indexes, full-text indexes, and the knowledge-graph projection, all rebuildable from blocks, observations, and knowledge entries (File 12); embedding vectors are keyed by their embedding-model identity and recomputed, never treated as source-of-truth (`core.explicit-rejections`, File 01 §8)
-- the **token-count cache** — keyed by `(block_id, tokenizer_id)`, an in-memory cache rebuilt on demand, never a stored unkeyed scalar (File 08 §13.2; File 13)
-- the **cost projection** — computed from `TokenUsageRecord`s and pricing snapshots on demand (File 17; File 10 §3.5)
+- the **token-count cache** — keyed by `(block_id, tokenizer_id)`, an in-memory cache rebuilt on demand, never a stored unkeyed scalar (`block.what-is-computed`, File 08 §13.2; File 13)
+- the **cost projection** — computed from `TokenUsageRecord`s and pricing snapshots on demand (File 17; `ledger.execution-ledger`, File 10 §3.5)
 - the **provider model-capability cache** — a device-local projection over provider-reported catalog data, adapter fallback, user overrides, and approved profile data, with provenance from File 17; historical reconstruction uses recorded model-selection and provider-call records, not live cache refresh
 - **runtime-handle projections** — active subscriptions, live sensor streams, processor workers, watcher handles, subprocess handles, and other process-local handles reconstructed from durable declarations and settings during lifecycle startup
-- **aggregate, hot-table, and summary projections** — conversation-list metadata, usage rollups, debug and telemetry views, and any secondary index used only for query acceleration (File 10 §3.5)
+- **aggregate, hot-table, and summary projections** — conversation-list metadata, usage rollups, debug and telemetry views, and any secondary index used only for query acceleration (`ledger.execution-ledger`, File 10 §3.5)
 - resolved **world snapshots** and resolved **lease state** — computed by walking the durable world-state log and policy events, never stored as copied rows (`world.persistence-contract`, File 18 §14.2; `policy.persistence`, File 06 §11.6)
 
 ### 7.4 Rule
@@ -282,7 +282,7 @@ File 15 tags every setting with a locality (`Syncable`, `WorkspaceLocal`, `Devic
 ### 8.3 Rule
 
 - The durable substrate is split into a **syncable substrate** and a **device-local substrate**. Syncable source-of-truth families — blocks, version graph, ledger entries that sync, entity records, memory, knowledge, settings tagged syncable, durable world facts that sync — live in the syncable substrate, which is the database the future Sync spec replicates. Device-local source-of-truth families — the hash-chained audit overlay's durable records, local-only settings, per-device consent or capture state where declared, `RateLimitState`, per-device system-watch and scheduled-task state, and anything tagged `DeviceLocal` or `NeverSync` as source-of-truth — live in the device-local substrate, which is never replicated. Device-local projections and caches also live there, but remain rebuildable.
-- The hash-chained audit overlay (`ledger.sensitivity-aware-persistence-retention`, File 10 §10.5) is stored device-locally as an append-only, hash-chained log, separate from the syncable substrate, and never syncs. Its chain integrity is per-device; a chain-tamper detection halts sync of the affected device (File 10 §10.5).
+- The hash-chained audit overlay (`ledger.sensitivity-aware-persistence-retention`, File 10 §10.5) is stored device-locally as an append-only, hash-chained log, separate from the syncable substrate, and never syncs. Its chain integrity is per-device; a chain-tamper detection halts sync of the affected device (`ledger.sensitivity-aware-persistence-retention`, File 10 §10.5).
 - Cross-partition references are soft identity references (§3.4): a device-local record may reference a syncable record by identity without an enforced foreign key, and resolves it by lookup to a typed resolution state.
 - The blob store is a single content-addressed store on local disk, shared across both substrates and all scopes (§6).
 - The on-disk layout lives under one user-writable root, resolvable through a bootstrap environment variable and platform conventions (the user data directory on each platform). The root contains the substrate database files and their write-ahead sidecars, the blob store with content-hash fan-out that bounds directory cardinality, reference-count metadata, per-conversation and per-workspace materialization directories (owned by the future Workspaces spec, referenced here), the secret-vault file (§14), the audit overlay, logs, the read-only configuration overlay, a single-instance lock, and a clearly-delimited cache directory that is safe to delete and rebuilds on demand. The installation directory is read-only to the running application; only the data root is user-writable. The root location is overridable by setting.
@@ -358,7 +358,7 @@ The system is non-destructive by default but not unbounded (`core.non-destructiv
 - No retention or pruning is time-based without explicit user or selected-profile opt-in (`core.non-destructive-by-default`, File 01 §7.13; `version.garbage-collection-pruning`, File 11 §20.6). The default retention keeps everything. Bookmarked and labeled versions are exempt from policy-driven pruning regardless of policy. Every retention invocation is itself a durable, recorded fact; no layer silently prunes `Sensitive` or safe-description `Secret` records without a recorded policy transition (`ledger.sensitivity-aware-persistence-retention`, File 10 §10.4).
 - Garbage collection of the blob store is reference-counted with a reconciliation sweep (§6) and never removes a blob reachable from any version in the tree, including tombstones. Projection data is freely pruned and rebuilt; the cache directory is disposable (§8.3).
 - Storage accounting tracks consumed storage as structured data, broken down by category — conversations, blocks, version trees, ledger, entity records, memory, knowledge, indexes and projections, blob store, caches, logs, per-workspace, per-task, per-artifact. The user can inspect, manage, constrain, and reclaim storage at every meaningful granularity through exposed capabilities and data contracts: full reset, per-category cleanup, per-workspace, per-conversation, per-task, per-artifact, and any later substrate family that owns storage. UI layout is outside this file; the backend accounting and management surface are not. Quotas, retention policies, and expiry rules are settings, not hardcoded limits.
-- A destructive reclamation operation supports a dry run that reports what would be removed and what reconstruction would be lost, before anything is removed. A reclamation that crosses a reconstruction boundary (hard-deleting a version payload with descendants, hard-deleting a referenced block) requires the typed confirmation its owning file mandates and records the resulting provenance gap (File 11 §20; File 08 §6.6).
+- A destructive reclamation operation supports a dry run that reports what would be removed and what reconstruction would be lost, before anything is removed. A reclamation that crosses a reconstruction boundary (hard-deleting a version payload with descendants, hard-deleting a referenced block) requires the typed confirmation its owning file mandates and records the resulting provenance gap (`version.garbage-collection-pruning`, File 11 §20; `block.hard-delete`, File 08 §6.6).
 
 ### 11.4 Boundary
 
@@ -402,7 +402,7 @@ The storage lifecycle is the ordered sequence of startup phases that bring the s
 
 ### 13.2 Purpose
 
-Every persistence contract requires deterministic reconstruction across restart, retry, edit, reroute, branch, and child-run (`block.reconstruction-across-restart`, File 08 §13.3; `version.persistence-contract`, File 11 §18.3; `surface.reconstruction-across-restart`, File 07 §14.2; File 09 §18.3; File 18 §14.3; File 19 §16.3). The lifecycle is where those reconstructions are realized in one ordered sequence.
+Every persistence contract requires deterministic reconstruction across restart, retry, edit, reroute, branch, and child-run (`block.reconstruction-across-restart`, File 08 §13.3; `version.persistence-contract`, File 11 §18.3; `surface.reconstruction-across-restart`, File 07 §14.2; `artifact.persistence-contract`, File 09 §18.3; `world.persistence-contract`, File 18 §14.3; `perception.persistence`, File 19 §16.3). The lifecycle is where those reconstructions are realized in one ordered sequence.
 
 ### 13.3 Rule
 
@@ -483,7 +483,7 @@ The following shapes are wrong for this layer:
 - silent last-write-wins over concurrent mutations of shared state (§4.3; `core.explicit-rejections`, File 01 §8)
 - storing world snapshots, registry snapshots, or any snapshot as copied rows rather than resolving them as identities over a durable log (§13.3; `world.explicit-rejections`, File 18 §16; `version.snapshots`, File 11 §14)
 - raw `Secret` material in the durable substrate, backups, exports, sync, logs, events, or agent context — only opaque references and safe descriptions persist (§3.4, §14.3; `secret.backend-boundary`, File 17 §23.6)
-- syncing the hash-chained audit overlay, the per-device rate-limit state, or rebuildable caches — device-local data is physically isolated, not filtered (§8.3; File 10 §10.5)
+- syncing the hash-chained audit overlay, the per-device rate-limit state, or rebuildable caches — device-local data is physically isolated, not filtered (§8.3; `ledger.sensitivity-aware-persistence-retention`, File 10 §10.5)
 - time-based retention or pruning without explicit user or selected-profile opt-in, or any time-based behavior driving storage correctness (§11.3; `core.non-destructive-by-default`, File 01 §7.13)
 - maintenance schedules, elapsed-time guards, or polling treated as storage correctness mechanisms rather than settings-controlled, killable safety or convenience policies (§6.3, §7.4, §10.3, §13.3)
 - a silent fresh-start over recoverable data on corruption — recovery is projection-rebuild, then substrate-restore, then quarantine-and-surface, never silent loss (§12.3)

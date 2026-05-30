@@ -37,7 +37,7 @@ This file does not define:
 - memory promotion, salience scoring, or memory lifecycle — File 14 owns those
 - run lifecycle, the capability-call pipeline, or hook execution — File 04 owns those
 - block-rendering UI choices (collapsible cards, syntax highlighting, hover states) — the future UI presentation and customization specs own those
-- storage schema, sync, or import/export — the future storage, sync, import, and export specs own those
+- storage schema, sync, or import/export — File 20 and the future Sync, Import, Export, and Data Portability spec own those
 
 ## Source Resolution
 
@@ -577,7 +577,7 @@ A block whose committed references resolve to non-existent targets at read time 
 
 ### 8.5 Boundary
 
-Identity, validation, and hashing are commit-time concerns owned by this file. Storage of these fields and propagating them to surface displays are owned by the future storage and UI specs; indexing is owned by File 12.
+Identity, validation, and hashing are commit-time concerns owned by this file. Storage of these fields and propagating them to surface displays are owned by File 20 and the future UI specs; indexing is owned by File 12.
 
 ## 9. Sensitivity
 
@@ -779,7 +779,7 @@ Per `run.retry-reroute-branch` (File 04 §19), retry, edit, reroute, and branch 
 
 ### 13.5 Boundary
 
-Persistence is the storage layer's responsibility. This file specifies what the storage layer must persist (the field set above) and what it must reconstruct (the computed views). The storage schema, replication, sync, and import/export mechanics are owned by the future storage, sync, import, and export specs.
+Persistence is the storage layer's responsibility. This file specifies what the storage layer must persist (the field set above) and what it must reconstruct (the computed views). The storage schema, replication, sync, and import/export mechanics are owned by File 20 and the future Sync, Import, Export, and Data Portability spec.
 
 ## 14. Settings
 

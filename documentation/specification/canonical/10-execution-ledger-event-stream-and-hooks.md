@@ -37,7 +37,7 @@ This file does not define:
 - the `Block` schema, `BlockKind` catalogue, `BlockContent` variants, the block commit validator, or the streaming-to-block commit boundary — File 08 owns those; this file specifies which block-related events flow through and which block-commit events become durable ledger entries
 - the entity layer over blocks (`Artifact`, `Claim`, `Evidence`, `Citation`, `Observation`, `Validation`, `Critique`, `Provenance`) or the entity-relevant event vocabulary itself — File 09 owns those; this file specifies the unified bus and ledger they emit through
 - the version-graph commit storage, the version-tree action-log algorithms, or the materialized-view rebuild semantics — File 11 owns those; this file specifies which version-commit events flow through and how the ledger references version identities
-- the storage schema, on-disk layout, indexing strategy, projection rebuild policies, or per-table durability invariants — the future Storage and Persistence spec owns those; this file specifies what is durable, what is computed, and the deterministic-reconstruction contract storage must support
+- the storage schema, on-disk layout, indexing strategy, projection rebuild policies, or per-table durability invariants — File 20 owns those; this file specifies what is durable, what is computed, and the deterministic-reconstruction contract storage must support
 - sync, import, export, or portability mechanics — the future Sync, Import, Export, and Data Portability spec owns those; this file specifies which ledger entries sync, which do not (the hash-chained audit log is per-device), and how sensitivity gates participation
 - credential storage internals, trust-state cryptography, or secret-vault primitives — the future Security, Credentials, and Trust Boundaries spec owns those; this file specifies the canonical `Secret` sensitivity class and the rule that `Secret` payloads never persist to the durable ledger
 - sandbox primitives, process control internals, or isolation mechanics — the future Sandbox, Process Control, and Isolation spec owns those; this file specifies the events sandbox and process operations emit and the `backend_id` envelope dimension that demultiplexes them
@@ -177,7 +177,7 @@ It does not own:
 - the surface composition algorithm (File 07)
 - the block schema or version graph internals (Files 08 and 11)
 - the entity layer (File 09)
-- the storage on-disk layout (future Storage spec)
+- the storage on-disk layout (File 20)
 - the sync mechanics (future Sync spec)
 - the security primitives (future Security spec)
 - the UI rendering (future UI specs)
@@ -265,7 +265,7 @@ Section 4 enumerates the full closed canonical `LedgerEntryKind` catalogue with 
 
 ### 3.5 Storage Contract
 
-The ledger's persistence is owned by the future Storage and Persistence spec. This file specifies what must be durable:
+The ledger's persistence is owned by File 20. This file specifies what must be durable:
 
 - every `LedgerEntry`'s structural fields above
 - the cross-reference map's keys and values
@@ -338,7 +338,7 @@ Additional integrity rules:
 
 ### 3.8 Boundary
 
-The ledger defines durable execution truth. The event bus delivers live coordination. The version graph records the version-tree state machine. The storage layer realizes durability. None of those layers invents new entry semantics; they consume what this file defines. The future Storage and Persistence spec realizes the durability contract; the future Sync, Import, Export spec realizes cross-device propagation; the future Telemetry, Logging, and Observability spec consumes ledger entries to drive projections; the future Evaluation and Benchmarking spec reads the ledger for replay.
+The ledger defines durable execution truth. The event bus delivers live coordination. The version graph records the version-tree state machine. The storage layer realizes durability. None of those layers invents new entry semantics; they consume what this file defines. File 20 realizes the durability contract; the future Sync, Import, Export spec realizes cross-device propagation; the future Telemetry, Logging, and Observability spec consumes ledger entries to drive projections; the future Evaluation and Benchmarking spec reads the ledger for replay.
 
 ## 4. Canonical `LedgerEntryKind` Catalogue
 
@@ -717,7 +717,7 @@ The bridge implementation is owned by the future Runtime Infrastructure and Life
 The event bus is the live coordination substrate. It does not own:
 
 - the underlying transport (Tauri, SSE, WebSocket, Unix socket, MCP — future Runtime Infrastructure spec)
-- the durable persistence of consequential events (future Storage spec)
+- the durable persistence of consequential events (File 20)
 - the cross-device sync mechanics (future Sync spec)
 - the UI rendering of event-driven updates (future UI specs)
 - the typed-error propagation through services (cross-cutting/errors.md)
@@ -1373,7 +1373,7 @@ On restart:
 
 ### 13.6 Boundary
 
-Subscription persistence is owned by this file (the contract) and the settings system / capability registry (the storage). The actual on-disk format is owned by the future Storage and Persistence spec.
+Subscription persistence is owned by this file (the contract) and the settings system / capability registry (the storage). The actual on-disk format is owned by File 20.
 
 ## 14. Cancellation, Lifecycle, and Restart
 

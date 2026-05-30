@@ -34,7 +34,7 @@ This file does not define:
 
 - the `Block`, `BlockEdge`, or `BlockGraph` model itself — File 08 owns those; this file consumes them
 - block immutability, sibling versioning, lifecycle state machinery, pin states, scope, sensitivity, or descriptions — File 08 owns those
-- the execution ledger row format, event stream wire format, or storage projections — `run.ledger-events-commits` (File 04 §23) owns the contract, File 10 owns the ledger and event schemas, and the future Storage and Persistence spec owns storage schemas
+- the execution ledger row format, event stream wire format, or storage projections — `run.ledger-events-commits` (File 04 §23) owns the contract, File 10 owns the ledger and event schemas, and File 20 owns storage schemas
 - the version-graph commit storage or version-tree action-log shape — File 11 owns those; this file specifies which entity transitions emit version-commit boundaries
 - retrieval, indexing, knowledge-base, retrieval-augmented generation mechanics, or hybrid-search algorithms — File 12 owns those
 - context-assembly, compaction algorithms, token-budget mechanics, or per-policy block selection — File 13 owns those, though this file requires that compaction preserve evidence chains as specified in §11.5
@@ -106,7 +106,7 @@ File 09 owns:
 - the `Provenance` derived query surface
 - the closed canonical entity capability set in §16 and its required metadata
 
-File 09 never invents a new block kind outside its declared `Claim` extension, never invents new edge kinds outside the `EvidenceRelation`-decorated variants of File 08's existing edges plus the explicitly-registered extension edges in §11.3, never introduces a parallel content carrier, and never mutates a block's stored fields. Every entity transition that requires durable record commits a new block (via File 08 commit) plus, where applicable, a new entity-record row (via the future Storage spec).
+File 09 never invents a new block kind outside its declared `Claim` extension, never invents new edge kinds outside the `EvidenceRelation`-decorated variants of File 08's existing edges plus the explicitly-registered extension edges in §11.3, never introduces a parallel content carrier, and never mutates a block's stored fields. Every entity transition that requires durable record commits a new block (via File 08 commit) plus, where applicable, a new entity-record row (via File 20).
 
 ### 2.2 With File 04 (Execution and Run Model)
 
@@ -138,7 +138,7 @@ Entity events emit through the canonical event bus per `run.event-stream` (File 
 
 ### 2.7 Boundary
 
-File 09 is the entity and provenance-query layer. It owns no storage schema, no event-bus implementation, no UI rendering, no capability execution mechanics, and no block content carriage. Storage of entity records is the future Storage and Persistence spec's concern; presentation of entity surfaces is the future UI Shell and UI Customization specs' concern; the actual execution of entity-mutating capability calls is `run.call-pipeline` (File 04 §8.2)'s pipeline.
+File 09 is the entity and provenance-query layer. It owns no storage schema, no event-bus implementation, no UI rendering, no capability execution mechanics, and no block content carriage. Storage of entity records is File 20's concern; presentation of entity surfaces is the future UI Shell and UI Customization specs' concern; the actual execution of entity-mutating capability calls is `run.call-pipeline` (File 04 §8.2)'s pipeline.
 
 ## 3. `Artifact`
 
@@ -188,7 +188,7 @@ Every `Artifact` entity record carries at minimum:
 - `tags` — optional list of typed tags (`agent-invokable-output`, `user-published`, `validated-required`, `archival`, plus user-extensible tags)
 - `created_at` — full-granularity timestamp of first-version commit; immutable
 - `last_version_committed_at` — denormalized timestamp of the latest version's commit; updated atomically with each version commit
-- `entity_schema_version` — version of the entity record shape, so the future Storage spec can normalize supported earlier shapes during registration
+- `entity_schema_version` — version of the entity record shape, so File 20 can normalize supported earlier shapes during registration
 
 The entity record's `current_version_block_id` is a default/latest projection pointer updated through `artifact.commit_version` for non-branch-specific reads. Branch-specific currentness lives in the version graph projection. Every pointer update is recorded as a typed event (§20) and ledgered per `run.execution-ledger` (File 04 §23.1). All other fields above are either immutable or carry their own specific mutation capability.
 
@@ -407,7 +407,7 @@ Version commit boundaries match `block.commit-boundary-set` (File 08 §7.6) — 
 
 ### 6.4 Boundary
 
-Version creation is a capability concern; version content is a block concern; cross-version chronology is a version-graph concern. This file specifies the metadata record and the creation rules; the future Storage spec realizes persistence and File 11 realizes chronology.
+Version creation is a capability concern; version content is a block concern; cross-version chronology is a version-graph concern. This file specifies the metadata record and the creation rules; File 20 realizes persistence and File 11 realizes chronology.
 
 ## 7. Artifact Materialization
 
@@ -751,7 +751,7 @@ Compaction policies must preserve evidence-set closure for any claim or artifact
 
 ### 11.6 Boundary
 
-Evidence blocks are blocks; evidence links are edges. The closure mechanics are graph queries over the existing canonical block-graph. This file specifies the relation enum, the confidence class enum, and the closure rules; the future Storage spec and File 12 implement the indexes that make these queries fast.
+Evidence blocks are blocks; evidence links are edges. The closure mechanics are graph queries over the existing canonical block-graph. This file specifies the relation enum, the confidence class enum, and the closure rules; File 20 and File 12 implement the indexes that make these queries fast.
 
 ## 12. `Citation`
 
@@ -1009,7 +1009,7 @@ When an artifact, claim, or supporting block is imported from another workspace 
 
 ### 15.6 Boundary
 
-Provenance is a query surface over existing substrates. This file specifies the closure rules, the canonical query set, the determinism contract, and the cross-installation boundary. Implementation choices (graph traversal algorithms, caching layers, index structures) belong to the future Storage spec and File 12.
+Provenance is a query surface over existing substrates. This file specifies the closure rules, the canonical query set, the determinism contract, and the cross-installation boundary. Implementation choices (graph traversal algorithms, caching layers, index structures) belong to File 20 and File 12.
 
 ## 16. Capability Surface
 
@@ -1179,7 +1179,7 @@ Artifacts and claims at `workspace` scope are visible across all conversations i
 
 ### 18.6 Boundary
 
-Persistence is the storage layer's responsibility. This file specifies what the storage layer must persist (the entity-record field sets, the version metadata records, the evidence-link edge metadata) and what it must reconstruct (the derived states, the closures, the provenance results). The storage schema, replication, sync, and import/export mechanics are owned by the future Storage and Persistence and Sync, Import, Export, and Data Portability specs.
+Persistence is the storage layer's responsibility. This file specifies what the storage layer must persist (the entity-record field sets, the version metadata records, the evidence-link edge metadata) and what it must reconstruct (the derived states, the closures, the provenance results). The storage schema, replication, sync, and import/export mechanics are owned by File 20 and the future Sync, Import, Export, and Data Portability spec.
 
 ## 19. Settings
 

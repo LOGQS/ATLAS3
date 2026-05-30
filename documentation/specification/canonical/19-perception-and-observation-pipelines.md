@@ -10,7 +10,7 @@ This file defines:
 
 - `Perception` as the always-available substrate service that senses the parts of the operating environment the system does not already know through self-registration, and produces the structured observations and signals that the world model (`world.observation-state-update`, File 18 §8) and the `Observation` block layer (`artifact.observation`, File 09 §13) consume
 - `Sensor` as the typed, registered capture source — the perception primitive — and the closed canonical `SensorKind` catalogue plus the registered-extension mechanism
-- the tiered sensing strategy (`SensingTier`: `Structured`, `Grounded`, `Raw`) that every modality maps to, the structured-data-first invariant from `core.world-model` (File 01 §6.7), the merge-not-just-cascade rule, and the boundary between surface self-registration (File 18 §8.1) and external/opaque-source capture
+- the tiered sensing strategy (`SensingTier`: `Structured`, `Grounded`, `Raw`) that every modality maps to, the structured-data-first invariant from `core.world-model` (File 01 §6.7), the merge-not-just-cascade rule, and the boundary between surface self-registration (`world.observation-state-update`, File 18 §8.1) and external/opaque-source capture
 - the capture pipeline contract — `CaptureRequest`, `Capture`, `CaptureResult` — and the deterministic `acquire → process → normalize → structure → attribute → emit` stages, including producer normalization, change-detection/diff, and content-addressed deduplication
 - the per-modality capture contracts (screen/window/display, desktop accessibility/automation tree, browser page DOM, audio with voice-activity and wake-word gating, file-system and repository state, process/system-metric/environment/network/liveness) and the processor contract for optical-character recognition, visual grounding, transcription, captioning, and equivalent analyzers
 - the trigger model: capture-on-demand and capture-on-event as canonical, capture-on-interval as a flagged configurable fallback for sources that emit no change events
@@ -22,7 +22,7 @@ This file defines:
 
 This file does not define:
 
-- the world-state model, the entity/surface-state schema, the durability-tier semantics, the observation-to-state update (projector) contract, the availability evaluator, or snapshot resolution — `world.chosen-model` (File 18) owns those; this file produces the observations and signals File 18 §8 consumes and must not define a parallel state model
+- the world-state model, the entity/surface-state schema, the durability-tier semantics, the observation-to-state update (projector) contract, the availability evaluator, or snapshot resolution — `world.chosen-model` (File 18) owns those; this file produces the observations and signals `world.observation-state-update` (File 18 §8) consumes and must not define a parallel state model
 - the `Observation`, `Citation`, `Evidence`, `Block`, or `BlockEdge` schema — Files 08 and 09 own those; this file commits `Observation` blocks (`artifact.observation`, File 09 §13) conforming to that contract and computes their staleness fingerprints
 - the execution ledger row format, the event envelope, hook dispatch, or which events become durable ledger entries — File 10 owns those; this file specifies the perception events that flow through the canonical bus
 - the version graph, materialized view, or `world_snapshot_id` resolution — Files 11 and 18 own those
@@ -45,7 +45,7 @@ Resolved design:
 - Perception is one substrate service of typed `Sensor`s and registered `PerceptionProcessor`s. It is the sensor sibling of the world model (`core.world-model`, File 01 §6.7): the world model holds the live structured state; perception is how externally mutable, opaque, or non-self-registering source state enters that model.
 - Perception is structured-data-first, not structured-only. Every modality maps to the same tier order — `Structured` (the source's own machine-readable structure) before `Grounded` (structure inferred from pixels or audio by a processor) before `Raw` (the captured medium itself). Raw capture is never the foundation, but it is valid when the declared capture need requires visual evidence, human review, multimodal model input, coordinate grounding, replay evidence, or when lower tiers are unavailable or insufficient.
 - Capture is event-first. Observation is driven by change events from the source; time-based polling and staleness windows are explicitly flagged, configurable fallbacks for sources that emit no change events, never correctness conditions.
-- Perception produces, the canonical block path commits, and the world model projects. Perception emits typed signals and creates deliberate observation-commit requests; committed `Observation` blocks are created through the canonical block/capability path and then consumed by the world model (File 18 §7, §8). Perception never owns a parallel state model.
+- Perception produces, the canonical block path commits, and the world model projects. Perception emits typed signals and creates deliberate observation-commit requests; committed `Observation` blocks are created through the canonical block/capability path and then consumed by the world model (`world.durability-tiers`, File 18 §7; `world.observation-state-update`, File 18 §8). Perception never owns a parallel state model.
 - Capture privacy is first-class. Permission, consent, sensitive-source redaction, secret masking, and scope bounding are part of the capture contract, not an afterthought.
 - Perception is read-only with respect to the world. It senses; it never acts. Action is a separate, per-surface concern.
 
@@ -54,8 +54,8 @@ Resolved tensions:
 - "screen-capture infrastructure" (the specbase `ScreenCaptureService` in the infrastructure layer) versus "perception pipeline" (the GUI Control source material's three-tier element-detection pipeline): unified — there is one `Perception` substrate with a `Sensor` model, a processor model, and a tier strategy; the screen-capture service is the screen sensor, grounding is a registered processor over a capture, and the GUI three-tier pipeline is one instantiation of the canonical tier model. The per-surface specs instantiate; this file defines the shared substrate.
 - "structured state exposure is stronger than screenshot self-perception" (the first-party invariant and the strategic review) versus the pervasive screenshot-first patterns in external capture systems: resolved by the tiered sensing strategy — structured is the foundation, grounded is the bridge, raw is deliberate evidence or fallback, and raw media is exposed only when the capture need requires it or lower tiers are insufficient.
 - "never use time-based conditions or polling" (project constraint, `core.workspace-model`, File 01 §3) versus the pervasive polling/TTL patterns in source systems (periodic screenshots, git-status polling, screen-capture TTL caches, metric watch intervals): resolved exactly as `world.observation-state-update` (File 18 §8.6) resolves it — event-driven capture is canonical; every polling or staleness-TTL pattern surfaced in the sources is treated as a flagged, configurable fallback for sources without change events, never a default mechanism and never a correctness condition.
-- "every producer self-registers; there is no central observer that scrapes a rendered view" (`world.observation-state-update`, File 18 §8.1) versus the need to observe applications, pages, files, audio, and the system: resolved by source-of-truth boundary — Atlas-owned surfaces self-register their structured state to the world model (File 18 §8.1) and are never screen-scraped to learn Atlas state; perception captures externally mutable or non-self-registering sources such as other applications, the open web, workspace files, repositories, terminals, processes, audio devices, OS windows, and system state.
-- "maintain a durable replay substrate" versus "high-frequency surface churn must stay transient": resolved by deferring durability to File 18 §7 — perception emits both transient signals and deliberate `Observation` captures, and the world model classifies each into the `Ephemeral` / `Durable` / `Observed` tiers.
+- "every producer self-registers; there is no central observer that scrapes a rendered view" (`world.observation-state-update`, File 18 §8.1) versus the need to observe applications, pages, files, audio, and the system: resolved by source-of-truth boundary — Atlas-owned surfaces self-register their structured state to the world model (`world.observation-state-update`, File 18 §8.1) and are never screen-scraped to learn Atlas state; perception captures externally mutable or non-self-registering sources such as other applications, the open web, workspace files, repositories, terminals, processes, audio devices, OS windows, and system state.
+- "maintain a durable replay substrate" versus "high-frequency surface churn must stay transient": resolved by deferring durability to `world.durability-tiers` (File 18 §7) — perception emits both transient signals and deliberate `Observation` captures, and the world model classifies each into the `Ephemeral` / `Durable` / `Observed` tiers.
 
 ## 1. Chosen Model
 
@@ -80,7 +80,7 @@ Perception is composed of:
 
 ### 1.1 Boundary
 
-Perception defines how externally mutable or non-self-registering sources are sensed and how that sensing becomes structured output. It does not define what the resulting state means (File 18), what content the output is carried by (Files 08, 09), how the output is recorded or replayed (Files 10, 11), how it is acted upon (the per-surface action executors), or how it is stored on disk (the future Storage spec).
+Perception defines how externally mutable or non-self-registering sources are sensed and how that sensing becomes structured output. It does not define what the resulting state means (File 18), what content the output is carried by (Files 08, 09), how the output is recorded or replayed (Files 10, 11), how it is acted upon (the per-surface action executors), or how it is stored on disk (File 20).
 
 ## 2. Boundaries with Adjacent Layers
 
@@ -92,7 +92,7 @@ Anchor: `perception.boundaries-with-adjacent-layers`
 
 ### 2.2 With File 18 (World Model and State Awareness)
 
-The boundary is sharp and load-bearing. File 18 owns the world-state model, the entity and surface-state schema, the durability tiers (`world.durability-tiers`, File 18 §7), the observation-to-state update (projector) contract (`world.observation-state-update`, File 18 §8.2), the availability evaluator (File 18 §9), and snapshot resolution (File 18 §10). This file owns the capture mechanics. Perception produces structured observations and typed `PerceptionSignal`s; File 18 §8.2 applies them to the world model. `world.observation-state-update` (File 18 §8.4) states the contract: "perception produces structured observations and signals; the world model is the live projection those observations maintain." File 18 §8.1's self-registration is for Atlas's own surfaces and is not perception; this file captures externally mutable or non-self-registering sources (§5.4). File 18 §6.4 explicitly delegates the capture of environment, temporal, connection, and liveness facts to this file. The world facts perception emits never decide their own durability tier — File 18 §7 classifies them.
+The boundary is sharp and load-bearing. File 18 owns the world-state model, the entity and surface-state schema, the durability tiers (`world.durability-tiers`, File 18 §7), the observation-to-state update (projector) contract (`world.observation-state-update`, File 18 §8.2), the availability evaluator (`world.state-aware-capability-availability`, File 18 §9), and snapshot resolution (`world.world-snapshot-replay`, File 18 §10). This file owns the capture mechanics. Perception produces structured observations and typed `PerceptionSignal`s; `world.observation-state-update` (File 18 §8.2) applies them to the world model. `world.observation-state-update` (File 18 §8.4) states the contract: "perception produces structured observations and signals; the world model is the live projection those observations maintain." `world.observation-state-update` (File 18 §8.1)'s self-registration is for Atlas's own surfaces and is not perception; this file captures externally mutable or non-self-registering sources (§5.4). `world.environment-temporal-connection-facts` (File 18 §6.4) explicitly delegates the capture of environment, temporal, connection, and liveness facts to this file. The world facts perception emits never decide their own durability tier — `world.durability-tiers` (File 18 §7) classifies them.
 
 ### 2.3 With File 09 (Artifacts, Claims, Evidence, and Provenance) and File 08 (Blocks)
 
@@ -104,15 +104,15 @@ Perception emits events on the canonical bus (`ledger.event-envelope`, File 10 �
 
 ### 2.5 With File 04 (Execution and Run Model)
 
-A capability whose mutation depends on a prior observation revalidates currency before mutating and returns the typed `StateChangedSinceObservation` error on mismatch (`run.call-pipeline`, File 04 §8.2); this file owns the staleness-fingerprint computation that revalidation checks (§9.3). Streaming captures follow `run.streaming-partial-execution` (File 04 §12). Capture subscriptions are cancellable resources killed when their owning run, child run, session, or sandbox is killed (`run.cancellation`, File 04 §17.3, killability per File 01 §7.11). Concurrent captures across sessions follow `run.parallelism` (File 04 §15); there is no single-active-capture assumption.
+A capability whose mutation depends on a prior observation revalidates currency before mutating and returns the typed `StateChangedSinceObservation` error on mismatch (`run.call-pipeline`, File 04 §8.2); this file owns the staleness-fingerprint computation that revalidation checks (§9.3). Streaming captures follow `run.streaming-partial-execution` (File 04 §12). Capture subscriptions are cancellable resources killed when their owning run, child run, session, or sandbox is killed (`run.cancellation`, File 04 §17.3, killability per `core.invariants`, File 01 §7.11). Concurrent captures across sessions follow `run.parallelism` (File 04 §15); there is no single-active-capture assumption.
 
 ### 2.6 With Files 05, 06, 07 (Capability Contracts, Policy, Tool Surfaces)
 
-Every perception operation is a `Capability` declared per `capability.declaration` (File 05 §3) and registered with the `Builtin` source (§14). Capture consent and the tier-gating of sensitive captures flow through the policy layer (File 06): a capture that touches a sensitive source escalates its tier, and the capture-consent request (§10.2) is a policy-gated approval. Sensors register through the proposal-first mechanism (`capability.runtime-mutation`, File 05 §16.2) with the source-trust envelope of `capability.capability-source` (File 05 §9.1). Perception capabilities surface uniformly through tool-surface composition (`surface.visibility-composition-resolution-algorithm`, File 07 §9), and a sensor's availability is expressed through the declared `availability_predicate` (`capability.availability-predicate`, File 05 §15.2) evaluated by the world model (File 18 §9) — for example, a screen sensor whose capture permission is `Denied` is not in the available set.
+Every perception operation is a `Capability` declared per `capability.declaration` (File 05 §3) and registered with the `Builtin` source (§14). Capture consent and the tier-gating of sensitive captures flow through the policy layer (File 06): a capture that touches a sensitive source escalates its tier, and the capture-consent request (§10.2) is a policy-gated approval. Sensors register through the proposal-first mechanism (`capability.runtime-mutation`, File 05 §16.2) with the source-trust envelope of `capability.capability-source` (File 05 §9.1). Perception capabilities surface uniformly through tool-surface composition (`surface.visibility-composition-resolution-algorithm`, File 07 §9), and a sensor's availability is expressed through the declared `availability_predicate` (`capability.availability-predicate`, File 05 §15.2) evaluated by the world model (`world.state-aware-capability-availability`, File 18 §9) — for example, a screen sensor whose capture permission is `Denied` is not in the available set.
 
 ### 2.7 With Files 16 and 17 (Model Strategy, Provider Layer)
 
-A model-mediated perception processor — a cloud vision grounder, optical-character-recognition service, transcription provider, captioner, or equivalent analyzer — declares its perception workload and consumes a model selected through File 16 and executed through File 17; a local bundled processor does not. Processor-derived results are keyed by full invocation identity and recorded for replay (§9.4, `provider.token-source`, File 17). Provider health and rate-limit state are File 17's and are referenced as connection liveness (File 18 §6.3), never re-derived here. Transcription and other audio-capable provider contracts are the provider layer's; this file owns the audio capture and gating that feed them (§7.5).
+A model-mediated perception processor — a cloud vision grounder, optical-character-recognition service, transcription provider, captioner, or equivalent analyzer — declares its perception workload and consumes a model selected through File 16 and executed through File 17; a local bundled processor does not. Processor-derived results are keyed by full invocation identity and recorded for replay (§9.4, `provider.token-source`, File 17). Provider health and rate-limit state are File 17's and are referenced as connection liveness (`world.environment-temporal-connection-facts`, File 18 §6.3), never re-derived here. Transcription and other audio-capable provider contracts are the provider layer's; this file owns the audio capture and gating that feed them (§7.5).
 
 ### 2.8 With File 12 (Retrieval) and File 13 (Context Assembly)
 
@@ -145,7 +145,7 @@ The `Perception` service is not:
 - a world-state model — it produces observations; the world model (File 18) holds and projects state
 - a block pool, a transcript, or a memory — it references and commits blocks by identity and never stores learned durable knowledge (memory is File 14)
 - an action executor — it senses; clicking, typing, navigating, and mutating are the per-surface action executors' concern
-- a central scraper of Atlas's own rendered UI — Atlas's surfaces self-register their state to the world model (File 18 §8.1); perception captures externally mutable or non-self-registering sources
+- a central scraper of Atlas's own rendered UI — Atlas's surfaces self-register their state to the world model (`world.observation-state-update`, File 18 §8.1); perception captures externally mutable or non-self-registering sources
 - a model or provider layer — it consumes models and providers for grounded-tier backends; it does not select or integrate them (Files 16, 17)
 - a durable source of truth — captures are reconstructable records, never the sole authority for any durable fact
 
@@ -213,7 +213,7 @@ Every sensor declares its `kind`. The canonical closed catalogue, grouped by mod
 **Network and connection:**
 
 - `Network` — captures network requests and responses for replayable automation; produces `NetworkResponseSnapshot` observations
-- `Liveness` — observes the connection/liveness lifecycle of integrations, sidecars, sessions, and devices through their lifecycle signals; produces liveness signals consumed by File 18 §6.3 (provider health is File 17's and is referenced, not re-derived)
+- `Liveness` — observes the connection/liveness lifecycle of integrations, sidecars, sessions, and devices through their lifecycle signals; produces liveness signals consumed by `world.environment-temporal-connection-facts` (File 18 §6.3) (provider health is File 17's and is referenced, not re-derived)
 
 **Extension:**
 
@@ -356,11 +356,11 @@ The `Process`, `SystemMetric`, and `Terminal` sensors capture system state struc
 
 ### 7.8 Environment, Network, and Liveness
 
-The `Environment` sensor captures operating-environment facts that ground the agent (§4.3) and feeds them to `world.environment-temporal-connection-facts` (File 18 §6); environment facts are observed, not assumed, and a change to display geometry, working directory, or a permission grant updates the corresponding fact. The `Network` sensor captures network requests and responses for replayable automation. The `Liveness` sensor observes the connection lifecycle of integrations, sidecars, sessions, and devices through their lifecycle signals; model-provider health and rate-limit state are File 17's and are referenced through File 18 §6.3, not re-derived.
+The `Environment` sensor captures operating-environment facts that ground the agent (§4.3) and feeds them to `world.environment-temporal-connection-facts` (File 18 §6); environment facts are observed, not assumed, and a change to display geometry, working directory, or a permission grant updates the corresponding fact. The `Network` sensor captures network requests and responses for replayable automation. The `Liveness` sensor observes the connection lifecycle of integrations, sidecars, sessions, and devices through their lifecycle signals; model-provider health and rate-limit state are File 17's and are referenced through `world.environment-temporal-connection-facts` (File 18 §6.3), not re-derived.
 
 ### 7.9 Devices and Streams
 
-Capture devices — cameras, microphones, capture cards, screen-share targets — are enumerable, permission-gated, and referenced as `Device` world entities (File 18 §4.3). A sensor may capture in a streaming mode (a continuous screen-share, camera, or audio stream) with backpressure: when a consumer cannot keep pace, the producer follows its declared sampling and coalescing policy rather than unbounded buffering. Stream lifecycle (start, pause, stop) is a cancellable capture subscription (§2.5).
+Capture devices — cameras, microphones, capture cards, screen-share targets — are enumerable, permission-gated, and referenced as `Device` world entities (`world.world-entity`, File 18 §4.3). A sensor may capture in a streaming mode (a continuous screen-share, camera, or audio stream) with backpressure: when a consumer cannot keep pace, the producer follows its declared sampling and coalescing policy rather than unbounded buffering. Stream lifecycle (start, pause, stop) is a cancellable capture subscription (§2.5).
 
 ### 7.10 Boundary
 
@@ -399,14 +399,14 @@ Anchor: `perception.output-contract`
 
 Perception produces two forms of output, aligned with the world model's durability tiers (`world.durability-tiers`, File 18 §7):
 
-- a transient `PerceptionSignal` (§9.2): a typed signal broadcast to the world model and the canonical bus, consumed by File 18 §8.2's projector. Most live perception output is a signal.
+- a transient `PerceptionSignal` (§9.2): a typed signal broadcast to the world model and the canonical bus, consumed by `world.observation-state-update` (File 18 §8.2)'s projector. Most live perception output is a signal.
 - a deliberate `Observation` capture (§9.3): a content-addressed, staleness-fingerprinted observation-commit request sent through the canonical observation/block capability path when a capture must be durable, evidentiary, or a mutation precondition.
 
-Perception emits the output; deliberate observation commits pass through File 04 execution, File 05 declaration metadata, File 06 policy, File 08 block commit, File 09 observation contract, and File 10 ledger/event recording. The world model (File 18 §7) classifies consumed facts into the `Ephemeral`, `Durable`, or `Observed` tier and projects them. Perception never owns the durable substrate.
+Perception emits the output; deliberate observation commits pass through File 04 execution, File 05 declaration metadata, File 06 policy, File 08 block commit, File 09 observation contract, and File 10 ledger/event recording. The world model (`world.durability-tiers`, File 18 §7) classifies consumed facts into the `Ephemeral`, `Durable`, or `Observed` tier and projects them. Perception never owns the durable substrate.
 
 ### 9.2 `PerceptionSignal`
 
-A `PerceptionSignal` is a typed transient signal carrying the affected source identity, the change kind, a compact structured payload (identifiers and short summaries, not resource bodies), the sensitivity, and the `capture_context`. Signals conform to the signal vocabulary File 18 §8.2 consumes. A signal is a live coordination message: it is not, by itself, durably recorded (the world model decides, File 18 §7).
+A `PerceptionSignal` is a typed transient signal carrying the affected source identity, the change kind, a compact structured payload (identifiers and short summaries, not resource bodies), the sensitivity, and the `capture_context`. Signals conform to the signal vocabulary `world.observation-state-update` (File 18 §8.2) consumes. A signal is a live coordination message: it is not, by itself, durably recorded (the world model decides, `world.durability-tiers`, File 18 §7).
 
 ### 9.3 The `Observed` Capture and the Staleness Fingerprint
 
@@ -508,11 +508,11 @@ Capture errors are typed (`core.typed-errors`, File 01 §6.9): `PermissionDenied
 
 ### 12.3 Dead-Sensor Circuit-Breaking
 
-A sensor or processor backend that fails repeatedly is circuit-broken: after a settings-controlled failure threshold, perception marks it degraded, stops automatic attempts, and surfaces the degradation through the available-sensor set (File 18 §9) and the bus. Recovery is primarily event-driven: source recovery signals, connection-lifecycle events, backend health recovery, or explicit user reset trigger re-attempts. A configurable minimum cooldown between recovery attempts is retained as a killable safety guardrail against flapping; it is configurable, cancellable through File 04's killability contract, and never a correctness condition. A per-source failure does not crash the Perception service; failures are isolated per sensor or processor.
+A sensor or processor backend that fails repeatedly is circuit-broken: after a settings-controlled failure threshold, perception marks it degraded, stops automatic attempts, and surfaces the degradation through the available-sensor set (`world.state-aware-capability-availability`, File 18 §9) and the bus. Recovery is primarily event-driven: source recovery signals, connection-lifecycle events, backend health recovery, or explicit user reset trigger re-attempts. A configurable minimum cooldown between recovery attempts is retained as a killable safety guardrail against flapping; it is configurable, cancellable through File 04's killability contract, and never a correctness condition. A per-source failure does not crash the Perception service; failures are isolated per sensor or processor.
 
 ### 12.4 Reconciliation and Re-Observation
 
-On process restart or after an offline interval, perception re-establishes current state by re-observing the sources whose freshness matters (a content-hash reconciliation for file systems, a fresh capture for active surfaces) before resuming live watching; it does not present prior-session captures as current. A consumer that needs a guaranteed-fresh fact requests a re-observation (a fresh capture), which produces a new capture through the pipeline (§6). Reconciliation of the world model's own state is File 18 §8.7's; perception owns the re-observation that feeds it.
+On process restart or after an offline interval, perception re-establishes current state by re-observing the sources whose freshness matters (a content-hash reconciliation for file systems, a fresh capture for active surfaces) before resuming live watching; it does not present prior-session captures as current. A consumer that needs a guaranteed-fresh fact requests a re-observation (a fresh capture), which produces a new capture through the pipeline (§6). Reconciliation of the world model's own state is `world.observation-state-update` (File 18 §8.7)'s; perception owns the re-observation that feeds it.
 
 ### 12.5 Boundary
 
@@ -524,7 +524,7 @@ Anchor: `perception.exposure`
 
 ### 13.1 To the World Model
 
-The primary consumer is the world model. Perception emits `PerceptionSignal`s and produces committed `Observation`s through the canonical observation/block path; File 18 §8.2 projects them into entity attributes and surface state and links the entity to the observation by the `observes` relation (`world.world-entity`, File 18 §4.4). Perception supplies the structured output; the world model owns the state.
+The primary consumer is the world model. Perception emits `PerceptionSignal`s and produces committed `Observation`s through the canonical observation/block path; `world.observation-state-update` (File 18 §8.2) projects them into entity attributes and surface state and links the entity to the observation by the `observes` relation (`world.world-entity`, File 18 §4.4). Perception supplies the structured output; the world model owns the state.
 
 ### 13.2 To Context Assembly
 
@@ -579,7 +579,7 @@ Perception emits on the canonical bus (File 10). Perception-specific events are 
 
 ### 15.2 Sensitivity and Delivery
 
-A perception event that carries captured content carries the capture's sensitivity; `Secret` content never appears in a durably persisted event (§10.4, `ledger.sensitivity-aware-persistence-retention`, File 10 §10). High-frequency capture events are aggregated and normalized (§6.3) so they do not flood the bus or the durable ledger; the world model (File 18 §7) decides which become durable.
+A perception event that carries captured content carries the capture's sensitivity; `Secret` content never appears in a durably persisted event (§10.4, `ledger.sensitivity-aware-persistence-retention`, File 10 §10). High-frequency capture events are aggregated and normalized (§6.3) so they do not flood the bus or the durable ledger; the world model (`world.durability-tiers`, File 18 §7) decides which become durable.
 
 Cross-sensor deduplication inside perception is a best-effort efficiency optimization: it may suppress duplicate signals when source identity and change signatures match. Cross-producer integration in the world model is the correctness mechanism. File 18's deterministic projection must handle overlapping and conflicting signals from any source whether or not perception deduplicated them; the world model must not depend on perception-layer deduplication for correctness.
 
@@ -600,8 +600,8 @@ Anchor: `perception.persistence`
 
 ### 16.2 What Is Computed
 
-- the live capture stream and every `PerceptionSignal` — transient, never durably recorded by perception (the world model decides, File 18 §7)
-- the available-sensor set — computed per scope from registered sensors, permission state, and the world snapshot (File 18 §9)
+- the live capture stream and every `PerceptionSignal` — transient, never durably recorded by perception (the world model decides, `world.durability-tiers`, File 18 §7)
+- the available-sensor set — computed per scope from registered sensors, permission state, and the world snapshot (`world.state-aware-capability-availability`, File 18 §9)
 - staleness fingerprints — computed at capture time (§9.3)
 - any processor-derived capture result — keyed by full processor invocation identity and recorded when committed, never stored as an unkeyed scalar (§9.4)
 
@@ -611,7 +611,7 @@ A recorded `Observed` capture reconstructs deterministically through its content
 
 ### 16.4 Boundary
 
-This file specifies what is durable, computed, and reconstructable. The future Storage spec realizes the capture-payload blob store and the physical layout; the future Sync spec decides which captures cross devices (most are device-local — screens, audio, processes, displays; few are syncable).
+This file specifies what is durable, computed, and reconstructable. File 20 realizes the capture-payload blob store and the physical layout; the future Sync spec decides which captures cross devices (most are device-local — screens, audio, processes, displays; few are syncable).
 
 ## 17. Settings
 
@@ -655,7 +655,7 @@ The following shapes are wrong for this layer:
 - persisting raw secret content in any capture, observation, or event — `Secret` captures carry safe descriptions only (§10.4, `ledger.sensitivity-aware-persistence-retention`, File 10 §10)
 - defeating the protections of a sensed source — bypassing bot-detection, performing biometric identification without explicit capability and consent, or treating consent surfaces non-conservatively (§10.7)
 - perception acting on the world — perception senses; clicking, typing, navigating, and mutating are the per-surface action executors' concern (§3.3)
-- inventing a block kind or observation kind outside File 09's catalogue or registered extension mechanism, or deciding a capture's durability tier — File 09 owns the observation schema and File 18 §7 owns durability classification (§2.2, §2.3)
+- inventing a block kind or observation kind outside File 09's catalogue or registered extension mechanism, or deciding a capture's durability tier — File 09 owns the observation schema and `world.durability-tiers` (File 18 §7) owns durability classification (§2.2, §2.3)
 - a private per-surface perception substrate — there is one Perception service; surfaces register sensors into it (§4.4)
 - unnormalized capture churn as output — producers must suppress unstable source artifacts before emitting (§6.3, `world.observation-state-update`, File 18 §8.3)
 
