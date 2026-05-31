@@ -288,7 +288,7 @@ A `Selection` carries the `panel_id` it belongs to, a `SelectionKind`, a short h
 
 ### 5.6 Boundary
 
-`SurfaceState` defines the live interaction projection. The future Work Surface Contract spec defines how a surface statically declares the panels, capabilities/control affordances, views, and context policies it can present; `SurfaceState` holds the live values those declarations take at runtime. The UI specs render `SurfaceState`; this file defines its content.
+`SurfaceState` defines the live interaction projection. The Work Surface Contract spec (File 25) defines how a surface statically declares the panels, capabilities/control affordances, views, and context policies it can present; `SurfaceState` holds the live values those declarations take at runtime. The UI specs render `SurfaceState`; this file defines its content.
 
 ## 6. Environment, Temporal, and Connection Facts
 
@@ -633,7 +633,7 @@ Later specs must follow these rules:
 - The Perception and Observation Pipelines spec (File 19) must produce structured observations and signals the world model consumes through §8's contract; it owns capture mechanics and privacy controls of capture, and must commit `Observed`-tier facts as `Observation` blocks per `artifact.observation` (File 09 §13). It must not define a parallel state model.
 - Per-surface specs (Coder, Web, Data Processor, Teacher, GUI Control, System Agent) and the System Agent spec must self-register their panels, entities, and observations into the one world model, declare their `Custom` entity kinds and named availability checks through the canonical registration mechanism, and must not introduce a private state store.
 - The Workspaces and Materialization spec must own workspace identity and materialization while exposing active workspaces as `Workspace` entities; the world model references them.
-- The future Work Surface Contract spec must define how surfaces statically declare panels, capabilities/control affordances, and context policies; the world model holds the live values those declarations take.
+- The Work Surface Contract spec (File 25) must define how surfaces statically declare panels, capabilities/control affordances, and context policies; the world model holds the live values those declarations take.
 - The Automation and Triggers spec must drive triggers from explicit events and world-state changes, not from the world model's exposed clock; current time is grounding, not a scheduler.
 - Storage specs must persist the durable world-state log, the registered extensions, and the settings, and must realize snapshot resolution as a walk over the durable log with an optional baseline/checkpoint optimization; they must not store world snapshots as copied rows.
 - Sync specs must consume locality metadata: most world facts are device-local (displays, processes, sandboxes, foreground application, sessions) and do not sync; few are syncable.

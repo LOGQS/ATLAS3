@@ -666,7 +666,7 @@ Anchor: `perception.consequences-for-later-specs`
 Later specs must follow these rules:
 
 - Per-surface specs (Coder, Web, Data Processor, Teacher, GUI Control, System Agent) must declare their specific sensors, processors, and named availability checks against this substrate, instantiate the tier model rather than inventing a parallel capture pipeline, and consume the capture contract; the GUI Control surface's desktop perception, the Web surface's browser perception, the Data Processor surface's document capture, and the System Agent surface's system observation are instantiations of the sensor kinds, processor model, and tier strategy defined here.
-- The future Work Surface Contract spec must let surfaces declare which sensors they expose and the privacy class of each; perception holds the live capture mechanics behind those declarations.
+- The Work Surface Contract spec (File 25) must let surfaces declare which sensors they expose and the privacy class of each; perception holds the live capture mechanics behind those declarations.
 - The Automation and Triggers spec must drive automation from explicit events and perception change signals, not from a capture clock; it consumes perception's change signals and must not introduce a parallel watcher layer.
 - The Security spec must own the credential vault and trust state perception references by identity, must treat `Secret` captures as safe-description-only, and must own the policy mechanics behind capture consent.
 - The Sandbox spec must own process and sandbox isolation; perception captures process and system state and references active sandboxes and devices without owning their isolation.
