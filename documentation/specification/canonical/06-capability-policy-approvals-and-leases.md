@@ -117,7 +117,7 @@ The denial-in-band rule (`run.denial-is-in-band`, File 04 §8.3) is a load-beari
 
 The approval router is a blocking subscriber on `ToolCallProposed` (per `run.hook-integration`, File 04 §23.3 and the canonical event-bus pattern). Other policy events emit through the same bus. The event envelope (`conversation_id`, `step_id`, `node_id`, `worktree_id`, `backend_id`, `sequence`, `timestamp`, `sensitivity`) carries enough context for policy decisions to attribute correctly across parallel runs and concurrent worktrees.
 
-Settings are read through the settings system (per `core.settings-system`, File 01 §6.8). The settings cascade is the canonical conversation → workspace → global → overlay → declared default order. File 06 does not introduce a parallel settings store.
+Settings are read through the settings system (per `core.settings-system`, File 01 §6.8). Settings are resolved through File 15's canonical settings source stack (`settings.scopes-profile-contexts-overlays`, File 15 §5.2). File 06 does not introduce a parallel settings store or define its own settings cascade.
 
 Typed errors flow through the typed-error envelope (per `core.typed-errors`, File 01 §6.9). Policy denials, floor violations, contradiction errors, and lease-stale signals are typed variants the agent and UI consume by exhaustive pattern match.
 
@@ -222,7 +222,7 @@ The resolution proceeds in fixed order:
    - `Community` — minimum effective tier is `UserApproval` (one-tier escalation from `WorkspaceWrite` or below)
    - `Unverified` — minimum effective tier is `UserApproval` and the first invocation of each such capability in a given conversation additionally requires per-call ask-user (no `AlwaysAllow` lease honored without an explicit user upgrade of the source's trust)
    Trust narrowing never crosses the floor in either direction. A `Community` capability whose floor is `Denied` remains `Denied`; a `Community` capability whose declared tier is already `UserApproval` is unchanged.
-4. **Scope-level setting overrides**. Per-capability and per-source tier ceilings from the settings cascade (conversation → workspace → global → overlay → default) apply. A user-set tier ceiling can never lower below the floor (the floor wins) but can raise above the declared tier (the user can require approval for a normally `WorkspaceWrite` capability within a specific conversation or workspace).
+4. **Scope-level setting overrides**. Per-capability and per-source tier ceilings resolved through File 15's canonical settings source stack (`settings.scopes-profile-contexts-overlays`, File 15 §5.2) apply. A user-set tier ceiling can never lower below the floor (the floor wins) but can raise above the declared tier (the user can require approval for a normally `WorkspaceWrite` capability within a specific conversation or workspace).
 5. **Lease lookup**. The active lease set is consulted. A lease applies when:
    - its `capability_match` covers the proposed capability id (exact match, family glob, or pattern)
    - its `scope` includes the active execution context (the call's run, intent thread, task, conversation, workspace, or globally; `single_proposal`-scope leases never persist past one call; `reusable-policy-rule`-scope leases apply globally)
@@ -361,7 +361,7 @@ When no lease matches a proposed call, tier resolution falls through to the defa
 
 ### 6.6 Boundary
 
-Touched-resource matching is deterministic given the resolved arguments and the active lease set. The expression grammar lives in `capability.resource-expressions` (File 05 §6.4) (current illustrative shapes) or the future capability-schema appendix; File 06 specifies the matching algorithm and the containment semantics. Extension-class registration includes a containment predicate per the extension's declaration; missing or unparseable predicates make leases referencing the extension class invalid (the registration fails per `capability.extension-resource-classes` (File 05 §6.3)'s proposal-first rule).
+Touched-resource matching is deterministic given the resolved arguments and the active lease set. The expression grammar is owned by `capability.resource-expressions` (File 05 §6.4); File 06 specifies the matching algorithm and the containment semantics. Extension-class registration includes a containment predicate per the extension's declaration; missing or unparseable predicates make leases referencing the extension class invalid (the registration fails per `capability.extension-resource-classes` (File 05 §6.3)'s proposal-first rule).
 
 ## 7. Permission Floor and Typed-Confirmation
 
@@ -420,7 +420,7 @@ Anchor: `policy.auto-decide-mode`
 
 ### 8.2 Configuration
 
-Auto-decide configuration is a settings-resolved value with the standard cascade (conversation → workspace → global → overlay → default). Configuration carries:
+Auto-decide configuration is a settings-resolved value resolved through File 15's canonical settings source stack (`settings.scopes-profile-contexts-overlays`, File 15 §5.2). Configuration carries:
 
 - `enabled` per capability or per family — opt-in flag
 - `classifier_model_id` — the model used for classification, resolved through the model-strategy layer per File 04

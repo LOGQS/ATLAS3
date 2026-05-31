@@ -17,7 +17,7 @@ This file defines:
 - cross-installation identity and provenance: UUID stability, content-addressed deduplication, import producers, and cross-installation provenance maps
 - the `PortablePackage`: the canonical lossless package envelope for `SharePackage` and `RecoveryArchive`
 - the import pipeline: validation, normalization, dependency closure, import staging, UUID-preserving remap, deduplication, sensitivity classification, source approval, collision handling, proposal-or-commit per substrate, and atomic visibility
-- sensitivity, secrets, and egress governance: policy-gated movement of data, no raw secret egress, and typed omissions/redactions
+- the movement application of egress governance: policy-gated movement of data, no raw secret egress at the movement boundary, and typed omissions/redactions
 - backup, restore, and archival: full-substrate backup, portable recovery archive, and vault backup boundaries
 - the sync/import/export capability surface, event vocabulary, settings dimensions, explicit rejections, and consequences later specs consume
 
@@ -26,6 +26,7 @@ This file does not define:
 - the storage substrate, the physical syncable-versus-device-local partition, the on-disk layout, the content-addressed blob store, or the projection store - File 20 owns those
 - the semantics of the version-tree-aware merge - File 11 owns "both branches survive, no last-write-wins"; this file transports the records that make those branches visible on each device
 - the secret-vault internals, cryptography, key derivation, OS-keyring integration, or device trust state - File 22 owns those
+- the egress policy semantics - the sensitivity-tier rules, the egress-destination inspector, the secret-egress exceptions, and the redaction-before-egress policy - File 22 owns those; this file applies them at the movement boundary
 - workspace identity, materialized workspace directories, worktrees, and disk-to-block mirrors - File 24 owns those
 - settings resolution or locality semantics - File 15 owns them; this file consumes their resolved locality and sensitivity metadata
 - per-entity export capability declarations - File 09 declares artifact export, File 14 declares memory import/export, and per-surface specs declare their format exports
@@ -440,7 +441,7 @@ Data leaving the device is the moment privacy and secrecy are at stake. Governan
 
 ### 12.4 Boundary
 
-This section owns egress governance by consuming File 10 sensitivity and File 06 policy. Security owns cryptography and vault backup internals. File 21 owns only the movement boundary and no-secret-egress rule.
+This section owns the movement application of egress governance: where data leaves, how packages and sync streams omit or redact content, how movement is audited, and the no-raw-secret-egress invariant at the movement boundary. File 22 owns the egress security policy semantics — the sensitivity-tier rules, the egress-destination inspector, the secret-egress exceptions, and the redaction-before-egress policy (`security.egress-governance`, File 22 §11); File 10 owns the sensitivity taxonomy; File 06 owns the gate and the floor. This section consumes those and adds no egress rule beyond the movement boundary; cryptography and vault-backup internals stay File 22's.
 
 ## 13. Backup, Restore, and Archival
 

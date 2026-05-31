@@ -222,7 +222,7 @@ The model request receives `Borrowable` entries as model-request text content pl
 - per-entry one-liner — `name` and `short_description` (per `capability.display-fields`, File 05 §3.2)
 - `borrow_invocation_hint` — a single hint line indicating that `tool.borrow(name)` loads the schema for the rest of the turn
 
-The block is deterministically ordered (alphabetical by family, then alphabetical by name within family) so the model-request prefix is cache-friendly where the provider supports caching (per `run.from-run-intent-to-run`, File 04 §3.3 cheap routing and File 13). If a `BorrowGrant` (per §7.3) is active, the borrowed capability is rendered in `Primary` for the duration of the grant and removed from the `Borrowable` catalog block to avoid duplication.
+The block is deterministically ordered (alphabetical by family, then alphabetical by name within family) so the model-request prefix is cache-friendly where the provider supports caching (per `run.from-run-intent-to-run`, File 04 §3 cheap routing and File 13). If a `BorrowGrant` (per §7.3) is active, the borrowed capability is rendered in `Primary` for the duration of the grant and removed from the `Borrowable` catalog block to avoid duplication.
 
 ### 4.4 The Borrow Operation
 
@@ -623,7 +623,7 @@ Step 17 — Emit ToolSurfaceComposed event with surface_id and diagnostic facts
 
 ### 9.2 Determinism
 
-The algorithm is deterministic given the same inputs. Two compositions with the same `scope_context`, the same registry snapshot, the same settings snapshot, and the same `BorrowGrant` snapshot produce byte-identical `ResolvedToolSurface` outputs and byte-identical rendered model-request surface content. This is the load-bearing property for cache friendliness where supported (per `run.from-run-intent-to-run`, File 04 §3.3) and replay (per `run.ledger-events-commits`, File 04 §23 and File 10).
+The algorithm is deterministic given the same inputs. Two compositions with the same `scope_context`, the same registry snapshot, the same settings snapshot, and the same `BorrowGrant` snapshot produce byte-identical `ResolvedToolSurface` outputs and byte-identical rendered model-request surface content. This is the load-bearing property for cache friendliness where supported (per `run.from-run-intent-to-run`, File 04 §3) and replay (per `run.ledger-events-commits`, File 04 §23 and File 10).
 
 ### 9.3 Caching
 

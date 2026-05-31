@@ -391,7 +391,7 @@ Expressions are structured terms over the input schema and registered ambient va
 - setting key: `setting.key(args.key).scope(args.scope)`
 - process group: `process.group(run_id)`
 
-The exact expression grammar lives in File 06 or a capability-schema appendix; this file requires only that expressions are machine-parseable, that argument-bound expressions reference `args.*` field paths by name, and that the expression resolves to the concrete resources policy must check.
+File 05 owns the canonical resource-expression grammar used in `CapabilityDeclaration.touched_resources`; this file requires that expressions are machine-parseable, that argument-bound expressions reference `args.*` field paths by name, and that the expression resolves to the concrete resources policy must check. File 06 consumes resolved expressions for policy evaluation, containment, lease matching, and approval decisions; it does not define the grammar.
 
 ### 6.5 Purpose
 
