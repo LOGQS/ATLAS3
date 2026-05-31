@@ -44,8 +44,8 @@ This file does not define:
 - the policy evaluation algorithm, approval flows, leases, or contradiction-checking — File 06 owns those; this file specifies which entity mutations are tier-gated and how
 - tool-surface zones, surface composition, or zone semantics — File 07 owns those; this file requires that artifact, claim, evidence, and provenance capabilities surface uniformly
 - UI rendering choices for artifact previews, claim cards, evidence panels, citation chips, observation viewers, provenance trees, or validation badges — the future UI Shell and UI Customization specs own those; this file specifies the canonical data contracts those surfaces consume
-- storage of credentials referenced by an artifact, claim, or evidence record — the future Security, Credentials, and Trust Boundaries spec owns those
-- sandbox primitives, isolation policy, or rendering-runtime details — the future Sandbox, Process Control, and Isolation spec owns those
+- storage of credentials referenced by an artifact, claim, or evidence record — File 22 owns those
+- sandbox primitives, isolation policy, or rendering-runtime details — File 23 owns those
 - per-surface specifications (Coder, Web, Data Processor, Teacher, GUI Control, System Agent) — those specs declare which artifact kinds and observation kinds they primarily produce; File 09 declares the canonical baseline
 
 ## Source Resolution
@@ -421,7 +421,7 @@ Anchor: `artifact.artifact-materialization`
 
 `MaterializationPolicy` is declared per artifact at creation and is a closed canonical enum:
 
-- `InWorkspace` — the artifact version's content is written to a workspace path. The path is computed from `(workspace_id, artifact_id, artifact_kind, version_id)` per the workspace-materialization spec (the future Workspaces and Materialization spec defines the path-resolution algorithm; the canonical default places artifacts under `<workspace>/.atlas/artifacts/<artifact_id>/<version_id>/` with a kind-typed leaf filename). Default for `Document`, `CodePatch`, `Notebook`, `Image`, `Audio`, `Video`, `Chart` artifact kinds whose containing scope is workspace or narrower.
+- `InWorkspace` — the artifact version's content is written to a workspace path. The path is computed from `(workspace_id, artifact_id, artifact_kind, version_id)` per File 24 (which defines the path-resolution algorithm; the canonical default places artifacts under `<workspace>/.atlas/artifacts/<artifact_id>/<version_id>/` with a kind-typed leaf filename). Default for `Document`, `CodePatch`, `Notebook`, `Image`, `Audio`, `Video`, `Chart` artifact kinds whose containing scope is workspace or narrower.
 - `ExternalRef` — the artifact version's content lives in external storage (cloud bucket, content-addressed external store, MCP-server-hosted resource). The version-block uses `BlockContent::External` with the appropriate storage_ref. Materialization is the act of binding the external reference; no local file is written by default. The user may opt to cache an external artifact locally; cache state is per-installation and does not change the artifact's identity.
 - `None` — the artifact has no materialization beyond the version-block itself. Used for `Note`, `InstructionFragment`, `Validator`, `Adapter` artifacts whose content is fully consumed inline. The version-block's `BlockContent::Inline` payload is the artifact.
 
@@ -476,7 +476,7 @@ External modifications to materialized files are detected by the filesystem watc
 
 ### 7.6 Boundary
 
-Materialization mechanics for the workspace tree are owned by the future Workspaces and Materialization spec and the file-management subsystem (per `block.streaming-commit-boundary`, File 08 §7). This file specifies the policy enum, the path-on-version metadata, and the disk→entity sync contract. Implementation choices (path templates, hash algorithms beyond SHA-256, materialization atomicity primitives, watcher backends) belong to those specs.
+Materialization mechanics for the workspace tree are owned by File 24 and the file-management subsystem (per `block.streaming-commit-boundary`, File 08 §7). This file specifies the policy enum, the path-on-version metadata, and the disk→entity sync contract. Implementation choices (path templates, hash algorithms beyond SHA-256, materialization atomicity primitives, watcher backends) belong to those specs.
 
 ## 8. Artifact Tombstones
 
@@ -1005,7 +1005,7 @@ Caching of provenance results is a storage optimization; the underlying substrat
 
 ### 15.5 Cross-Workspace and Cross-Installation Provenance
 
-When an artifact, claim, or supporting block is imported from another workspace or installation (via the future Sync, Import, Export, and Data Portability spec), the import operation commits an `Import` producer record on every imported block per `block.block` (File 08 §2.2). Provenance queries on imported blocks resolve to the import record; further closure into the originating installation's run and capability history requires the future Sync spec's cross-installation mapping table.
+When an artifact, claim, or supporting block is imported from another workspace or installation (via File 21), the import operation commits an `Import` producer record on every imported block per `block.block` (File 08 §2.2). Provenance queries on imported blocks resolve to the import record; further closure into the originating installation's run and capability history requires File 21's cross-installation mapping table.
 
 ### 15.6 Boundary
 
@@ -1175,11 +1175,11 @@ Run-scoped evidence-link edges (e.g., evidence-links a run produced to support i
 
 ### 18.5 Cross-Conversation and Cross-Workspace
 
-Artifacts and claims at `workspace` scope are visible across all conversations in the workspace. Provenance queries on workspace-scoped artifacts return references to runs and conversations spanning the workspace lifetime. Cross-workspace reference requires the future Sync, Import, Export, and Data Portability spec; the canonical contract here is that artifact identity is portable through the import mechanism, with the import operation producing the `Import` producer record per File 08.
+Artifacts and claims at `workspace` scope are visible across all conversations in the workspace. Provenance queries on workspace-scoped artifacts return references to runs and conversations spanning the workspace lifetime. Cross-workspace reference requires File 21; the canonical contract here is that artifact identity is portable through the import mechanism, with the import operation producing the `Import` producer record per File 08.
 
 ### 18.6 Boundary
 
-Persistence is the storage layer's responsibility. This file specifies what the storage layer must persist (the entity-record field sets, the version metadata records, the evidence-link edge metadata) and what it must reconstruct (the derived states, the closures, the provenance results). The storage schema, replication, sync, and import/export mechanics are owned by File 20 and the future Sync, Import, Export, and Data Portability spec.
+Persistence is the storage layer's responsibility. This file specifies what the storage layer must persist (the entity-record field sets, the version metadata records, the evidence-link edge metadata) and what it must reconstruct (the derived states, the closures, the provenance results). The storage schema, replication, sync, and import/export mechanics are owned by File 20 and File 21.
 
 ## 19. Settings
 

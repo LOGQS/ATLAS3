@@ -22,14 +22,14 @@ This file defines:
 - backup, integrity detection, and the recovery hierarchy — consistent snapshots without pausing the writer, corruption detection, and the projection-rebuild-then-substrate-restore-then-quarantine recovery order
 - lifecycle, startup, shutdown, and deterministic reconstruction — the startup phase order, projection rebuild and run/lease recovery, the shutdown flush, the single-instance lock, and orphan reconciliation
 - the storage capability surface, the storage event vocabulary, and the settings dimensions
-- the secret-vault and audit-overlay storage boundaries with the future Security spec
+- the secret-vault and audit-overlay storage boundaries with File 22
 
 This file does not define:
 
 - the semantic durability contracts themselves — what is durable, computed, or reconstructable for each substrate is owned by that substrate's file (`block.block-persistence-contract`, File 08 §13; `artifact.persistence-contract`, File 09 §18; the ledger durability contract, `ledger.execution-ledger`, File 10 §3.5; `ledger.sensitivity-aware-persistence-retention`, File 10 §10; `version.persistence-contract`, File 11 §18; `context.persistence-settings`, File 13 §20; the memory persistence contract, File 14; `settings.logical-persistence`, File 15 §17; the provider usage/rate-limit durability rules, File 17; `world.persistence-contract`, File 18 §14; `perception.persistence`, File 19 §16). This file realizes them; it does not re-own them
-- the sync transport, embedded-replica replication protocol, conflict-resolution semantics, import/export bundle format, or cross-device merge — the future Sync, Import, Export, and Data Portability spec owns those; this file owns only the physical partition the sync layer replicates and the per-device partition it never touches. The version-tree-aware merge semantics remain `version.cross-device-sync-conflict-resolution` (File 11 §19)
-- the credential-vault internals, the encryption cryptography, key derivation, the OS-keyring integration, and trust state — the future Security, Credentials, and Trust Boundaries spec owns those; this file owns only the vault file's existence, location, and the boundary that raw `Secret` material never enters the durable substrate (`secret.backend-boundary`, File 17 §23.6)
-- workspace identity, materialized workspace directories, the disk-to-block materialization mirror, worktree management, and per-surface file layout — the future Workspaces and Materialization spec owns those; this file owns the content-addressed blob store those materializations resolve external content from, not the workspace mirror
+- the sync transport, embedded-replica replication protocol, conflict-resolution semantics, import/export bundle format, or cross-device merge — File 21 owns those; this file owns only the physical partition the sync layer replicates and the per-device partition it never touches. The version-tree-aware merge semantics remain `version.cross-device-sync-conflict-resolution` (File 11 §19)
+- the credential-vault internals, the encryption cryptography, key derivation, the OS-keyring integration, and trust state — File 22 owns those; this file owns only the vault file's existence, location, and the boundary that raw `Secret` material never enters the durable substrate (`secret.backend-boundary`, File 22 §4)
+- workspace identity, materialized workspace directories, the disk-to-block materialization mirror, worktree management, and per-surface file layout — File 24 owns those; this file owns the content-addressed blob store those materializations resolve external content from, not the workspace mirror
 - the row-and-column physical schema of any single table as a frozen artifact — this file specifies the substrate families, their source-of-truth-versus-projection classification, their locality, and their durability invariants; the concrete column layout is the migration-script realization governed by §10, not a canonical freeze
 - block, artifact, ledger, version, settings, world, memory, retrieval, or provider semantics — the owning files define those; this file stores them
 - UI rendering of storage-usage dashboards, backup managers, cleanup surfaces, or migration progress — the future UI specs own those; this file specifies the data contracts they consume
@@ -147,7 +147,7 @@ The storage layer must durably persist at least the following source-of-truth fa
 - Every record identity is globally unique, stable, and never reused, within a single per-install identity namespace (no per-surface identity namespaces). Identities are device-independent and survive sync (`core.canonical-encoding`, File 01 §6.15; the UUID-identity rule from `atlas3-core/CONSTRAINTS.md`).
 - A model-dependent scalar — a token count, a cache statistic, a cost — is never stored as an unkeyed value on any source-of-truth row. It is keyed by `(provider_id, model_id, tokenizer_id)` (File 17) or `(block_id, tokenizer_id)` (`block.what-is-computed`, File 08 §13.2), or it is a projection computed on demand (`core.explicit-rejections`, File 01 §8; `ledger.forgery-guards`, File 10 §3.7). The forgery guards Files 10 and 04 define are enforced at the substrate write boundary, not only in the executor.
 - A cross-partition reference (a device-local record referencing a syncable record, per §8) is a soft identity reference, not an enforced foreign key. Resolution returns a typed state: `Present`, `NotFetched`, `PolicyHidden`, `DeviceLocalUnavailable`, `DeletedOrTombstoned`, or `DanglingCorrupt`. Absence is tolerated only when the typed state is expected by locality, sync, lifecycle, or policy; an unexpected dangling source-of-truth reference is an integrity finding.
-- Raw `Secret`-classified material never enters the durable substrate. Only a `safe_description` and an opaque vault reference persist (`ledger.sensitivity-aware-persistence-retention`, File 10 §10; `secret.backend-boundary`, File 17 §23.6).
+- Raw `Secret`-classified material never enters the durable substrate. Only a `safe_description` and an opaque vault reference persist (`ledger.sensitivity-aware-persistence-retention`, File 10 §10; `secret.backend-boundary`, File 22 §4).
 
 ### 3.5 Boundary
 
@@ -175,7 +175,7 @@ The embedded engine permits exactly one concurrent writer and many concurrent re
 
 ### 4.4 Boundary
 
-This section owns concurrency and durability mechanics. The commit boundaries that decide *when* a version or block is committed are owned by Files 04, 08, and 11; this file owns *how* that commit is made durable and crash-safe. The replication of the syncable substrate to other devices is the future Sync spec's; this file owns only that the syncable substrate is a database the replica layer can replicate.
+This section owns concurrency and durability mechanics. The commit boundaries that decide *when* a version or block is committed are owned by Files 04, 08, and 11; this file owns *how* that commit is made durable and crash-safe. The replication of the syncable substrate to other devices is File 21's; this file owns only that the syncable substrate is a database the replica layer can replicate.
 
 ## 5. Transactional Guarantees
 
@@ -226,7 +226,7 @@ External block content, captured perception payloads, artifact externalizations,
 
 ### 6.4 Boundary
 
-This section owns the blob store: addressing, deduplication, staged atomic write, reference-counted GC with reconciliation, availability states, and integrity. The decision of which content externalizes (the inline-versus-external policy per kind) is set by the owning file's settings; this file enforces the threshold and stores the result. The workspace directory that materializes blobs as files for the user is the future Workspaces spec's mirror, not the blob store.
+This section owns the blob store: addressing, deduplication, staged atomic write, reference-counted GC with reconciliation, availability states, and integrity. The decision of which content externalizes (the inline-versus-external policy per kind) is set by the owning file's settings; this file enforces the threshold and stores the result. The workspace directory that materializes blobs as files for the user is File 24's mirror, not the blob store.
 
 ## 7. Projections and Rebuild
 
@@ -281,16 +281,16 @@ File 15 tags every setting with a locality (`Syncable`, `WorkspaceLocal`, `Devic
 
 ### 8.3 Rule
 
-- The durable substrate is split into a **syncable substrate** and a **device-local substrate**. Syncable source-of-truth families — blocks, version graph, ledger entries that sync, entity records, memory, knowledge, settings tagged syncable, durable world facts that sync — live in the syncable substrate, which is the database the future Sync spec replicates. Device-local source-of-truth families — the hash-chained audit overlay's durable records, local-only settings, per-device consent or capture state where declared, `RateLimitState`, per-device system-watch and scheduled-task state, and anything tagged `DeviceLocal` or `NeverSync` as source-of-truth — live in the device-local substrate, which is never replicated. Device-local projections and caches also live there, but remain rebuildable.
+- The durable substrate is split into a **syncable substrate** and a **device-local substrate**. Syncable source-of-truth families — blocks, version graph, ledger entries that sync, entity records, memory, knowledge, settings tagged syncable, durable world facts that sync — live in the syncable substrate, which is the database File 21 replicates. Device-local source-of-truth families — the hash-chained audit overlay's durable records, local-only settings, per-device consent or capture state where declared, `RateLimitState`, per-device system-watch and scheduled-task state, and anything tagged `DeviceLocal` or `NeverSync` as source-of-truth — live in the device-local substrate, which is never replicated. Device-local projections and caches also live there, but remain rebuildable.
 - The hash-chained audit overlay (`ledger.sensitivity-aware-persistence-retention`, File 10 §10.5) is stored device-locally as an append-only, hash-chained log, separate from the syncable substrate, and never syncs. Its chain integrity is per-device; a chain-tamper detection halts sync of the affected device (`ledger.sensitivity-aware-persistence-retention`, File 10 §10.5).
 - Cross-partition references are soft identity references (§3.4): a device-local record may reference a syncable record by identity without an enforced foreign key, and resolves it by lookup to a typed resolution state.
 - The blob store is a single content-addressed store on local disk, shared across both substrates and all scopes (§6).
-- The on-disk layout lives under one user-writable root, resolvable through a bootstrap environment variable and platform conventions (the user data directory on each platform). The root contains the substrate database files and their write-ahead sidecars, the blob store with content-hash fan-out that bounds directory cardinality, reference-count metadata, per-conversation and per-workspace materialization directories (owned by the future Workspaces spec, referenced here), the secret-vault file (§14), the audit overlay, logs, the read-only configuration overlay, a single-instance lock, and a clearly-delimited cache directory that is safe to delete and rebuilds on demand. The installation directory is read-only to the running application; only the data root is user-writable. The root location is overridable by setting.
+- The on-disk layout lives under one user-writable root, resolvable through a bootstrap environment variable and platform conventions (the user data directory on each platform). The root contains the substrate database files and their write-ahead sidecars, the blob store with content-hash fan-out that bounds directory cardinality, reference-count metadata, per-conversation and per-workspace materialization directories (owned by File 24, referenced here), the secret-vault file (§14), the audit overlay, logs, the read-only configuration overlay, a single-instance lock, and a clearly-delimited cache directory that is safe to delete and rebuilds on demand. The installation directory is read-only to the running application; only the data root is user-writable. The root location is overridable by setting.
 - A cache directory is explicitly disposable: deleting it loses no source-of-truth, because everything in it is a projection or a re-fetchable blob (§7, §11).
 
 ### 8.4 Boundary
 
-This section owns the physical partition and on-disk layout. The replication of the syncable substrate, the merge of divergent version trees, and the import/export bundle format are the future Sync spec's. The workspace and worktree directories are the future Workspaces spec's; this file places the blob store and substrate files and references the materialization directories without owning them. The secret-vault file's internals are the future Security spec's (§14).
+This section owns the physical partition and on-disk layout. The replication of the syncable substrate, the merge of divergent version trees, and the import/export bundle format are File 21's. The workspace and worktree directories are File 24's; this file places the blob store and substrate files and references the materialization directories without owning them. The secret-vault file's internals are File 22's (§14).
 
 ## 9. Physical Storage Encoding versus Canonical Encoding
 
@@ -362,7 +362,7 @@ The system is non-destructive by default but not unbounded (`core.non-destructiv
 
 ### 11.4 Boundary
 
-This section owns the storage-side realization of retention, the blob and projection GC, and storage accounting. The semantics of each typed operation — what a tombstone preserves, what compaction must keep reconstructable — are owned by Files 08–11. This file executes them and measures the result. Cross-device propagation of a deletion is the future Sync spec's.
+This section owns the storage-side realization of retention, the blob and projection GC, and storage accounting. The semantics of each typed operation — what a tombstone preserves, what compaction must keep reconstructable — are owned by Files 08–11. This file executes them and measures the result. Cross-device propagation of a deletion is File 21's.
 
 ## 12. Backup, Integrity, and Recovery
 
@@ -390,7 +390,7 @@ The durable substrate is the source of truth; it must be backed up consistently,
 
 ### 12.4 Boundary
 
-This section owns backup, integrity, and local recovery. Cross-device restore and the portable export bundle are the future Sync spec's. The cryptographic verification of the audit chain is File 10's; this file stores the chain and surfaces its tamper events.
+This section owns backup, integrity, and local recovery. Cross-device restore and the portable export bundle are File 21's. The cryptographic verification of the audit chain is File 10's; this file stores the chain and surfaces its tamper events.
 
 ## 13. Lifecycle, Startup, and Deterministic Reconstruction
 
@@ -430,10 +430,10 @@ Credentials must never enter the durable substrate, sync, exports, logs, or agen
 
 ### 14.3 Rule
 
-- The secret vault is stored outside the durable substrate, backed by the operating-system keyring where available and by an encrypted vault file where not. The vault file's location is a storage fact (under the data root, overridable by bootstrap environment variable); its encryption, key derivation, and keyring integration are the future Security spec's. The durable substrate holds only opaque vault references and `safe_description`s, never raw secret material (`secret.backend-boundary`, File 17 §23.6; `ledger.sensitivity-aware-persistence-retention`, File 10 §10).
+- The secret vault is stored outside the durable substrate, backed by the operating-system keyring where available and by an encrypted vault file where not. The vault file's location is a storage fact (under the data root, overridable by bootstrap environment variable); its encryption, key derivation, and keyring integration are File 22's. The durable substrate holds only opaque vault references and `safe_description`s, never raw secret material (`secret.backend-boundary`, File 22 §4; `ledger.sensitivity-aware-persistence-retention`, File 10 §10).
 - Secrets are excluded from backups, exports, sync, logs, events, snapshots, and agent context. A backup of the substrate does not back up the vault; vault backup is the user's explicit, separate action (`settings.locality-sync-export`, File 15 §18).
 - The hash-chained audit overlay is stored device-locally (§8.3), append-only, never synced, and never disabled even when telemetry or logging is disabled (`ledger.sensitivity-aware-persistence-retention`, File 10 §10.5). This file stores the chain and surfaces its tamper-detection events; the chain construction and verification are File 10's.
-- Encryption-at-rest of the durable substrate, where enabled, is a storage-configuration boundary: this file declares that the substrate may be opened against an encrypted engine and that the encryption keying is the future Security spec's; it defines no cryptography here.
+- Encryption-at-rest of the durable substrate, where enabled, is a storage-configuration boundary: this file declares that the substrate may be opened against an encrypted engine and that the encryption keying is File 22's; it defines no cryptography here.
 
 ### 14.4 Boundary
 
@@ -482,7 +482,7 @@ The following shapes are wrong for this layer:
 - storing a model-dependent scalar — token count, cache statistic, cost — as an unkeyed value on a source-of-truth row (§3.4; `core.explicit-rejections`, File 01 §8)
 - silent last-write-wins over concurrent mutations of shared state (§4.3; `core.explicit-rejections`, File 01 §8)
 - storing world snapshots, registry snapshots, or any snapshot as copied rows rather than resolving them as identities over a durable log (§13.3; `world.explicit-rejections`, File 18 §16; `version.snapshots`, File 11 §14)
-- raw `Secret` material in the durable substrate, backups, exports, sync, logs, events, or agent context — only opaque references and safe descriptions persist (§3.4, §14.3; `secret.backend-boundary`, File 17 §23.6)
+- raw `Secret` material in the durable substrate, backups, exports, sync, logs, events, or agent context — only opaque references and safe descriptions persist (§3.4, §14.3; `secret.backend-boundary`, File 22 §4)
 - syncing the hash-chained audit overlay, the per-device rate-limit state, or rebuildable caches — device-local data is physically isolated, not filtered (§8.3; `ledger.sensitivity-aware-persistence-retention`, File 10 §10.5)
 - time-based retention or pruning without explicit user or selected-profile opt-in, or any time-based behavior driving storage correctness (§11.3; `core.non-destructive-by-default`, File 01 §7.13)
 - maintenance schedules, elapsed-time guards, or polling treated as storage correctness mechanisms rather than settings-controlled, killable safety or convenience policies (§6.3, §7.4, §10.3, §13.3)
@@ -500,9 +500,9 @@ Anchor: `storage.consequences`
 
 Later specs must follow these rules:
 
-- The future **Sync, Import, Export, and Data Portability** spec replicates the syncable substrate this file partitions, never the device-local substrate or the audit overlay; it ships content-addressed blobs separately with deferred fetch; it realizes the version-tree-aware merge (`version.cross-device-sync-conflict-resolution`, File 11 §19) over the substrate this file lays out; and it defines the portable export bundle over the content-addressed blobs and durable records this file stores. It introduces no parallel durability path.
-- The future **Security, Credentials, and Trust Boundaries** spec owns the secret-vault cryptography, key derivation, keyring integration, encryption-at-rest keying, and trust state; this file gives it the vault file's location and the substrate-exclusion boundary. Raw secrets never enter the substrate this file owns.
-- The future **Workspaces and Materialization** spec owns the workspace and worktree directories and the disk-to-block materialization mirror; it resolves external content from the content-addressed blob store this file owns and references the materialization directories this file places, without introducing a second blob store.
+- File 21 replicates the syncable substrate this file partitions, never the device-local substrate or the audit overlay; it ships content-addressed blobs separately with deferred fetch; it realizes the version-tree-aware merge (`version.cross-device-sync-conflict-resolution`, File 11 §19) over the substrate this file lays out; and it defines the portable export bundle over the content-addressed blobs and durable records this file stores. It introduces no parallel durability path.
+- File 22 owns the secret-vault cryptography, key derivation, keyring integration, encryption-at-rest keying, and trust state; this file gives it the vault file's location and the substrate-exclusion boundary. Raw secrets never enter the substrate this file owns.
+- File 24 owns the workspace and worktree directories and the disk-to-block materialization mirror; it resolves external content from the content-addressed blob store this file owns and references the materialization directories this file places, without introducing a second blob store.
 - The **per-surface specs** (Coder, Web, Data Processor, Teacher, GUI Control, System Agent) persist their durable state as substrate families and content-addressed blobs through this contract — never a private store — and tag each family's locality so the partition (§8) places it correctly. Per-surface caches are projections, rebuildable and disposable.
 - The **Automation, Triggers, and Scheduling** spec persists schedules, watches, and trigger state through this contract, tags machine-bound state device-local (§8.3), and drives nothing from storage-layer clocks; retention of automation history is a recorded, opt-in policy (§11.3).
 - The **Telemetry, Logging, and Observability** spec consumes the ledger and storage events this file emits and builds its views as rebuildable projections; it never makes a telemetry view a source of truth.

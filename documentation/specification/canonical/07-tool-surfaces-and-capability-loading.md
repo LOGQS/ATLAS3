@@ -33,7 +33,7 @@ This file does not define:
 - the per-surface specifications themselves (Coder, Web, Teacher, Data Processor, GUI Control, System Agent) — those later specs declare their `SubsystemSurfaceSpec` to the contract this file defines
 - the storage schema for surface state, `BorrowGrant`s, policy leases, or settings — File 20 owns those
 - UI rendering choices (palette layout, voice cadence, shortcut display) — File 07 specifies the data contract, the future UI Shell and UI Customization specs render
-- MCP transport mechanics, plugin install lifecycle internals, provider rate limits, or sandbox primitives — the future MCP and External Integrations, Extension and Plugin System, and Sandbox specs own those; File 17 owns provider concerns
+- MCP transport mechanics, plugin install lifecycle internals, provider rate limits, or sandbox primitives — the future MCP and External Integrations and Extension and Plugin System specs and File 23 own those; File 17 owns provider concerns
 
 ## Source Resolution
 
@@ -1083,7 +1083,7 @@ A capability's `availability_status` (per `capability.registered-capability`, Fi
 - the underlying handler became unresolvable (MCP server crashed, plugin module unloaded, sandboxed process exited)
 - a prerequisite capability was unregistered or its required state lapsed
 - a platform-dependent resource became unavailable (accessibility API permission was revoked, GPU device went offline)
-- a credential expired or was revoked (per the future Security spec)
+- a credential expired or was revoked (per File 22)
 - the world-model state changed such that an `availability_predicate` no longer evaluates true
 
 Every transition emits `CapabilityAvailabilityChanged` (per §13). The next composition sees the new status. If the run's model request currently exposes the capability in `Primary` and the next composition transitions it to `Unavailable`, the next turn's model request:
@@ -1228,7 +1228,7 @@ The canonical principles later specs must follow:
 - File 20 stores `BorrowGrant`s, settings, ledger entries, and consumed surface snapshots per the contracts here; it does not introduce parallel durability paths
 - File 15 implements settings resolution, profile contexts, profile layers, locality, and agent exposure for the dimensions in §18; it does not redefine the dimensions
 - the future Extension and Plugin System spec and MCP and External Integrations spec hand their registered capabilities through the unified Capability Registry per `capability.sourcing` (File 05 §9); the surface composition picks them up automatically
-- the future Workspaces and Materialization spec defines workspace boundaries; the surface composition consumes workspace_id from `scope_context` as one of the resolution inputs; workspace switching emits the appropriate `SurfaceSettingsChanged` event
+- File 24 defines workspace boundaries; the surface composition consumes workspace_id from `scope_context` as one of the resolution inputs; workspace switching emits the appropriate `SurfaceSettingsChanged` event
 - the future per-surface specs (Coder, Web, Teacher, Data Processor, GUI Control, System Agent) and File 14 for Memory declare their `SubsystemSurfaceSpec` and any specialized discovery capabilities or specialized auto-shrink priorities specific to their subsystem
 - the future Automation and Triggers spec consumes the `AutomationTrigger` lens through the canonical contract; it pins surface strategies at save time through the same `tool_surface_strategy` field as runtime routing
 - the future Workflows, Templates, and Reuse spec composes capabilities through the unified registry; workflow nodes reference capability ids; the surface composition for a workflow execution honors the workflow's declared capability list as an additional input

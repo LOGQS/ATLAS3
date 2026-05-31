@@ -1,4 +1,4 @@
-﻿# Provider Layer, Rate Limits, and Usage Accounting
+# Provider Layer, Rate Limits, and Usage Accounting
 
 ## Status
 
@@ -43,11 +43,11 @@ This file does not define:
 - the model-request assembly algorithm, token-counting budget, or the `CacheMarker` candidate-production rules — File 13 owns those; this file consumes those outputs
 - memory recall, store, or consolidation — File 14 owns those
 - the settings source stack, scope resolution, or profile layering — File 15 owns those
-- credential vault internals, OS keyring integration, secret encryption, or trust-state cryptography — the future Security spec owns those; this file specifies the vault-reference contract and the namespace
+- credential vault internals, OS keyring integration, secret encryption, or trust-state cryptography — File 22 owns those; this file specifies the vault-reference contract and the namespace
 - MCP transport mechanics for tool servers — the future MCP and External Integrations spec owns those; this file is for model/inference providers, not tool providers
-- sandbox primitives, process isolation, or sandboxed-runtime details — the future Sandbox spec owns those
+- sandbox primitives, process isolation, or sandboxed-runtime details — File 23 owns those
 - physical storage layout, on-disk schema, or index strategy — File 20 owns those
-- cross-device sync transport — the future Sync spec owns those
+- cross-device sync transport — File 21 owns those
 - UI rendering of provider lists, model pickers, usage dashboards, billing views, rate-limit indicators, or credential management surfaces — the future UI specs own those
 - packaging, installer behavior, or platform integration — the future Packaging spec owns those
 - concrete provider names, model names, exact pricing values, exact tokenizer crate identifiers, or vendor-specific wire-format details outside the boundaries listed in §6.5
@@ -146,7 +146,7 @@ File 16's behavioral intents (`reasoning_posture`, `sampling_posture`, `output_l
 
 All provider-layer settings (preferred providers, excluded providers, excluded models, custom provider configurations, per-account credential references, rate-limit budgets, retry caps, cache enablement and retention preference, tokenizer overrides, model-catalog maintenance policy, cost-tracking opt-in, unknown-cost policy, parameter clamping defaults) are declared as `SettingDefinition`s and resolved through File 15's source stack. File 17 reads resolved values; it does not implement a second cascade.
 
-Secret material is stored in the vault per `settings.secret-boundary` (File 15 §10). This file specifies the vault namespace and the access pattern; vault internals belong to the future Security spec.
+Secret material is stored in the vault per `settings.secret-boundary` (File 15 §10). This file specifies the vault namespace and the access pattern; vault internals belong to File 22.
 
 ### 2.6 With File 03 (Routing and Dispatch)
 
@@ -680,7 +680,7 @@ A `ProviderCredential` is the typed reference to one secret used by an account. 
 - `account_id`
 - `credential_id`
 - `auth_kind` (matching the profile's `auth_kind`)
-- `vault_ref` — the canonical namespace key `provider.<provider_id>.<account_id>.<credential_id>` resolved through the vault interface owned by the future Security spec
+- `vault_ref` — the canonical namespace key `provider.<provider_id>.<account_id>.<credential_id>` resolved through the vault interface owned by File 22
 
 Credentials never appear inline. Adapters call the vault at the point of use and discard the resolved material after the request leaves. Resolved credentials never appear in ledger entries, events, settings, exports, or sync payloads.
 
@@ -1071,32 +1071,11 @@ Adapters scrub provider-reported error bodies for known credential patterns and 
 
 ### 23.6 The Backend Secret Boundary
 
-Anchor: `secret.backend-boundary`
+This section applies the backend secret boundary (`secret.backend-boundary`, File 22 §4) at the provider layer. File 22 §4 is the general, owning statement of the rule: it defines the forbidden destinations for raw `Secret` material, what may cross the boundary in its place (an opaque secret reference such as a `SecretRef` or vault namespace key, a redacted projection, a safe description, or a capability-scoped handle), the `SecretValue` wrapper, and the zeroization guarantee.
 
-Raw `Secret` material — resolved credentials, API keys, vault-decoded OAuth tokens, request signatures, and unredacted user content marked `Secret` (`ledger.sensitivity-aware-persistence-retention`, File 10 §10) — must never cross the backend secret boundary. It is held only in backend-owned transient buffers and the vault/credential substrate, and is discarded after the request leaves.
+At the provider layer, raw `Secret` material — resolved credentials, API keys, vault-decoded OAuth tokens, request signatures, and unredacted user content marked `Secret` (`ledger.sensitivity-aware-persistence-retention`, File 10 §10) — is held only in backend-owned transient buffers and the vault/credential substrate, never crosses the boundary File 22 §4 defines, and is discarded after the request leaves.
 
-Forbidden destinations for raw `Secret` material:
-
-- the frontend or renderer process
-- the JavaScript heap
-- IPC payloads
-- model-request context
-- logs
-- events
-- ledger payloads
-- telemetry
-- settings values
-- block content
-- retrieval indexes
-
-What may cross the boundary in its place:
-
-- an opaque secret reference (a `SecretRef` or vault namespace key)
-- a redacted projection
-- a safe description (`safe_description`)
-- a capability-scoped handle
-
-Zeroization guarantees apply only to backend-owned buffers that actually hold raw secret material; references, redacted projections, and safe descriptions carry nothing to zeroize. This section is the provider-layer statement of the cross-cutting rule. `ledger.sensitivity-aware-persistence-retention` (File 10 §10) enforces it at the ledger, event, sync, export, and telemetry paths; `settings.secret-boundary` (File 15 §10) enforces it at the settings, TOML, and sync paths; the future Security spec owns vault internals.
+`ledger.sensitivity-aware-persistence-retention` (File 10 §10) enforces the rule at the ledger, event, sync, export, and telemetry paths; `settings.secret-boundary` (File 15 §10) enforces it at the settings, TOML, and sync paths; File 22 owns the general statement and the vault internals.
 
 ## 24. Settings Dimensions
 
@@ -1190,9 +1169,9 @@ Later specs must follow these rules:
 - File 15 must register every provider-layer setting through the canonical source stack; it must not invent a parallel cascade
 - The Security, Credentials, and Trust Boundaries spec implements the backend-only vault resolution interface this layer references through `resolve_for_use(SecretRef("provider.<provider_id>.<account_id>.<credential_id>"), purpose, invocation_context)` and emits `CredentialRotated` events consumed here
 - File 20 must persist `TokenUsageRecord`s with their full keyed attribution and the cross-references this file enumerates; it must persist `RateLimitState` per-device and exclude it from cross-device sync per §13.8
-- The future Sync, Import, Export spec must respect the per-event sensitivity classifications declared here and the per-`SettingDefinition` locality declarations the settings spec carries
+- File 21 must respect the per-event sensitivity classifications declared here and the per-`SettingDefinition` locality declarations the settings spec carries
 - The future MCP and External Integrations spec must not subsume the model-provider layer; MCP for tools is a tool-provider concern with its own provider-adapter analogue, not a route through this layer
-- The future Sandbox spec must support subscription-wrapper subprocess lifecycle in the sandbox primitives declared there (process groups, HOME isolation, shadow homes)
+- File 23 must support subscription-wrapper subprocess lifecycle in the sandbox primitives declared there (process groups, HOME isolation, shadow homes)
 - The future UI specs must render per-call attribution, derived cost, rate-limit projections, credential states, provider health, and model-catalog freshness from the projections this layer produces; they must not maintain a parallel provider-state store
 - The future Telemetry, Logging, and Observability spec must consume `ModelCallStarted` / `ModelCallCompleted` / `TokenCountEstimationTelemetry` / `ProviderHealthChanged` / `RateLimitSnapshotReconciled` / `ParameterClamped` / `CacheBreakDetected` events without inventing parallel emission paths
 - The future Evaluation and Benchmarking spec should use `TokenUsageRecord` and `PricingSnapshot` references as primary artifacts for cost-correctness, cache-effectiveness, and tokenizer-accuracy measurements

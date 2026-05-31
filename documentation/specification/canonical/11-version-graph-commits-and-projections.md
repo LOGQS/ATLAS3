@@ -1,4 +1,4 @@
-﻿# Version Graph, Commits, and Projections
+# Version Graph, Commits, and Projections
 
 ## Status
 
@@ -42,13 +42,13 @@ This file does not define:
 - the tool-surface composition algorithm or surface zoning — File 07 owns those; this file specifies that the tool surface is a projection (per `surface.chosen-model`, File 07 §1) and that registry snapshots address registry state at a durable anchor
 - the `ExecutionLedger` row format, the `EventEnvelope` field set, or the live-bus delivery contract — File 10 owns those; this file specifies which version-graph events flow through the canonical bus and which corresponding ledger entry kinds record them
 - the storage on-disk layout, the per-table physical schema, replication mechanics, projection-store realisation, or indexing strategy — File 20 owns those; this file specifies what must be durable and what must be reconstructable
-- the cross-device sync transport, the libsql embedded-replica mechanics, the conflict-detection pipeline, or import / export bundle format — the future Sync, Import, Export, and Data Portability spec owns those; this file specifies that the version-tree-aware merge is the canonical conflict-resolution semantics
+- the cross-device sync transport, the libsql embedded-replica mechanics, the conflict-detection pipeline, or import / export bundle format — File 21 owns those; this file specifies that the version-tree-aware merge is the canonical conflict-resolution semantics
 - retrieval, indexing, knowledge-base mechanics, retrieval-augmented generation mechanics, or hybrid-search algorithms — File 12 owns those; this file specifies that retrieval indexes are projections rebuildable from the durable substrates
 - context-assembly, compaction algorithms, token-budget mechanics, or per-policy block selection — File 13 owns those; this file specifies the materialized view as the canonical context-assembly input and the typed boundary at which compaction passes commit
 - memory promotion, salience scoring, recall, or decay — File 14 owns those; this file specifies that memory entries that consolidate prior blocks are linked via `consolidates` edges from `block.canonical-edge-kinds` (File 08 §5.2) and participate in the version graph as ordinary blocks
 - model strategy, provider routing, rate-limit reconciliation, or provider-health tracking — Files 16 and 17 own those
-- workspace materialization mechanics, materialized-path resolution, disk → block sync, or workspace-tree management beyond declaring that disk state is a projection of the active version's view per `artifact.disk-entity-sync` (File 09 §7.5) — the future Workspaces and Materialization spec owns those
-- security primitives, sandbox isolation, or credential management — the future Security, Credentials, Sandbox specs own those
+- workspace materialization mechanics, materialized-path resolution, disk → block sync, or workspace-tree management beyond declaring that disk state is a projection of the active version's view per `artifact.disk-entity-sync` (File 09 §7.5) — File 24 owns those
+- security primitives, sandbox isolation, or credential management — Files 22 and 23 own those
 - UI rendering choices for the version-timeline, tree view, comparison-board, history-panel, inspector previews, undo affordances, or accessibility surfaces — the future UI Shell, UI Customization, and per-surface specs own those; this file specifies the canonical data contracts those surfaces consume
 - specific evaluation-suite or benchmark schemas — the future Evaluation and Benchmarking spec owns those, though it consumes the replay surface defined here
 
@@ -694,7 +694,7 @@ Subsequent edits in the fork commit new versions under the fork's `conversation_
 
 ### 9.4 Cross-Workspace Forking
 
-Cross-workspace forking requires the future Sync, Import, Export spec's portable bundle mechanism. The canonical contract: a fork imports the source conversation's relevant blocks, version chain (or a flattened root with `Import` op_summary), entity records, and edge metadata into the destination workspace. The source's `version_id`s do not transfer (each workspace has its own UUID space); the import operation produces new identities and records the source-to-destination mapping for provenance queries.
+Cross-workspace forking requires File 21's portable bundle mechanism. The canonical contract: a fork imports the source conversation's relevant blocks, version chain (or a flattened root with `Import` op_summary), entity records, and edge metadata into the destination workspace. The source's `version_id`s do not transfer (each workspace has its own UUID space); the import operation produces new identities and records the source-to-destination mapping for provenance queries.
 
 ### 9.5 Branch Topology Visualisation
 
@@ -1325,7 +1325,7 @@ Anchor: `version.cross-device-sync-conflict-resolution`
 
 ### 19.1 Definition
 
-Cross-device sync replicates version-graph state across multiple devices using the canonical sync transport (per future Sync, Import, Export spec). The sync model is version-tree-aware: concurrent commits on two devices produce sibling branches; no last-write-wins, no implicit merge, no squashing.
+Cross-device sync replicates version-graph state across multiple devices using the canonical sync transport (per File 21). The sync model is version-tree-aware: concurrent commits on two devices produce sibling branches; no last-write-wins, no implicit merge, no squashing.
 
 ### 19.2 Sync Boundary
 
@@ -1333,7 +1333,7 @@ The sync transport decides which physical records replicate. File 11 specifies o
 
 - replicated version-graph state must preserve `ContextVersion` identity, parentage, merge-source references, diffs, tombstones, labels, bookmarks, and snapshot references
 - replicated block state must preserve immutable block identity and content-addressing semantics from File 08
-- active `current_version_id` and `pending_ops` are per-device conversation state unless a future Sync spec explicitly defines a shared mode
+- active `current_version_id` and `pending_ops` are per-device conversation state unless File 21 explicitly defines a shared mode
 - rebuildable caches, provider rate-limit state, audit-integrity overlays, and other per-device projections are not canonical version-graph state
 
 ### 19.3 Conflict Resolution
@@ -1375,7 +1375,7 @@ Per `ledger.entry-kind-catalogue` (File 10 §4.1), the canonical sync ledger ent
 
 ### 19.7 Boundary
 
-The sync transport is owned by the future Sync, Import, Export, and Data Portability spec. This section specifies the version-tree-aware merge semantics and the per-device materialized-view pointer rule. The conflict resolution is the canonical contract; the transport realises it.
+The sync transport is owned by File 21. This section specifies the version-tree-aware merge semantics and the per-device materialized-view pointer rule. The conflict resolution is the canonical contract; the transport realises it.
 
 ## 20. Garbage Collection and Pruning
 

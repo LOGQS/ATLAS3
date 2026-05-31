@@ -24,7 +24,7 @@ This file defines:
 
 This file does not define:
 
-- process spawning, sandbox scopes, resource isolation, filesystem-boundary enforcement, network-policy enforcement, killability, or the elevated-helper process mechanics — the future Sandbox, Process Control, and Isolation spec owns those; this file owns the trust boundary, the egress policy, and the secret/credential aspects across them, and consumes the enforcement primitives that spec provides
+- process spawning, sandbox scopes, resource isolation, filesystem-boundary enforcement, network-policy enforcement, killability, or the elevated-helper process mechanics — File 23 owns those; this file owns the trust boundary, the egress policy, and the secret/credential aspects across them, and consumes the enforcement primitives File 23 provides
 - the `Public`/`Sensitive`/`Secret` sensitivity classification taxonomy itself, the per-entry sensitivity field, sensitivity-aware ledger persistence and retention, or the audit-overlay structure, membership, and verification contract — File 10 owns those; this file owns the security enforcement around them, the secret-detection that drives automatic stamping, and the cryptographic primitive the audit chain uses
 - the capability policy evaluation algorithm, effective tier resolution, approval flows, leases, or contradiction-checking — File 06 owns those; this file owns the trust verification and the secret/egress inspectors that feed them
 - sync and export movement mechanics, the conflict model, the package format and manifest, or the import pipeline — File 21 owns those; this file owns the encryption that attaches and the no-raw-secret-egress rule
@@ -83,7 +83,7 @@ Files 01 through 21 each declare a security boundary and delegate its internals 
 
 ### 1.4 Boundary
 
-This file owns the secret vault internals, the credential lifecycle, the trust model, the egress-governance policy, the encryption, and the audit cryptography. File 23 (the future Sandbox, Process Control, and Isolation spec) owns execution containment — the sandbox, the filesystem and network enforcement, the process boundaries, and the elevated-helper mechanics — and this file consumes those primitives and supplies the trust and secret rules across them. File 06 owns policy evaluation and consumes this file's trust verification. File 10 owns the sensitivity taxonomy and the audit-chain structure and consumes this file's cryptography. Files 17, 20, and 21 own the provider, storage, and movement layers and consume this file's vault, boundary, and encryption.
+This file owns the secret vault internals, the credential lifecycle, the trust model, the egress-governance policy, the encryption, and the audit cryptography. File 23 (Sandbox, Process Control, and Isolation) owns execution containment — the sandbox, the filesystem and network enforcement, the process boundaries, and the elevated-helper mechanics — and this file consumes those primitives and supplies the trust and secret rules across them. File 06 owns policy evaluation and consumes this file's trust verification. File 10 owns the sensitivity taxonomy and the audit-chain structure and consumes this file's cryptography. Files 17, 20, and 21 own the provider, storage, and movement layers and consume this file's vault, boundary, and encryption.
 
 ## 2. Boundaries with Adjacent Layers
 
@@ -99,7 +99,7 @@ Trust is the input; policy is the evaluator. This file owns how a source's trust
 
 ### 2.3 With File 10 (Ledger, Events, Hooks)
 
-File 10 owns the `Public`/`Sensitive`/`Secret` taxonomy (`ledger.sensitivity-aware-persistence-retention`, File 10 §10), the rule that raw `Secret` payloads never persist to the durable ledger, the producer-seeded sensitivity stamping (`ledger.producer-seeded-sensitivity`, File 10 §10.2), the commit-time forgery guard that rejects secret-bearing entries (`ledger.forgery-guards`, File 10 §3.7), and the hash-chained audit overlay's structure, membership, and verification contract (`ledger.hash-chained-audit-log`, File 10 §16). This file owns the secret-detection patterns that drive the automatic stamping, the cryptographic primitive the audit chain hashes with, and the credential/secret operation entries File 10 §16.4 reserves for "the future Security spec to register."
+File 10 owns the `Public`/`Sensitive`/`Secret` taxonomy (`ledger.sensitivity-aware-persistence-retention`, File 10 §10), the rule that raw `Secret` payloads never persist to the durable ledger, the producer-seeded sensitivity stamping (`ledger.producer-seeded-sensitivity`, File 10 §10.2), the commit-time forgery guard that rejects secret-bearing entries (`ledger.forgery-guards`, File 10 §3.7), and the hash-chained audit overlay's structure, membership, and verification contract (`ledger.hash-chained-audit-log`, File 10 §16). This file owns the secret-detection patterns that drive the automatic stamping, the cryptographic primitive the audit chain hashes with, and the credential/secret operation entries File 10 §16.4 reserves for this file to register.
 
 ### 2.4 With File 15 (Settings)
 
@@ -107,7 +107,7 @@ File 10 owns the `Public`/`Sensitive`/`Secret` taxonomy (`ledger.sensitivity-awa
 
 ### 2.5 With File 17 (Provider Layer)
 
-`secret.backend-boundary` (File 17 §23.6) introduced the backend secret boundary for the provider layer and `provider.credentials-accounts-pools` (File 17 §14) defined the `vault_ref` namespace (`provider.<provider_id>.<account_id>.<credential_id>`) and the `CredentialPool`. This file owns the general rule that anchor names, implements the backend-only `resolve_for_use(...)` vault operation File 17 calls at the point of use, and emits the credential-rotation event File 17 subscribes to. The provider layer's namespace is one instance of this file's vault namespace contract.
+File 17 §23.6 applies the backend secret boundary at the provider layer (`provider.sensitivity-redaction-secret-boundary`, File 17 §23), and `provider.credentials-accounts-pools` (File 17 §14) defined the `vault_ref` namespace (`provider.<provider_id>.<account_id>.<credential_id>`) and the `CredentialPool`. This file owns the general `secret.backend-boundary` rule (§4), implements the backend-only `resolve_for_use(...)` vault operation File 17 calls at the point of use, and emits the credential-rotation event File 17 subscribes to. The provider layer's namespace is one instance of this file's vault namespace contract.
 
 ### 2.6 With File 19 (Perception)
 
@@ -117,7 +117,7 @@ File 10 owns the `Public`/`Sensitive`/`Secret` taxonomy (`ledger.sensitivity-awa
 
 `storage.secret-vault-boundary` (File 20 §14) gives this file the vault file's existence and location and the rule that raw secret material never enters the durable substrate; this file owns the vault's cryptography, key management, keyring integration, and encryption-at-rest keying. `portability.sensitivity-egress` (File 21 §12) applies the egress tiers and the no-secret-egress rule; `portability.export-bundle` (File 21 §10) produces the package this file may encrypt; `portability.device-identity` (File 21 §8) records pairing while this file owns the credential cryptography and trust proof; `portability.backup-restore` (File 21 §13) separates vault backup as an explicit action this file owns. This file owns the encryption that attaches and the trust internals; those files own the movement and the substrate.
 
-### 2.8 With File 23 (future Sandbox, Process Control, and Isolation)
+### 2.8 With File 23 (Sandbox, Process Control, and Isolation)
 
 The boundary is sharp. File 23 owns process spawning, sandbox scopes, the filesystem and network enforcement primitives, resource isolation, killability, and the elevated-helper process mechanics. This file owns the trust decision that selects how strictly to sandbox an untrusted source, the egress-destination policy the network enforcement consults, the secret/credential rules across process boundaries, and the privilege-separation pairing credential. This file states the trust boundary and the policy; File 23 enforces the containment.
 
@@ -157,7 +157,7 @@ Anchor: `secret.backend-boundary`
 
 ### 4.1 Definition
 
-The backend secret boundary is the rule that raw `Secret` material never crosses out of the backend's transient buffers and the vault. This is the same rule `secret.backend-boundary` named for the provider layer in File 17 §23.6; this section is its general, owning statement. `Secret` material is the closed set File 10 §10 classifies: resolved credentials, raw API keys, vault-decoded OAuth and bearer tokens, refresh tokens, request signatures, passphrases, private keys, and unredacted user content the user or the runtime has marked `Secret`.
+The backend secret boundary is the rule that raw `Secret` material never crosses out of the backend's transient buffers and the vault. This section is the general, owning statement of the rule; File 17 §23.6 applies it at the provider layer (`provider.sensitivity-redaction-secret-boundary`). `Secret` material is the closed set File 10 §10 classifies: resolved credentials, raw API keys, vault-decoded OAuth and bearer tokens, refresh tokens, request signatures, passphrases, private keys, and unredacted user content the user or the runtime has marked `Secret`.
 
 ### 4.2 Purpose
 
@@ -616,8 +616,8 @@ Anchor: `security.consequences-for-later-specs`
 
 Every later spec that touches credentials, secrets, trust, encryption, egress, or local security consumes this layer as defined here.
 
-- The future **Sandbox, Process Control, and Isolation** spec owns process spawning, sandbox scopes, filesystem and network enforcement, resource isolation, killability, and the elevated-helper process mechanics; it consumes this file's trust decision (how strictly to sandbox an untrusted source), egress-destination policy (which destinations the network enforcement blocks), secret/credential rules across process boundaries, and the privilege-separation pairing credential. It enforces containment; this file decides trust and policy.
-- The future **Workspaces and Materialization** spec persists workspace data through the substrate and consumes this file's secret boundary (no secret in a materialized file unredacted) and egress governance (workspace export through the governed paths).
+- File 23 owns process spawning, sandbox scopes, filesystem and network enforcement, resource isolation, killability, and the elevated-helper process mechanics; it consumes this file's trust decision (how strictly to sandbox an untrusted source), egress-destination policy (which destinations the network enforcement blocks), secret/credential rules across process boundaries, and the privilege-separation pairing credential. It enforces containment; this file decides trust and policy.
+- File 24 persists workspace data through the substrate and consumes this file's secret boundary (no secret in a materialized file unredacted) and egress governance (workspace export through the governed paths).
 - The **per-surface specs** (Coder, Web, Data Processor, Teacher, GUI Control, System Agent) consume the vault for any service credential, the backend secret boundary for any secret-bearing capture or log, the secret detector for redaction, the trust model for any source they load, and the egress governance for any export; none introduces a private secret store, a private egress path, or a private trust authority.
 - The future **Automation, Triggers, and Scheduling** spec runs non-interactive work under least authority, resolves credentials through the vault at point of use, and obeys the egress governance for any automated outbound transfer; an automation never holds a resolved secret or escalates trust without the user.
 - The future **Extension, Plugin, and MCP Integration** specs own the install, update, enablement, and execution of code; they consume this file's trust establishment, the install-time manifest review, source-integrity records, evidence-based verification, and user trust overrides; a synced or imported record referencing an unapproved source resolves to an untrusted, inert state, and imported trust assertions are evidence rather than local authority.

@@ -38,9 +38,9 @@ This file does not define:
 - the entity layer over blocks (`Artifact`, `Claim`, `Evidence`, `Citation`, `Observation`, `Validation`, `Critique`, `Provenance`) or the entity-relevant event vocabulary itself — File 09 owns those; this file specifies the unified bus and ledger they emit through
 - the version-graph commit storage, the version-tree action-log algorithms, or the materialized-view rebuild semantics — File 11 owns those; this file specifies which version-commit events flow through and how the ledger references version identities
 - the storage schema, on-disk layout, indexing strategy, projection rebuild policies, or per-table durability invariants — File 20 owns those; this file specifies what is durable, what is computed, and the deterministic-reconstruction contract storage must support
-- sync, import, export, or portability mechanics — the future Sync, Import, Export, and Data Portability spec owns those; this file specifies which ledger entries sync, which do not (the hash-chained audit log is per-device), and how sensitivity gates participation
-- credential storage internals, trust-state cryptography, or secret-vault primitives — the future Security, Credentials, and Trust Boundaries spec owns those; this file specifies the canonical `Secret` sensitivity class and the rule that `Secret` payloads never persist to the durable ledger
-- sandbox primitives, process control internals, or isolation mechanics — the future Sandbox, Process Control, and Isolation spec owns those; this file specifies the events sandbox and process operations emit and the `backend_id` envelope dimension that demultiplexes them
+- sync, import, export, or portability mechanics — File 21 owns those; this file specifies which ledger entries sync, which do not (the hash-chained audit log is per-device), and how sensitivity gates participation
+- credential storage internals, trust-state cryptography, or secret-vault primitives — File 22 owns those; this file specifies the canonical `Secret` sensitivity class and the rule that `Secret` payloads never persist to the durable ledger
+- sandbox primitives, process control internals, or isolation mechanics — File 23 owns those; this file specifies the events sandbox and process operations emit and the `backend_id` envelope dimension that demultiplexes them
 - the model-strategy layer, provider-routing logic, fallback chains, rate-limit reconciliation, or provider-health tracking — Files 16 and 17 own those; this file specifies the per-call attribution and per-error-class retry classification the ledger records
 - retrieval, indexing, knowledge-base mechanics, retrieval-augmented generation mechanics, or hybrid-search algorithms — File 12 owns those; this file specifies that the ledger is the substrate over which forensic and replay queries operate
 - context-assembly, compaction algorithms, token-budget mechanics, or per-policy block selection — File 13 owns those; this file specifies the typed `ContextPressureObserved` boundary and the compaction-related events that flow through the bus
@@ -178,8 +178,8 @@ It does not own:
 - the block schema or version graph internals (Files 08 and 11)
 - the entity layer (File 09)
 - the storage on-disk layout (File 20)
-- the sync mechanics (future Sync spec)
-- the security primitives (future Security spec)
+- the sync mechanics (File 21)
+- the security primitives (File 22)
 - the UI rendering (future UI specs)
 - the model-strategy and provider-routing internals (Files 16 and 17)
 
@@ -338,7 +338,7 @@ Additional integrity rules:
 
 ### 3.8 Boundary
 
-The ledger defines durable execution truth. The event bus delivers live coordination. The version graph records the version-tree state machine. The storage layer realizes durability. None of those layers invents new entry semantics; they consume what this file defines. File 20 realizes the durability contract; the future Sync, Import, Export spec realizes cross-device propagation; the future Telemetry, Logging, and Observability spec consumes ledger entries to drive projections; the future Evaluation and Benchmarking spec reads the ledger for replay.
+The ledger defines durable execution truth. The event bus delivers live coordination. The version graph records the version-tree state machine. The storage layer realizes durability. None of those layers invents new entry semantics; they consume what this file defines. File 20 realizes the durability contract; File 21 realizes cross-device propagation; the future Telemetry, Logging, and Observability spec consumes ledger entries to drive projections; the future Evaluation and Benchmarking spec reads the ledger for replay.
 
 ## 4. Canonical `LedgerEntryKind` Catalogue
 
@@ -507,7 +507,7 @@ Every ledger entry declares its `kind` at commit. The canonical closed catalogue
 
 **Workspace, file, and external state:**
 
-- `WorkspaceOpened` / `WorkspaceClosed` — workspace lifecycle (per future Workspaces and Materialization spec)
+- `WorkspaceOpened` / `WorkspaceClosed` — workspace lifecycle (per File 24)
 - `FileIngested` — new file block created from an upload or import
 - `FileExternallyModified` — filesystem watcher detected an external edit (per `block.streaming-commit-boundary`, File 08 §7)
 - `FileMaterialized` — block content written to workspace (per `artifact.artifact-materialization`, File 09 §7.3)
@@ -718,7 +718,7 @@ The event bus is the live coordination substrate. It does not own:
 
 - the underlying transport (Tauri, SSE, WebSocket, Unix socket, MCP — future Runtime Infrastructure spec)
 - the durable persistence of consequential events (File 20)
-- the cross-device sync mechanics (future Sync spec)
+- the cross-device sync mechanics (File 21)
 - the UI rendering of event-driven updates (future UI specs)
 - the typed-error propagation through services (cross-cutting/errors.md)
 - the policy-evaluation logic that consumes events (File 06)
@@ -1105,7 +1105,7 @@ The runtime stamps sensitivity automatically when known patterns appear (a crede
 - `Sensitive` entries / events: persisted at default retention or settings-configured shorter retention; excluded from default exports; queryable but not surfaced in default search projections; not sent to external telemetry without opt-in
 - `Secret` entries / events: persisted with redaction; the entry's structural fields (envelope, kind, cross-references, producer, timestamp) persist, but the payload retains only a `safe_description` (a one-line summary that does not reveal the secret content). The raw payload is held only in transient memory or a credential/vault subsystem; references to it from in-flight handlers expire when handling completes. Future Secret-related queries return the safe description.
 
-The redaction happens at commit, not at query time. The runtime ensures that no path (ledger row, sync stream, export, telemetry, debug panel rendering, structured log output) ever sees raw `Secret` content. This is the ledger/event/sync/export/telemetry enforcement of the cross-cutting backend secret boundary (`secret.backend-boundary`, File 17 §23.6): raw `Secret` material never crosses out of the backend's transient buffers and vault substrate; only opaque references and safe descriptions persist or propagate.
+The redaction happens at commit, not at query time. The runtime ensures that no path (ledger row, sync stream, export, telemetry, debug panel rendering, structured log output) ever sees raw `Secret` content. This is the ledger/event/sync/export/telemetry enforcement of the cross-cutting backend secret boundary (`secret.backend-boundary`, File 22 §4): raw `Secret` material never crosses out of the backend's transient buffers and vault substrate; only opaque references and safe descriptions persist or propagate.
 
 ### 10.4 Retention Policies
 
@@ -1156,7 +1156,7 @@ Settings `events.sensitivity_export_default`, `events.sensitivity_sync_default`,
 
 ### 10.7 Boundary
 
-Sensitivity is a durable property of every entry and event. The policy layer (File 06) decides what to do at policy boundaries based on sensitivity. The event stream uses the same value set for transient coordination. Surface rendering consumes sensitivity to gate displays. The future Security, Credentials, and Trust Boundaries spec owns credential vault internals and trust cryptography; this file specifies the canonical sensitivity classification and the persistence rules.
+Sensitivity is a durable property of every entry and event. The policy layer (File 06) decides what to do at policy boundaries based on sensitivity. The event stream uses the same value set for transient coordination. Surface rendering consumes sensitivity to gate displays. File 22 owns credential vault internals and trust cryptography; this file specifies the canonical sensitivity classification and the persistence rules.
 
 ## 11. Replay Semantics
 
@@ -1289,7 +1289,7 @@ For coordination across multiple browser tabs, multiple processes, or multiple d
 - intra-process: the bus itself, with in-memory broadcast
 - intra-device cross-tab: BroadcastChannel pattern (per the bolt-diy and terax-ai pattern in batch-05) for browser-based UIs
 - inter-process: Tauri events (or equivalent transport) for backend-to-frontend
-- inter-device: cross-device sync (future Sync spec); the bus does not directly cross devices (the future Sync spec handles propagation)
+- inter-device: cross-device sync (File 21); the bus does not directly cross devices (File 21 handles propagation)
 
 The transport-layer specifics are owned by the future Runtime Infrastructure and Lifecycle spec. This file specifies the contract: every transport preserves the canonical envelope, the ordering, the sensitivity filtering, and the per-context-tuple sequence semantics.
 
@@ -1551,7 +1551,7 @@ The canonical operation classes that participate in the audit log:
 - every typed-confirmation completion (`TypedConfirmationSatisfied`, `TypedConfirmationMismatched`)
 - every floor violation (`PolicyFloorViolated`)
 - every source approval / denial (`SourceRegistrationApproved`, `SourceRegistrationDenied`, `SourceRegistrationDeferred`)
-- every credential or secret operation (the future Security, Credentials, and Trust Boundaries spec registers the entries)
+- every credential or secret operation (File 22 registers the entries)
 - every system-state mutation declared by System Agent, runtime infrastructure, or security specs
 - every hard delete (`BlockHardDeleted`, `ArtifactHardDeleted`, `LeaseHardDeleted`, `CapabilityHardDeleted`)
 - every `DeniedFloorOverridden` (the typed-confirmation override path through `Denied`)
@@ -1576,7 +1576,7 @@ Verification may run:
 
 ### 16.6 Boundary
 
-The audit log is a local integrity overlay over selected ledger entries. The future Security, Credentials, and Trust Boundaries spec owns the cryptographic primitives and audit storage details. This file specifies the structure, membership, and verification contract.
+The audit log is a local integrity overlay over selected ledger entries. File 22 owns the cryptographic primitives and audit storage details. This file specifies the structure, membership, and verification contract.
 
 ## 17. Lifecycle Integration
 
@@ -1642,7 +1642,7 @@ The following shapes are wrong for this layer:
 - silent batched approval: every approval (whether per-call or batched) records `ApprovalRequested` / `ApprovalGranted` / `ApprovalDenied`
 - bypassing the approval router for capability invocations: every consequential capability invocation goes through `ToolCallProposed`, which the approval router subscribes to at priority `+100`
 - per-capability custom approval logic in handlers: capability authors implement operations, not approval flows; approval is a hook subscription, not a capability-internal concern
-- using event sequence numbers across devices for global ordering: sequences are per declared `sequence_scope`; cross-device ordering relies on the future Sync spec, not on a global monotonic counter
+- using event sequence numbers across devices for global ordering: sequences are per declared `sequence_scope`; cross-device ordering relies on File 21, not on a global monotonic counter
 - recording per-tokenizer scalars on the block: token counts are computed on demand keyed by tokenizer per `block.what-is-computed` (File 08 §13.2); never persist a single integer on the block row without model identifier
 - mutating ledger entries to reflect retroactive sensitivity reclassification: sensitivity is fixed at commit; if a `Public` entry is later judged `Sensitive`, the original entry persists but a sibling `SensitivityReclassified` entry is committed and downstream filters honor the reclassification
 - the bus claiming durability guarantees: the bus is transient coordination; consequential events also persist to the ledger but the bus delivery itself is best-effort with bounded buffers; subscribers seeking durable guarantees query the ledger

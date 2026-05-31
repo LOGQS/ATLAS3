@@ -37,7 +37,7 @@ This file does not define:
 - memory promotion, salience scoring, or memory lifecycle — File 14 owns those
 - run lifecycle, the capability-call pipeline, or hook execution — File 04 owns those
 - block-rendering UI choices (collapsible cards, syntax highlighting, hover states) — the future UI presentation and customization specs own those
-- storage schema, sync, or import/export — File 20 and the future Sync, Import, Export, and Data Portability spec own those
+- storage schema, sync, or import/export — File 20 and File 21 own those
 
 ## Source Resolution
 
@@ -695,7 +695,7 @@ A block at a narrower scope may reference (via edges) a block at a broader scope
 
 ### 11.4 Boundary
 
-Scope is a durable property of the block. Storage uses scope to organize physical layout. Retrieval uses scope to bound queries. The future workspace spec defines the workspace boundary; this file uses workspaces as a scope label without redefining workspace semantics.
+Scope is a durable property of the block. Storage uses scope to organize physical layout. Retrieval uses scope to bound queries. File 24 defines the workspace boundary; this file uses workspaces as a scope label without redefining workspace semantics.
 
 ## 12. Cross-Surface Interoperability
 
@@ -779,7 +779,7 @@ Per `run.retry-reroute-branch` (File 04 §19), retry, edit, reroute, and branch 
 
 ### 13.5 Boundary
 
-Persistence is the storage layer's responsibility. This file specifies what the storage layer must persist (the field set above) and what it must reconstruct (the computed views). The storage schema, replication, sync, and import/export mechanics are owned by File 20 and the future Sync, Import, Export, and Data Portability spec.
+Persistence is the storage layer's responsibility. This file specifies what the storage layer must persist (the field set above) and what it must reconstruct (the computed views). The storage schema, replication, sync, and import/export mechanics are owned by File 20 and File 21.
 
 ## 14. Settings
 

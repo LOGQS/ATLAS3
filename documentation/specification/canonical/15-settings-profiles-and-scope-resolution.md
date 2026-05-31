@@ -380,7 +380,7 @@ Overlay reload is explicit or file-watch/event-driven. No time interval or polli
 
 Anchor: `settings.secret-boundary`
 
-Settings and secrets are separate concerns. Settings may store `SecretRef` values; the vault stores secret material. This is the settings/TOML/sync enforcement of the cross-cutting backend secret boundary (`secret.backend-boundary`, File 17 §23.6).
+Settings and secrets are separate concerns. Settings may store `SecretRef` values; the vault stores secret material. This is the settings/TOML/sync enforcement of the cross-cutting backend secret boundary (`secret.backend-boundary`, File 22 §4).
 
 Required properties:
 

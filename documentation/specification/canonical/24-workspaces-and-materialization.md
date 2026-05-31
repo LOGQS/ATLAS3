@@ -2,7 +2,7 @@
 
 ## Status
 
-Canonical. This file defines the `Workspace` primitive and the materialization mechanism that mirrors durable substrate content to and from the local filesystem. It realizes the workspace-identity and disk-mirror contracts that Files 01–23 declared and delegated to "the future Workspaces and Materialization spec," and introduces the net-new `Workspace` and `Worktree` primitives those files referenced without owning. Later canonical files may refine it, but may not contradict it.
+Canonical. This file defines the `Workspace` primitive and the materialization mechanism that mirrors durable substrate content to and from the local filesystem. It realizes the workspace-identity and disk-mirror contracts that Files 01–23 declared and delegated to the Workspaces and Materialization spec — this file — and introduces the net-new `Workspace` and `Worktree` primitives those files referenced without owning. Later canonical files may refine it, but may not contradict it.
 
 ## Scope
 

@@ -32,8 +32,8 @@ This file does not define:
 - routing or `RunIntent` selection — File 03 owns those
 - block schema, artifact lifecycle, evidence model — Files 08 and 09 own those
 - ledger row format, event-stream wire format, and storage projections — `run.ledger-events-commits` (File 04 §23) owns the contract; later ledger and storage specs own the schema
-- credential vault internals or trust-state cryptographic verification — the future Security, Credentials, and Trust Boundaries spec owns those
-- sandbox or process isolation primitives — the future Sandbox, Process Control, and Isolation spec owns those
+- credential vault internals or trust-state cryptographic verification — File 22 owns those
+- sandbox or process isolation primitives — File 23 owns those
 - specific provider rate-limit tracking, circuit breakers, or polling intervals — File 17 owns provider concerns; the future MCP/External Integrations spec owns MCP and external tool-provider concerns
 - approval modal layout, color palettes, modal stacking, or any UI rendering choices — File 06 specifies the data contract; UI specs own presentation
 
@@ -659,7 +659,7 @@ Active and Stale leases are not pruned by storage without a policy-layer state t
 
 ### 11.7 Boundary
 
-Leases are an evaluation primitive owned by File 06. Their persistence schema, storage-side projections, sync behavior across devices, and import/export semantics are owned by File 20 and the future Sync, Import, Export, and Data Portability spec.
+Leases are an evaluation primitive owned by File 06. Their persistence schema, storage-side projections, sync behavior across devices, and import/export semantics are owned by File 20 and File 21.
 
 ## 12. Approval-Policy Templates
 
@@ -724,7 +724,7 @@ A capability invocation may have multiple templates applicable: the capability's
 
 ### 12.7 Boundary
 
-Templates are policy-evaluation declarations. Their storage schema, version evolution, and import/export behavior are owned by File 20 and the future Sync spec. Their UI presentation (the template editor, the validator-chain visualizer, the approval-text preview) is owned by the future UI specs. File 06 specifies the field set, the validator verdict semantics, and the composition order.
+Templates are policy-evaluation declarations. Their storage schema, version evolution, and import/export behavior are owned by File 20 and File 21. Their UI presentation (the template editor, the validator-chain visualizer, the approval-text preview) is owned by the future UI specs. File 06 specifies the field set, the validator verdict semantics, and the composition order.
 
 ## 13. Approval UI Surface Contract
 

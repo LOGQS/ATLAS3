@@ -31,9 +31,9 @@ This file does not define:
 - the tool-surface composition algorithm — File 07 owns it; this file supplies the world snapshot it consumes
 - routing, `RunIntent`, run lifecycle, task lifecycle, or memory mechanics — Files 02, 03, 04, and 14 own those; the world model references their state without re-owning it
 - retrieval, indexing, or knowledge-base curation — File 12 owns those
-- workspace identity, materialization, or worktree lifecycle — the future Workspaces and Materialization spec owns those; the world model references active workspaces as entities
-- sandbox primitives, process isolation, credential storage, trust state, or per-surface runtimes (Coder, Web, Data Processor, Teacher, GUI Control, System Agent) — the future Sandbox, Security, and per-surface specs own those; they declare which world entities and observations they produce
-- storage schema, sync transport, or UI rendering — File 20 and the future Sync and UI specs own those
+- workspace identity, materialization, or worktree lifecycle — File 24 owns those; the world model references active workspaces as entities
+- sandbox primitives, process isolation, credential storage, trust state, or per-surface runtimes (Coder, Web, Data Processor, Teacher, GUI Control, System Agent) — File 23, File 22, and the per-surface specs own those; they declare which world entities and observations they produce
+- storage schema, sync transport, or UI rendering — File 20, File 21, and the future UI specs own those
 
 ## Source Resolution
 
@@ -119,7 +119,7 @@ The boundary with Memory is sharp and load-bearing. Memory (File 14) stores dura
 
 Context assembly reads world-state snapshots as one of its sources (`context.chosen-model` (File 13 §1), `context.assembly-algorithm` (File 13 §6) step 3) and renders them into the `RuntimeState` region (`context.semantic-regions`, File 13 §3) as `trusted_runtime_fact` assembly parts (`context.authority-classes`, File 13 §2.3). §11 of this file defines how the world model is exposed to assembly: a compact world-snapshot part, refreshed per model-bound iteration, carrying a `world_snapshot_id` for replay, compactable to a one-line summary under budget pressure. The world model never performs model-request assembly itself; it supplies the source.
 
-### 2.11 With Perception (File 19) and future Workspaces (File 24), per-surface, Security, and Sandbox specs
+### 2.11 With Perception (File 19), Workspaces (File 24), Security (File 22), Sandbox (File 23), and the per-surface specs
 
 The Perception and Observation Pipelines spec owns the sensor/capture mechanics — how a screenshot, accessibility tree, audio stream, browser DOM, or file-system change is captured. This file owns the state model those captures update and the contract by which they update it (§8). The boundary: perception produces structured observations and signals; the world model is the live projection those observations maintain. The Workspaces and Materialization spec owns workspace identity and materialization; the world model references active workspaces as entities. Per-surface specs (Coder, Web, Data Processor, Teacher, GUI Control, System Agent) and the System Agent spec declare which world entities and observations they produce and which named availability checks they register; they consume and contribute to the one world model and never introduce a private state model. The Security spec owns secret material and the credential vault; the world model carries sensitivity tags and references, never secret payloads. The Sandbox spec owns process/sandbox isolation; the world model references active sandboxes and processes as entities and liveness facts.
 
@@ -573,7 +573,7 @@ On restart, the live world model is reconstructed from the durable substrate and
 
 ### 14.4 Boundary
 
-This file specifies what is durable, computed, and reconstructable. File 20 realizes the physical substrate, the baseline/checkpoint optimization, and the table layout; the future Sync spec decides which world facts cross devices (most are device-local: displays, processes, sandboxes, foreground application; few are syncable).
+This file specifies what is durable, computed, and reconstructable. File 20 realizes the physical substrate, the baseline/checkpoint optimization, and the table layout; File 21 decides which world facts cross devices (most are device-local: displays, processes, sandboxes, foreground application; few are syncable).
 
 ## 15. Settings
 

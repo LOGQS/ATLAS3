@@ -32,8 +32,8 @@ This file does not define:
 - retrieval, indexing, or knowledge-base curation — File 12 owns those; observations are indexed through File 12's `observation:<scope_id>` namespace, not re-owned here
 - context-assembly, compaction, token budgets, or trajectory-image retention in the model request — File 13 owns those; this file produces compact, deduplicated captures that File 13 assembles and retains
 - action execution — clicking, typing, navigating, mutating files — is not perception; the per-surface action executors own it; this file owns only sensing and observation
-- credential storage, the secret vault, trust state, or sandbox/process isolation — the future Security and Sandbox specs own those; this file carries sensitivity tags and references, never secret payloads, and references active sandboxes/devices without owning their isolation
-- workspace identity and materialization, storage layout, sync transport, or UI rendering — the future Workspaces, Storage, Sync, and UI specs own those
+- credential storage, the secret vault, trust state, or sandbox/process isolation — File 22 and File 23 own those; this file carries sensitivity tags and references, never secret payloads, and references active sandboxes/devices without owning their isolation
+- workspace identity and materialization, storage layout, sync transport, or UI rendering — File 24, File 20, File 21, and the future UI specs own those
 - the per-surface runtimes themselves (Coder, Web, Data Processor, Teacher, GUI Control, System Agent) — those specs declare their specific sensors and consume this substrate; this file declares the cross-cutting baseline
 
 ## Source Resolution
@@ -118,7 +118,7 @@ A model-mediated perception processor — a cloud vision grounder, optical-chara
 
 Observations are indexed through File 12's `observation:<scope_id>` namespace; this file does not own retrieval. Context assembly renders captures into the model request: a structured observation enters as a `trusted_runtime_fact` (`context.authority-classes`, File 13 §2.3) in the `RuntimeState` region (`context.semantic-regions`, File 13 §3), and a raw image capture enters as a multimodal part when a vision model consumes it. Trajectory-image retention in the model request — which captures to keep, which to drop under budget — is File 13's; this file produces compact, deduplicated, content-addressed captures and the diff data File 13 uses (§11).
 
-### 2.9 With future Workspaces, Security, Sandbox, and per-surface specs
+### 2.9 With Workspaces (File 24), Security (File 22), Sandbox (File 23), and the per-surface specs
 
 The Workspaces and Materialization spec owns workspace identity; perception captures workspace files and repository state without owning materialization. The Security spec owns the credential vault and trust state; perception carries sensitivity tags and references, never secret payloads, and applies redaction before commit (§10). The Sandbox spec owns process and sandbox isolation; perception captures process and system state and references active sandboxes/devices without owning their isolation. The per-surface specs (Coder, Web, Data Processor, Teacher, GUI Control, System Agent) declare their specific sensors and named availability checks and consume this substrate; the GUI Control surface's desktop perception, the Web surface's browser perception, and the System Agent surface's system observation are instantiations of the sensor kinds, processor model, and tier strategy defined here.
 
@@ -454,7 +454,7 @@ Perception detects sensitive capture sources and redacts before any persistence:
 
 ### 10.4 Secret and PII Redaction
 
-Captured text — from optical-character recognition, file content, terminal output, environment snapshots, or accessibility-tree values — is subject to secret and personally-identifiable-information redaction before it becomes a durable `Observation`. A capture classified `Secret` (`block.sensitivity`, File 08 §9) never persists raw to the durable ledger or an observation; it carries a safe description only (`ledger.sensitivity-aware-persistence-retention`, File 10 §10). Password-marked fields and credential-bearing values are masked at capture. The credential vault is the future Security spec's; perception references credentials by identity and never stores secret payloads.
+Captured text — from optical-character recognition, file content, terminal output, environment snapshots, or accessibility-tree values — is subject to secret and personally-identifiable-information redaction before it becomes a durable `Observation`. A capture classified `Secret` (`block.sensitivity`, File 08 §9) never persists raw to the durable ledger or an observation; it carries a safe description only (`ledger.sensitivity-aware-persistence-retention`, File 10 §10). Password-marked fields and credential-bearing values are masked at capture. The credential vault is File 22's; perception references credentials by identity and never stores secret payloads.
 
 ### 10.5 Capture-Scope Bounding
 
@@ -470,7 +470,7 @@ Active capture is transparent and revocable: when a sensor is capturing continuo
 
 ### 10.8 Boundary
 
-This file owns the capture-privacy contract: permission, consent, sensitive-source redaction, secret masking, scope bounding, sensitivity classification, and recording transparency. The credential vault, trust state, and the policy-engine mechanics are the future Security spec's and File 06's; this file specifies what perception must do before a capture becomes durable.
+This file owns the capture-privacy contract: permission, consent, sensitive-source redaction, secret masking, scope bounding, sensitivity classification, and recording transparency. The credential vault, trust state, and the policy-engine mechanics are File 22's and File 06's; this file specifies what perception must do before a capture becomes durable.
 
 ## 11. Capture Cost and Fidelity Management
 
@@ -611,7 +611,7 @@ A recorded `Observed` capture reconstructs deterministically through its content
 
 ### 16.4 Boundary
 
-This file specifies what is durable, computed, and reconstructable. File 20 realizes the capture-payload blob store and the physical layout; the future Sync spec decides which captures cross devices (most are device-local — screens, audio, processes, displays; few are syncable).
+This file specifies what is durable, computed, and reconstructable. File 20 realizes the capture-payload blob store and the physical layout; File 21 decides which captures cross devices (most are device-local — screens, audio, processes, displays; few are syncable).
 
 ## 17. Settings
 

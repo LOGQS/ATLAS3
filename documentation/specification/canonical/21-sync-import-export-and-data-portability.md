@@ -25,8 +25,8 @@ This file does not define:
 
 - the storage substrate, the physical syncable-versus-device-local partition, the on-disk layout, the content-addressed blob store, or the projection store - File 20 owns those
 - the semantics of the version-tree-aware merge - File 11 owns "both branches survive, no last-write-wins"; this file transports the records that make those branches visible on each device
-- the secret-vault internals, cryptography, key derivation, OS-keyring integration, or device trust state - the future Security, Credentials, and Trust Boundaries spec owns those
-- workspace identity, materialized workspace directories, worktrees, and disk-to-block mirrors - the future Workspaces and Materialization spec owns those
+- the secret-vault internals, cryptography, key derivation, OS-keyring integration, or device trust state - File 22 owns those
+- workspace identity, materialized workspace directories, worktrees, and disk-to-block mirrors - File 24 owns those
 - settings resolution or locality semantics - File 15 owns them; this file consumes their resolved locality and sensitivity metadata
 - per-entity export capability declarations - File 09 declares artifact export, File 14 declares memory import/export, and per-surface specs declare their format exports
 - lossy presentation-format exports such as Markdown, PDF, PPTX, Anki, Jupyter, and slide decks - those are surface-owned format capabilities that pass through this file's egress governance but do not use the `PortablePackage` envelope
@@ -85,7 +85,7 @@ The user owns their data. It must move with them across their devices, leave the
 
 ### 1.4 Boundary
 
-This file owns movement of data. File 20 owns the substrate the data lives in. File 11 owns version merge semantics. Files 08, 09, 10, 12, 14, 15, 17, 18, and 19 own what their records mean. The future Security spec owns encryption and trust internals; this file owns the boundary at which encryption attaches and the rule that raw secrets never move.
+This file owns movement of data. File 20 owns the substrate the data lives in. File 11 owns version merge semantics. Files 08, 09, 10, 12, 14, 15, 17, 18, and 19 own what their records mean. File 22 owns encryption and trust internals; this file owns the boundary at which encryption attaches and the rule that raw secrets never move.
 
 ## 2. Boundaries with Adjacent Layers
 
@@ -119,7 +119,7 @@ File 15 owns setting definitions, scope resolution, locality, profile layers, TO
 
 File 20 owns the physical storage planes, locality partition, blob store, projection store, transaction boundaries, backup primitives, orphan reconciliation, and storage encoding. This file consumes those contracts and introduces no parallel durable store.
 
-### 2.8 With Future Security, Workspaces, Packaging, and Extension Specs
+### 2.8 With File 22 (Security), File 24 (Workspaces), and Future Packaging and Extension Specs
 
 Security owns encryption, keys, device trust, vault backup internals, and credential handling. Workspaces own materialized workspace identity and file mirrors. Packaging owns application distribution and executable plugin/runtime installation. Extension and MCP specs own install/enable/update mechanics for executable integrations. This file may move registry metadata and inert dependency declarations; it does not install or execute code.
 
@@ -458,7 +458,7 @@ Different recovery needs require different artifacts. A full-substrate backup is
 
 - `FullSubstrateBackup` is a same-installation/local disaster recovery snapshot produced through File 20. It may include the device-local substrate only when explicitly selected. It is not a sync/share artifact.
 - `RecoveryArchive` is a `PortablePackage` profile for cross-installation and long-term source-of-truth recovery. It is schema-resilient and content-addressed. Raw secrets require `VaultBackup`.
-- `VaultBackup` is a separate explicit user action governed by File 20's vault boundary and the future Security spec. Raw secrets never enter ordinary packages, sync streams, or full-substrate backups.
+- `VaultBackup` is a separate explicit user action governed by File 22 and File 20's vault/storage boundary. Raw secrets never enter ordinary packages, sync streams, or full-substrate backups.
 - Projection stores and caches are excluded or marked disposable acceleration. They are never authoritative recovery data.
 - Restore over live data stages a pre-restore backup, quarantine, or rollback handle before replacing authoritative records. The consequence is surfaced before proceeding.
 - When sync is enabled, the primary can be an additional recovery source for syncable source-of-truth. Device-local substrate is recovered only from local backup, not cross-device sync.
@@ -574,8 +574,8 @@ Anchor: `portability.consequences`
 
 Later specs must follow these rules:
 
-- The future **Security, Credentials, and Trust Boundaries** spec owns stream/package encryption, sync-credential storage internals, key derivation, vault backup internals, and device trust. It must keep raw secrets out of sync streams, ordinary packages, substrate backups, logs, events, and agent context.
-- The future **Workspaces and Materialization** spec persists workspace identity and materialized mirrors as substrate families. Workspace export/import uses `PortablePackage`, blob transport, and the import pipeline for lossless movement; surface-owned format exports remain lossy egress capabilities.
+- File 22 owns stream/package encryption, sync-credential storage internals, key derivation, vault backup internals, and device trust. It must keep raw secrets out of sync streams, ordinary packages, substrate backups, logs, events, and agent context.
+- File 24 persists workspace identity and materialized mirrors as substrate families. Workspace export/import uses `PortablePackage`, blob transport, and the import pipeline for lossless movement; surface-owned format exports remain lossy egress capabilities.
 - The **per-surface specs** may declare lossy presentation-format exports, but every such export passes through egress governance, audit recording, and sensitivity filtering. Their durable state rides the syncable substrate and `PortablePackage`, never a private export path.
 - The future **Automation, Triggers, and Scheduling** spec tags machine-bound execution state device-local while replicating portable schedule, watch, and trigger definitions when allowed. It drives nothing from sync cadence.
 - The future **Extension, Plugin, and MCP Integration** specs make synced/imported records referencing missing capabilities, plugins, custom kinds, connectors, or MCP servers resolve to unavailable/inert states. They own installation, execution, enablement, and update of code.
