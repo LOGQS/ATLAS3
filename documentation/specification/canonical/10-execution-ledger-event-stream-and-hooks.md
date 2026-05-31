@@ -1139,7 +1139,7 @@ Operations that flow through the audit log:
 - every typed-confirmation completion (`TypedConfirmationSatisfied`)
 - every floor violation (`PolicyFloorViolated`)
 - every source approval / denial (`SourceRegistrationApproved`, `SourceRegistrationDenied`)
-- every credential or secret operation (`SecretAccessed`, `SecretRotated`, `SecretRevoked`)
+- every credential or secret operation registered by the Security, Credentials, and Trust Boundaries spec, including secret storage, backend-only resolution-for-use, rotation, revocation, deletion, export, and vault backup/restore
 - every system-state mutation (`SystemChangeApplied`, `SystemChangeRolledBack`)
 - every hard delete (`BlockHardDeleted`, `ArtifactHardDeleted`)
 - every `DeniedFloorOverridden`
