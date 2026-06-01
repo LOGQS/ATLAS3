@@ -165,7 +165,7 @@ Validation belongs to capability + registered validator hooks; approval to polic
 ### 9.1 `CapabilitySource` `capability.capability-source`
 Every declaration names source, one of:
 - `Builtin` — compiled into binary; ships with every install; cannot unregister without update
-- `Subsystem { subsystem_id }` — owned by a registered subsystem (work surface or substrate service: Memory, Routing, Context Assembly, Knowledge Indexing, Settings, Policy); registered/loaded with the subsystem. New subsystems added/removed through subsystem-registration capability (proposal-first §16.2); subsystem composition is first-class+customizable.
+- `Subsystem { subsystem_id }` — owned by a registered subsystem (work surface or substrate service: Memory, Routing, Context Assembly, Retrieval, Knowledge Indexing, Settings, Evaluation, Policy); registered/loaded with the subsystem. New subsystems added/removed through subsystem-registration capability (proposal-first §16.2); subsystem composition is first-class+customizable.
 - `Plugin { plugin_id, plugin_version }` — bundled in a plugin [`core.extension-planes`, File 01 §6.14; future Extension and Plugin System spec]; registered on plugin load; unregistered on unload
 - `McpServer { server_id, server_uuid, server_version }` — from external MCP server; registered on connect; unregistered on disconnect
 - `Api { api_name, api_definition_path }` — from user-authored external-API TOML/equivalent; registered when definition file loaded

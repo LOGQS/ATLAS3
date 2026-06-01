@@ -703,7 +703,7 @@ Anchor: `block.cross-surface-interoperability`
 
 ### 12.1 Definition
 
-ATLAS3 has one block pool. Every work surface (Coder, Web, Data Processor, Teacher, GUI Control, System Agent), every substrate service (Memory, Routing, Knowledge), every control rail (Conversation, Palette, Voice, Shortcut, Automation), and every external integration (MCP server, plugin, external API) reads from and writes to the same pool through the same block model.
+ATLAS3 has one block pool. Every work surface (Coder, Web, Data Processor, Teacher, GUI Control, System Agent), every substrate service (Memory, Routing, Context Assembly, Retrieval, Knowledge, Settings, Evaluation, Policy, World Model, Perception, Storage), every control rail (Conversation, Palette, Voice, Shortcut, Automation), and every external integration (MCP server, plugin, external API) reads from and writes to the same pool through the same block model.
 
 ### 12.2 Per-Surface Projections
 

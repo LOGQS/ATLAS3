@@ -175,7 +175,7 @@ Each surface projects the entity pool through surface-specific filters (filter i
 - Data Processor: `Dataset`, `Chart`, `Notebook`, `Table`
 - Teacher: `Lesson`, `Curriculum`, `Quiz`, `ExerciseSet`, `FlashcardSet`, `Rubric`
 - GUI Control: `Macro`, `ScreenshotSeries`, `Observation`
-- Memory: `Memory`-kind blocks + knowledge-base projection over claims+citations
+- memory management surface: `Memory`-kind blocks + knowledge-base projection over claims+citations
 - inspector lens: every entity, filtered by kind/status/scope/source/validation/review/lifecycle
 ### 17.5 Boundary
 No surface may introduce a private artifact pool, claim pool, or evidence-graph.

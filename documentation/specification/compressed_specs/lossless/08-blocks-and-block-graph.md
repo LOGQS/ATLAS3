@@ -360,7 +360,7 @@ Scope durable property; storage uses it to organize physical layout; retrieval u
 
 ## 12. Cross-Surface Interoperability `block.cross-surface-interoperability`
 ### 12.1 Definition
-One block pool. Every work surface (Coder, Web, Data Processor, Teacher, GUI Control, System Agent), every substrate service (Memory, Routing, Knowledge), every control rail (Conversation, Palette, Voice, Shortcut, Automation), every external integration (MCP server, plugin, external API) reads/writes the same pool through the same block model.
+One block pool. Every work surface (Coder, Web, Data Processor, Teacher, GUI Control, System Agent), every substrate service (Memory, Routing, Context Assembly, Retrieval, Knowledge, Settings, Evaluation, Policy, World Model, Perception, Storage), every control rail (Conversation, Palette, Voice, Shortcut, Automation), every external integration (MCP server, plugin, external API) reads/writes the same pool through the same block model.
 
 ### 12.2 Per-Surface Projections — each surface projects through surface-specific filters:
 Coder filters for `FileAttachment`, `Artifact` (code), `ToolCallProposal`+`ToolResult` for code capabilities, `Validation` (tests), `Critique` (review comments); Web filters for `Observation` (page extracts), `Artifact` (downloads), `Citation` (URLs), `ToolCallProposal` for browser capabilities; conversation transcript filters for transcript-anchorable kinds (`MessageUser`,`MessageAssistant`, + child kinds); inspector lens [`surface.inspector-lens`] presents every block, filtered by user-chosen axes. Filter is a surface concern; blocks remain unchanged. A block produced by Coder but referenced by Memory is visible in both.

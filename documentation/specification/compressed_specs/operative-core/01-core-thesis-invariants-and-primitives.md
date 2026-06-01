@@ -44,8 +44,7 @@
 - 5.5 Teacher → Work surface
 - 5.6 GUI Control → Work surface
 - 5.7 System Agent → Work surface with heavy substrate dependencies
-- 5.8 Memory → Substrate service with management surfaces
-- 5.9 Routing, Context, Knowledge, Settings, Evaluation → Substrate services; must not drift into per-surface private architecture.
+- 5.8 Cross-Cutting Substrate Services (Memory, routing/orchestration, context assembly/retrieval, knowledge/indexing, settings, evaluation/logging, capability registry/policy, world modeling, perception, versioning, storage, history) → substrate services with optional management surfaces; not primary work surfaces; no work surface gets a private copy.
 
 ## 6. Primitive Set {core.primitive-set}
 - Every later spec must build on these primitives.

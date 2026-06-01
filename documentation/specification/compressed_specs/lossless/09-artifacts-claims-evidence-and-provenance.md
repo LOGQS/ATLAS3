@@ -367,7 +367,7 @@ Each surface projects entity pool through surface-specific filters:
 - Teacher: `Lesson`, `Curriculum`, `Quiz`, `ExerciseSet`, `FlashcardSet`, `Rubric`, custom Teacher kinds for specialized pedagogy + learner-progress projections
 - GUI Control: `Macro`, `ScreenshotSeries`, `Observation` (UI tree snapshots), action-replay projections
 - System Agent: change records as artifact-like outputs with rollback projections (future System Agent spec declares specific kinds)
-- Memory (substrate-service): `Memory`-kind blocks [`block.kind-catalogue`, File 08 §3.1] + knowledge-base projection over claims+citations
+- memory management surface: `Memory`-kind blocks [`block.kind-catalogue`, File 08 §3.1] + knowledge-base projection over claims+citations
 - conversation transcript: filters for transcript-anchorable kinds + resolves artifact references to inline cards/sidecar panes
 - inspector lens [`surface.inspector-lens`, File 07 §12.4]: every entity in pool, filtered by user-chosen axes (kind, status, scope, source, validation state, review state, lifecycle state)
 Filter is a surface concern; entities + content remain in unified pool unchanged (an artifact produced by Coder but referenced from Memory is visible in both).

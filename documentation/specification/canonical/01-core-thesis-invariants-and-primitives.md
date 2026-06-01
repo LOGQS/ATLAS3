@@ -372,15 +372,27 @@ Work surface with heavy substrate dependencies.
 Why:
 System Agent owns user-facing workflows around watches, scheduled actions, system observation, rollback-oriented operations, and system-level automation, even though it depends strongly on shared execution, policy, and infrastructure services.
 
-### 5.8 Memory
+### 5.8 Cross-Cutting Substrate Services
 
 Classification:
-Substrate service with management surfaces.
+Substrate services with optional management surfaces.
+
+Includes:
+
+- Memory
+- routing and orchestration
+- context assembly and retrieval
+- knowledge and indexing
+- settings
+- evaluation and logging
+- capability registry and policy
+- world modeling, perception, versioning, storage, and history
 
 Why:
 
 - always integrated
 - serves every work surface
+- coordinates or supports work across surfaces and control rails
 - does not have the same shape as a primary workspace-first surface
 
 What it may still expose:
@@ -392,13 +404,8 @@ What it may still expose:
 - settings
 - management actions
 
-### 5.9 Routing, Context, Knowledge, Settings, and Evaluation
-
-Classification:
-Substrate services.
-
-Why:
-These coordinate or support every work surface and should not drift into per-surface private architecture.
+Boundary:
+Management presentations over these services are not primary work surfaces, and no work surface receives a private version of any of them.
 
 ## 6. Primitive Set
 

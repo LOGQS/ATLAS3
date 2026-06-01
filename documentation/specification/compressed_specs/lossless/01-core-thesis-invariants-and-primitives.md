@@ -74,8 +74,7 @@ Structured result of routing+dispatch planning for an incoming request/continuat
 - 5.5 Teacher → Work surface (lessons, curricula, assessments, classroom-style experiences).
 - 5.6 GUI Control → Work surface (desktop observation, interaction, automation, control).
 - 5.7 System Agent → Work surface with heavy substrate dependencies (watches, scheduled actions, system observation, rollback-oriented ops, system-level automation; depends strongly on shared execution/policy/infrastructure).
-- 5.8 Memory → Substrate service with management surfaces (always integrated; serves every surface; not workspace-first shape). May still expose: browsers, inspectors, proposal UIs, graph views, settings, management actions.
-- 5.9 Routing, Context, Knowledge, Settings, Evaluation → Substrate services (coordinate/support every surface; must not drift into per-surface private architecture).
+- 5.8 Cross-Cutting Substrate Services → Substrate services with optional management surfaces. Includes: Memory; routing and orchestration; context assembly and retrieval; knowledge and indexing; settings; evaluation and logging; capability registry and policy; world modeling, perception, versioning, storage, and history. (always integrated; serve every surface; coordinate/support work across surfaces and control rails; not workspace-first shape). May still expose: browsers, inspectors, proposal UIs, graph views, settings, management actions. Boundary: management presentations over these services are not primary work surfaces; no work surface receives a private version of any of them.
 
 ## 6. Primitive Set `core.primitive-set`
 Every later spec must build on these.

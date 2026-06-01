@@ -35,7 +35,7 @@ This file resolves memory, learning, context, retrieval, and self-improvement so
 
 Resolved design:
 
-- Memory is a substrate service per File 01, always available to work surfaces but not shaped like a workspace-first surface.
+- Memory is one cross-cutting substrate service per File 01, always available to work surfaces but not shaped like a workspace-first surface.
 - Memory entries are entity metadata over `Memory`-kind blocks. The block carries durable content; the entity carries memory-specific management state.
 - Memory owns core and archival memory. Recent conversation turns are conversation history, managed by Files 12 and 13.
 - Memory learning uses explicit user commands and policy-governed distillation proposals. Raw run history remains in the ledger.
@@ -567,7 +567,7 @@ Anchor: `memory.explicit-rejections`
 
 The following shapes are wrong for this layer:
 
-- treating Memory as a workspace-first surface rather than a substrate service
+- treating Memory as a workspace-first surface rather than one of the cross-cutting substrate services
 - building a parallel memory store outside the block model
 - storing mutable memory content on both entity and block as separate sources of truth
 - creating `RecallMemory` as a Memory-owned conversation-history tier

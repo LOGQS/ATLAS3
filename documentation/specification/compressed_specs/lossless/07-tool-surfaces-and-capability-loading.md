@@ -148,7 +148,7 @@ When a `Run`'s primary surface changes mid-execution (e.g. mid-execution reroute
 ### 5.5 Cross-Surface Reach Without Primary-Surface Change
 Cross-surface access through `tool.borrow` does not require a primary-surface change. A run in Coder that borrows `web.fetch` remains in Coder; the borrowed capability becomes visible for the grant scope without changing `primary_surface`. The ledger records both originating surface + borrowed-capability source so audit reconstructs cross-surface reach.
 ### 5.6 Boundary
-`SubsystemSurfaceSpec` is a contract this file defines; the actual specs for Coder/Web/Teacher/Data Processor/GUI Control/System Agent/Memory + user-registered subsystems are declared in those subsystems' own canonical specs once written.
+`SubsystemSurfaceSpec` is a contract this file defines; the actual specs for the work surfaces (Coder/Web/Teacher/Data Processor/GUI Control/System Agent), the capability-owning substrate services, + user-registered subsystems are declared in those subsystems' own canonical specs once written.
 
 ## 6. Routing Influence `surface.routing-influence`
 ### 6.1 Consumed Inputs
@@ -606,7 +606,7 @@ Wrong for this layer:
 ## 20. Consequences for Later Specs `surface.consequences-for-later-specs`
 Every later spec touching capability presentation/loading/discovery/automation/runtime/UI/storage/sync/telemetry/evaluation consumes the `ToolSurface` projection as defined here. Canonical principles:
 - consume `ToolSurface` as a projection of the registry; never invent a parallel registry, parallel surface state model, or write directly to per-lens storage; if a later spec wants surface-relevant changes, it emits the canonical events from §13
-- consume the `SubsystemSurfaceSpec` contract — every per-surface/substrate-service spec owning capabilities declares its spec to the shape this file defines (`primary_capability_ids`, `borrowable_capability_ids`, `default_deferred_families`, `forbidden_capability_ids`, `spawnable_subagent_types`, `surface_settings_namespace`, `availability_predicate`); the per-surface specs (Work Surface Contract, Coder, Web, Data Processor, Teacher, GUI Control, System Agent, + the Memory substrate-service spec) fill the contract
+- consume the `SubsystemSurfaceSpec` contract — every per-surface/substrate-service spec owning capabilities declares its spec to the shape this file defines (`primary_capability_ids`, `borrowable_capability_ids`, `default_deferred_families`, `forbidden_capability_ids`, `spawnable_subagent_types`, `surface_settings_namespace`, `availability_predicate`); per-surface specs and substrate-service specs fill the contract for their subsystem
 - consume the zone model (`Primary`, `Borrowable`, `Deferred`, `Disabled`, `Unavailable`) as the closed set; never introduce a sixth zone; per-subsystem specs may declare which capabilities go into which zone but may not extend the zone vocabulary
 - consume the late-loading capabilities (`tool.borrow`, `tool.borrow_persistent`, `tool.search`, `mcp.search`, `tool.inspect`) as the canonical mechanism for agent-initiated surface visibility changes; never introduce a parallel borrow API; a specialized borrow flow declares a capability that wraps the canonical primitives
 - consume the composition algorithm (§9) as the single deterministic path; never write a parallel composition; surface-relevant inputs are added as canonical inputs through the settings/routing contracts
@@ -621,7 +621,7 @@ Every later spec touching capability presentation/loading/discovery/automation/r
 - File 15 implements settings resolution, profile contexts, profile layers, locality, agent exposure for the dimensions in §18; does not redefine them
 - the future Extension and Plugin System spec + MCP and External Integrations spec hand their registered capabilities through the unified registry [`capability.sourcing`, File 05 §9]; the composition picks them up automatically
 - the future Workspaces and Materialization spec defines workspace boundaries; composition consumes workspace_id from `scope_context`; workspace switching emits the appropriate `SurfaceSettingsChanged` event
-- the future per-surface specs (Coder, Web, Teacher, Data Processor, GUI Control, System Agent) + File 14 for Memory declare their `SubsystemSurfaceSpec` and any specialized discovery capabilities or specialized auto-shrink priorities
+- the future per-surface specs (Coder, Web, Teacher, Data Processor, GUI Control, System Agent) + the capability-owning substrate-service specs declare their `SubsystemSurfaceSpec` and any specialized discovery capabilities or specialized auto-shrink priorities
 - the future Automation and Triggers spec consumes the `AutomationTrigger` lens through the canonical contract; pins surface strategies at save time through the same `tool_surface_strategy` field as runtime routing
 - the future Workflows, Templates, and Reuse spec composes capabilities through the unified registry; workflow nodes reference capability ids; composition for a workflow execution honors the workflow's declared capability list as an additional input
 - the future UI Shell, Layout, Presentation, and Interaction Models spec renders the `Palette`, `Inspector`, `Voice`, `Shortcut`, `AutomationTrigger` lens data into UI; File 07 hands them the canonical data contract

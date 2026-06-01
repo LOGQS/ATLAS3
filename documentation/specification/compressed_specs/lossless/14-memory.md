@@ -10,7 +10,7 @@ Status: Canonical.
 
 ## Source Resolution
 - Memory stores durable learned state; not a workspace-first surface, model-request injection layer, conversation-history manager, private retrieval stack, or parallel event/capability system.
-- Memory is a substrate service per File 01, always available to work surfaces but not shaped as workspace-first.
+- Memory is one cross-cutting substrate service per File 01, always available to work surfaces but not shaped as workspace-first.
 - Memory entries are entity metadata over `Memory`-kind blocks (block carries durable content; entity carries memory-specific management state).
 - Memory owns core + archival memory. Recent conversation turns are conversation history (Files 12, 13).
 - Learning uses explicit user commands + policy-governed distillation proposals. Raw run history stays in the ledger.
@@ -204,7 +204,7 @@ Status: Canonical.
 - Specific defaults belong to settings profiles / later settings specs, not this file.
 
 ## 21. Explicit Rejections `memory.explicit-rejections`
-- Treating Memory as a workspace-first surface rather than a substrate service.
+- Treating Memory as a workspace-first surface rather than one of the cross-cutting substrate services.
 - Building a parallel memory store outside the block model.
 - Storing mutable memory content on both entity and block as separate sources of truth.
 - Creating `RecallMemory` as a Memory-owned conversation-history tier.
