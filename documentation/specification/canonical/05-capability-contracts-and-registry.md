@@ -31,7 +31,7 @@ This file does not define:
 - routing or `RunIntent` selection — File 03 owns those
 - block schema, artifact lifecycle, evidence model — Files 08 and 09 own those
 - specific provider integration internals, rate-limit tracking, circuit-breaker mechanics, or polling intervals — File 17 owns provider concerns; the future MCP/External Integrations spec owns MCP and external tool-provider concerns
-- specific subsystem-runtime designs (Coder, Web, Teacher, Memory, etc.) — the future per-surface specs own those
+- specific subsystem-runtime designs (Coder, Web, Teacher, Memory, etc.) — the per-surface specs own those (Coder is File 27, Web is File 28; Memory is the substrate-service File 14; Teacher and the remaining surfaces are future)
 
 ## Source Resolution
 

@@ -32,7 +32,7 @@ This file does not define:
 - the secret boundary, egress governance, or untrusted-content defense — File 22 owns those; this file consumes them (no unredacted secret in a materialized file; workspace export through governed egress; ingested code carries no authority)
 - filesystem-boundary enforcement, the atomic-write primitive, sandbox/process isolation, or per-instance home isolation — File 23 owns those; this file materializes within the region File 23 confines and writes through File 23's atomic-write chokepoint
 - retrieval/indexing of workspace files (File 12), instruction-source inclusion in the model request (File 13), or the world-entity catalogue (File 18)
-- per-surface workspace workflows, editor/terminal/browser views, or surface-specific materialization (Coder, Web, Data Processor, Teacher, GUI Control, System Agent — the future surface specs); this file is horizontal and surface-neutral
+- per-surface workspace workflows, editor/terminal/browser views, or surface-specific materialization (Coder File 27, Web File 28, Data Processor File 29, and the remaining Teacher, GUI Control, System Agent surface specs); this file is horizontal and surface-neutral
 
 ## Source Resolution
 

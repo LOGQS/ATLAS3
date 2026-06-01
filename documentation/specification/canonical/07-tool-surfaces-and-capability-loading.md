@@ -30,7 +30,7 @@ This file does not define:
 - routing-frame composition, the route record, or how `tool_surface_strategy` is chosen by the router — File 03 owns those
 - run lifecycle, the capability-call pipeline, hook execution, cancellation, streaming, or postcondition validation — File 04 owns those
 - block schema, artifact lifecycle, evidence model, or the version graph — later specs own those
-- the per-surface specifications themselves (Coder, Web, Teacher, Data Processor, GUI Control, System Agent) — those later specs declare their `SubsystemSurfaceSpec` to the contract this file defines
+- the per-surface specifications themselves (Coder File 27, Web File 28, Data Processor File 29, and the remaining Teacher, GUI Control, System Agent specs) — those specs declare their `SubsystemSurfaceSpec` to the contract this file defines
 - the storage schema for surface state, `BorrowGrant`s, policy leases, or settings — File 20 owns those
 - UI rendering choices (palette layout, voice cadence, shortcut display) — File 07 specifies the data contract, the future UI Shell and UI Customization specs render
 - MCP transport mechanics, plugin install lifecycle internals, provider rate limits, or sandbox primitives — the future MCP and External Integrations and Extension and Plugin System specs and File 23 own those; File 17 owns provider concerns
@@ -1229,7 +1229,7 @@ The canonical principles later specs must follow:
 - File 15 implements settings resolution, profile contexts, profile layers, locality, and agent exposure for the dimensions in §18; it does not redefine the dimensions
 - the future Extension and Plugin System spec and MCP and External Integrations spec hand their registered capabilities through the unified Capability Registry per `capability.sourcing` (File 05 §9); the surface composition picks them up automatically
 - File 24 defines workspace boundaries; the surface composition consumes workspace_id from `scope_context` as one of the resolution inputs; workspace switching emits the appropriate `SurfaceSettingsChanged` event
-- the future per-surface specs (Coder, Web, Teacher, Data Processor, GUI Control, System Agent) and the capability-owning substrate-service specs declare their `SubsystemSurfaceSpec` and any specialized discovery capabilities or specialized auto-shrink priorities specific to their subsystem
+- the per-surface specs (Coder File 27, Web File 28, Data Processor File 29, and the remaining Teacher, GUI Control, System Agent specs) and the capability-owning substrate-service specs declare their `SubsystemSurfaceSpec` and any specialized discovery capabilities or specialized auto-shrink priorities specific to their subsystem
 - the future Automation and Triggers spec consumes the `AutomationTrigger` lens through the canonical contract; it pins surface strategies at save time through the same `tool_surface_strategy` field as runtime routing
 - the future Workflows, Templates, and Reuse spec composes capabilities through the unified registry; workflow nodes reference capability ids; the surface composition for a workflow execution honors the workflow's declared capability list as an additional input
 - the future UI Shell, Layout, Presentation, and Interaction Models spec renders the `Palette`, `Inspector`, `Voice`, `Shortcut`, `AutomationTrigger` lens data into UI; File 07 hands them the canonical data contract

@@ -250,7 +250,7 @@ Every coder write is staged and atomically promoted through File 23's atomic-wri
 
 ### 6.7 Boundary
 
-This section defines the coder editing contract. File 08 owns the block and content hash; File 09 owns the artifact and materialization; File 11 owns the version commit; File 23 owns the atomic-write primitive and filesystem boundary; File 24 owns the disk mirror; File 12 owns the symbol model the semantic operations resolve against. This file owns the coder workflow over them.
+This section defines the coder editing contract. File 08 owns the block and content hash; File 09 owns the artifact and materialization; File 11 owns the version commit; File 23 owns the atomic-write primitive and filesystem boundary; File 24 owns the disk mirror. This file owns the codebase symbol and import model the semantic operations resolve against (§7.2); File 12 owns the index, query, namespace, chunking, and ranking over it (`retrieval.ingestion`, File 12 §14.2 delegates code-extraction semantics to the owning surface). This file owns the coder workflow over them.
 
 ## 7. Codebase Context and Indexing
 
@@ -310,7 +310,7 @@ Anchor: `coder.version-control`
 
 ### 9.1 Definition
 
-The coder version-control workflow is the surface presentation over the domain-neutral version-control capability family. Version control is an infrastructure service exposed as the `git.*` capabilities, callable by any surface; the Coder surface adds the user-facing workflow and views — status surfacing, diff, commit, branch, blame, stash, the comparison board, and the worktree-backed multi-agent workflow. The surface owns no private version-control mechanism, store, or path; the version-control library behind the `git.*` capabilities is a replaceable implementation, and worktree identity and lifecycle are File 24's (`workspace.worktree`, File 24 §15).
+The coder version-control workflow is the surface presentation over the domain-neutral version-control capability family. Until a dedicated version-control or external-integration spec exists, this file declares the default `git.*` family as shared built-in capabilities (`capability.sourcing`, File 05 §9) surfaced primarily through the Coder surface; a later spec may refine the transport and provider details — remote authentication, hosted-forge integration — without changing the capability contract. Version control is an infrastructure service exposed as the `git.*` capabilities, callable by any surface; the Coder surface adds the user-facing workflow and views — status surfacing, diff, commit, branch, blame, stash, the comparison board, and the worktree-backed multi-agent workflow. The surface owns no private version-control mechanism, store, or path; the version-control library behind the `git.*` capabilities is a replaceable implementation, and worktree identity and lifecycle are File 24's (`workspace.worktree`, File 24 §15).
 
 ### 9.2 The Version-Control UI Projection
 

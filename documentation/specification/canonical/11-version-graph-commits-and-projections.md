@@ -49,7 +49,7 @@ This file does not define:
 - model strategy, provider routing, rate-limit reconciliation, or provider-health tracking — Files 16 and 17 own those
 - workspace materialization mechanics, materialized-path resolution, disk → block sync, or workspace-tree management beyond declaring that disk state is a projection of the active version's view per `artifact.disk-entity-sync` (File 09 §7.5) — File 24 owns those
 - security primitives, sandbox isolation, or credential management — Files 22 and 23 own those
-- UI rendering choices for the version-timeline, tree view, comparison-board, history-panel, inspector previews, undo affordances, or accessibility surfaces — the future UI Shell, UI Customization, and per-surface specs own those; this file specifies the canonical data contracts those surfaces consume
+- UI rendering choices for the version-timeline, tree view, comparison-board, history-panel, inspector previews, undo affordances, or accessibility surfaces — the future UI Shell and UI Customization specs and the per-surface specs own those; this file specifies the canonical data contracts those surfaces consume
 - specific evaluation-suite or benchmark schemas — the future Evaluation and Benchmarking spec owns those, though it consumes the replay surface defined here
 
 ## Source Resolution
