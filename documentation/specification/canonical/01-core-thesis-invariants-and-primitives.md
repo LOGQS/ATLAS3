@@ -45,6 +45,8 @@ The user expresses intent. The system interprets that intent in context, attache
 
 Important outputs become durable artifacts with evidence. Successful work patterns are eligible for crystallization into reusable knowledge, procedures, and automations. The system maintains a live structured model of the current environment — workspaces, files, processes, sessions, connections, and active work — so that capabilities can reason about the world, not just about conversation history.
 
+The product goal is broad computer-mediated usefulness: learning, programming, research, data work, system operation, browsing, creation, and any other process where a user may want different degrees of help. ATLAS is not narrowly an automation product. It is a composable local work substrate where AI helps connect surfaces, substrate services, tools, memory, retrieval, workflows, and settings so the user can start simply and then scale to the complexity they choose. Defaults must be clean and safe; depth comes through progressive disclosure, reusable units, and typed customization rather than mandatory complexity.
+
 ATLAS is not:
 
 - a chat app with tools
