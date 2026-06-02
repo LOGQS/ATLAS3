@@ -561,6 +561,7 @@ A `RegisteredCapability` is the live registry entry produced when a `CapabilityD
 - `availability_status`: `Available` | `UnavailablePlatform` | `UnavailableHandler` | `UnavailablePrerequisite` | `Disabled` | `Shadowed`
 - `resolved_backend_binding`: the live resolved handler reference (service-method handle, loaded Wasm module instance, MCP client adapter, HTTP client, in-process closure); never serialized into the declaration
 - `source_instance`: the registered source-instance reference (which loaded plugin, which connected MCP server, which loaded API definition file)
+- `contributing_bundle` (optional): `{ plugin_id, plugin_version }` when the capability is contributed by a plugin bundle but the runtime source is another source instance, such as a bundled MCP server or external API definition. This is distinct from `source_instance`: lifecycle and uninstall attribution may key on the contributing bundle while approval and runtime risk key on the actual source instance.
 - `trust_state`: `{ declared_trust_hint, registry_trust_override, effective_trust }` (§9.2)
 - `lifecycle_state`: `Loading` | `Active` | `Updating` | `Disabled` | `Unregistering`
 - `active_aliases`: the alias entries currently honored for lookup (per §13.3 declared aliases with their version range and deprecation timing)
@@ -648,7 +649,7 @@ Registration is declarative and idempotent. A subsystem, plugin, or runtime regi
 2. Checks for id collision and applies the collision policy (§14.1)
 3. Resolves the backend binding (the named service, Wasm module, MCP server, etc. exists)
 4. Normalizes the declaration to the current `schema_version` if needed (§13.5)
-5. Computes registry state (registered_at, declared_trust_hint, source_instance reference)
+5. Computes registry state (registered_at, declared_trust_hint, source_instance reference, and `contributing_bundle` when a plugin bundle owns the contribution but the runtime source is another source instance)
 6. Inserts the registered entry into the live registry
 7. Emits `CapabilityRegistered`
 8. Updates derived projections (capability-discovery for the agent, command-palette index, voice-command map, automation trigger-target list)
@@ -734,7 +735,7 @@ Two declarations may not be the active entry under the same `id` simultaneously.
 
 The registry stores all colliding declarations that pass validation. The collision policy selects the active entry. Inactive (shadowed) entries remain inspectable through registry diagnostics and can be reactivated by removing or disabling the shadowing entry. Source declarations are never mutated by collision resolution; the active-vs-shadowed selection is registry state on the registered entries.
 
-The default behavior is rejection. Replacement is opt-in and surfaced. Replay can pin the exact `(id, version, source_instance)` of the registered entry that was active at call time so collision history does not break reproducibility.
+The default behavior is rejection. Replacement is opt-in and surfaced. Replay can pin the exact `(id, version, source_instance, contributing_bundle)` of the registered entry that was active at call time so collision history does not break reproducibility.
 
 ### 14.2 Source Priority
 
