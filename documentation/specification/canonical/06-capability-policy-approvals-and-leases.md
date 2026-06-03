@@ -107,7 +107,7 @@ File 06 reads from declarations and registered state. It never mutates either. T
 
 ### 2.2 With File 04 (Execution and Run Model)
 
-`run.call-pipeline` (File 04 §8.2) defines the capability-call pipeline. The approval router runs at step 5 ("Determine denial, approval need, persisted decision, or active lease"). `run.approval-during-execution` (File 04 §11) establishes the permission-tier hierarchy, the `Lease` definition with full scope hierarchy, the named `auto-decide` mode, scope-based batching, and contradiction-checking across scope levels. `run.hook-integration` (File 04 §23.3) establishes the typed hook decision vocabulary (`Continue`, `Substitute`, `Block`, `RedirectSuggestion`), priority convention, timeout-with-authority-based-fail-direction, and per-error-class retry behavior.
+`run.call-pipeline` (File 04 §8.2) defines the capability-call pipeline. The approval router fires during step 5 (proposal, policy, and pre-execution hooks) as the blocking `ToolCallProposed` subscriber; its `ApprovalDecision` is step 6's determination ("Determine denial, approval need, persisted decision, or active lease"). `run.approval-during-execution` (File 04 §11) establishes the permission-tier hierarchy, the `Lease` definition with full scope hierarchy, the named `auto-decide` mode, scope-based batching, and contradiction-checking across scope levels. `run.hook-integration` (File 04 §23.3) establishes the typed hook decision vocabulary (`Continue`, `Substitute`, `Block`, `RedirectSuggestion`), priority convention, timeout-with-authority-based-fail-direction, and per-error-class retry behavior.
 
 File 06 inherits all of those. It does not redefine the tier set, the lease scope hierarchy, the hook decision shape, or the hook timeout semantics. It specifies how each is applied in policy evaluation.
 
@@ -137,18 +137,19 @@ The `Approval Router` is the canonical dispatch component of the Capability Poli
 
 ### 3.2 Position in the Capability-Call Pipeline
 
-The router sits at `run.call-pipeline` (File 04 §8.2) step 5 of the capability-call pipeline:
+The router sits at `run.call-pipeline` (File 04 §8.2) steps 5–6 of the capability-call pipeline:
 
 1. Resolve capability (File 05 registry)
-2. Validate input (`capability.input-validators`, File 05 §8.1 validators)
-3. Produce proposal
-4. Run validators and policy checks
-5. **Determine denial, approval need, persisted decision, or active lease — the Approval Router** *(this section)*
-6. Execute with declared isolation and concurrency semantics
-7. Stream partials when supported
-8. Record observations and result
-9. Validate postconditions
-10. Commit or expose output
+2. Capture raw arguments, apply declared input normalization, and validate against the declared schema (`run.input-normalization-schema-validation`, File 04 §8.2.1)
+3. Run declared input validators that can act before proposal; apply corrections and revalidate (`capability.input-validators`, File 05 §8.1)
+4. Resolve per-call facts and produce a proposal
+5. **Run proposal, policy, and pre-execution hooks — the Approval Router fires here as the blocking `ToolCallProposed` subscriber** *(this section)*
+6. **Determine denial, approval need, persisted decision, or active lease — from the router's `ApprovalDecision`** *(this section)*
+7. Execute with declared isolation and concurrency semantics
+8. Stream partials when supported
+9. Record observations and result
+10. Validate postconditions
+11. Commit or expose output
 
 The router runs after structural validators (priority `0`) so its evaluation sees the post-validation payload. Audit and logging hooks at priority `-100` capture pre-router state for forensic reconstruction.
 
