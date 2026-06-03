@@ -33,7 +33,7 @@ This file does not define:
 - retrieval, indexing, or knowledge-base curation — File 12 owns those
 - workspace identity, materialization, or worktree lifecycle — File 24 owns those; the world model references active workspaces as entities
 - sandbox primitives, process isolation, credential storage, trust state, or per-surface runtimes (Coder, Web, Data Processor, Teacher, GUI Control, System Agent) — File 23, File 22, and the per-surface specs own those; they declare which world entities and observations they produce
-- storage schema, sync transport, or UI rendering — File 20, File 21, and the future UI specs own those
+- storage schema, sync transport, or UI rendering — File 20, File 21, File 37, and File 38 own those
 
 ## Source Resolution
 
@@ -93,7 +93,7 @@ The routing frame includes the active world-model snapshot — active surface, f
 
 ### 2.4 With File 05 (Capability Contracts) and File 06 (Capability Policy)
 
-`capability.availability-fields` (File 05 §3.9) and `capability.availability-predicate` (File 05 §15.2) declare `availability_predicate` (`requires` / `blocked_by`) and §15.3 declares `prerequisite_capabilities`, and explicitly delegate the predicate evaluator to "the future world-state / availability spec." This file is that spec: §9 owns the evaluator that resolves declared predicates against the current world snapshot and produces the available-capability list. `capability.discovery` (File 05 §15.1)'s availability-filtered enumeration, File 05's `available(world_state)` and `resolve_for_invocation(id, args, world_state)` registry operations, and File 05's `TierResolver::Dynamic` all consume the world snapshot this file defines; the `PrerequisiteUnsatisfied` typed error (`capability.prerequisite-capabilities`, File 05 §15.3) originates from §9's evaluation. File 06's approval router, effective-tier resolution, and grant-context capture (`policy.approval-router` (File 06 §3), `policy.effective-tier-resolution` (File 06 §4), `policy.auto-decide-mode` (File 06 §8), `policy.lease-primitive` (File 06 §11)) read the active world-model snapshot; world-state changes that affect lease validity — workspace switch, panel change, ui-mode transition (`policy.mid-execution-policy-re-evaluation` (File 06 §10), `policy.persistence` (File 06 §11.6)) — are signaled by §12's events.
+`capability.availability-fields` (File 05 §3.9) and `capability.availability-predicate` (File 05 §15.2) declare `availability_predicate` (`requires` / `blocked_by`) and §15.3 declares `prerequisite_capabilities`, and explicitly delegate the predicate evaluator to this file. §9 owns the evaluator that resolves declared predicates against the current world snapshot and produces the available-capability list. `capability.discovery` (File 05 §15.1)'s availability-filtered enumeration, File 05's `available(world_state)` and `resolve_for_invocation(id, args, world_state)` registry operations, and File 05's `TierResolver::Dynamic` all consume the world snapshot this file defines; the `PrerequisiteUnsatisfied` typed error (`capability.prerequisite-capabilities`, File 05 §15.3) originates from §9's evaluation. File 06's approval router, effective-tier resolution, and grant-context capture (`policy.approval-router` (File 06 §3), `policy.effective-tier-resolution` (File 06 §4), `policy.auto-decide-mode` (File 06 §8), `policy.lease-primitive` (File 06 §11)) read the active world-model snapshot; world-state changes that affect lease validity — workspace switch, panel change, ui-mode transition (`policy.mid-execution-policy-re-evaluation` (File 06 §10), `policy.persistence` (File 06 §11.6)) — are signaled by §12's events.
 
 ### 2.5 With File 07 (Tool Surfaces and Capability Loading)
 
@@ -216,7 +216,7 @@ Every entity declares its `kind`. The canonical closed catalogue:
 - `Run` — an in-flight or recently completed run (File 04), referencing `run_id`, with status, control, and progress facts
 - `Task` — an active task (File 02), referencing `task_id`, with lifecycle status
 - `PendingApproval` — an open approval request or lease decision awaiting the user (File 06)
-- `Automation` — an active or scheduled automation or watch (future Automation spec)
+- `Automation` — an active or scheduled automation or watch (File 33)
 
 **Content-in-scope kinds:**
 
@@ -302,7 +302,7 @@ Environment facts are observed, not assumed. A display geometry change, a workin
 
 ### 6.2 Temporal Grounding
 
-The world model exposes the current wall-clock time and timezone as a world fact so the agent is temporally grounded ("today is …", "the deadline is in two days"). This is a deliberate, flagged use of time: current time is a *fact the agent reads*, not a *condition that drives system behavior*. The project constraint forbidding time-based behavior (`core.workspace-model`, File 01 §3 constraint) applies to control flow, scheduling, and correctness — it does not forbid exposing the clock as grounding. The world model and its consumers must not derive correctness or scheduling from elapsed time; that remains the scope of explicit triggers and events (§8.6, §11 of File 14, the future Automation spec).
+The world model exposes the current wall-clock time and timezone as a world fact so the agent is temporally grounded ("today is …", "the deadline is in two days"). This is a deliberate, flagged use of time: current time is a *fact the agent reads*, not a *condition that drives system behavior*. The project constraint forbidding time-based behavior (`core.event-first-by-default`, File 01 §7.15) applies to control flow, scheduling, and correctness — it does not forbid exposing the clock as grounding. The world model and its consumers must not derive correctness or scheduling from elapsed time; that remains the scope of explicit triggers and events (§8.6, §11 of File 14, File 33).
 
 ### 6.3 Connection and Liveness Facts
 
@@ -612,7 +612,7 @@ The following shapes are wrong for this layer:
 - silently substituting current state for a past anchor when a snapshot cannot be resolved — resolution returns a typed error (§10.3)
 - ad-hoc procedural capability availability — availability is typed declarative predicates plus registered named checks that are pure functions of the world snapshot (§9, `capability.availability-predicate` (File 05 §15.2))
 - a non-deterministic availability evaluator or one with clock-based effects — the evaluator is deterministic over the snapshot, registry, and ledger (§9.5, File 07)
-- polling as the primary observation mechanism — observation is event-driven; polling and staleness TTLs are flagged, configurable fallbacks for sources without change events, never correctness conditions (§8.6, `core.workspace-model` (File 01 §3) constraint)
+- polling as the primary observation mechanism — observation is event-driven; polling and staleness TTLs are flagged, configurable fallbacks for sources without change events, never correctness conditions (§8.6, `core.event-first-by-default` (File 01 §7.15))
 - deriving system behavior, scheduling, or correctness from elapsed time — current time is exposed as a grounding fact only (§6.2)
 - a central observer that scrapes a rendered view — every producer self-registers its state (§8.1)
 - a private per-surface or per-subsystem state store — there is one world model; surfaces and subsystems project and contribute to it

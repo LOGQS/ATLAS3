@@ -32,7 +32,7 @@ This file does not define:
 - the settings cascade, scope resolution, the TOML overlay, or the `SecretRef` settings boundary — File 15 owns those; this file owns the vault that resolves the reference
 - the perception capture-privacy contract — consent, sensitive-source redaction-before-persist, and recording transparency — File 19 owns those; this file owns the credential vault and trust state perception references by identity
 - the provider adapter contract, the credential-pool rotation mechanics, or the per-provider credential namespace usage — File 17 owns those; this file owns the vault interface File 17 calls and the secret boundary it honors
-- UI rendering of unlock prompts, trust-review dialogs, egress confirmations, or audit panels — the future UI specs own those; this file specifies the data contracts they consume
+- UI rendering of unlock prompts, trust-review dialogs, egress confirmations, or audit panels — File 37 and File 38 own those; this file specifies the data contracts they consume
 
 ## Source Resolution
 
@@ -374,7 +374,7 @@ Trust is installation-local. Imported, synced, or packaged trust records are pro
 
 ### 9.9 Boundary
 
-This section owns trust establishment, verification, and change. File 06 owns how a trust class narrows an effective tier and runs the source-approval flow; File 05 owns the registered-entry trust state and the declaration; File 21 and the future Extension and MCP specs own the install, update, and enablement mechanics this file gates. Executable code installation and execution are not this file's; the trust decision over them is.
+This section owns trust establishment, verification, and change. File 06 owns how a trust class narrows an effective tier and runs the source-approval flow; File 05 owns the registered-entry trust state and the declaration; File 21, File 35, and File 36 own the install, update, and enablement mechanics this file gates. Executable code installation and execution are not this file's; the trust decision over them is.
 
 ## 10. Device Trust and Pairing
 
@@ -492,7 +492,7 @@ Security invariants are enforced at the service trait boundary, not scattered ac
 
 ### 13.6 Boundary
 
-This section owns the trust-boundary principle, the IPC posture, and the local-authentication gate's security role. File 23 owns the filesystem and process enforcement mechanics; the future UI specs own the unlock and consent presentation; File 01 §9 grounds the process model. The posture is structural; the rendering is not this file's.
+This section owns the trust-boundary principle, the IPC posture, and the local-authentication gate's security role. File 23 owns the filesystem and process enforcement mechanics; File 37 and File 38 own the unlock and consent presentation; File 01 §9 grounds the process model. The posture is structural; the rendering is not this file's.
 
 ## 14. Audit Cryptography
 
@@ -619,9 +619,9 @@ Every later spec that touches credentials, secrets, trust, encryption, egress, o
 - File 23 owns process spawning, sandbox scopes, filesystem and network enforcement, resource isolation, killability, and the elevated-helper process mechanics; it consumes this file's trust decision (how strictly to sandbox an untrusted source), egress-destination policy (which destinations the network enforcement blocks), secret/credential rules across process boundaries, and the privilege-separation pairing credential. It enforces containment; this file decides trust and policy.
 - File 24 persists workspace data through the substrate and consumes this file's secret boundary (no secret in a materialized file unredacted) and egress governance (workspace export through the governed paths).
 - The **per-surface specs** (Coder, Web, Data Processor, Teacher, GUI Control, System Agent) consume the vault for any service credential, the backend secret boundary for any secret-bearing capture or log, the secret detector for redaction, the trust model for any source they load, and the egress governance for any export; none introduces a private secret store, a private egress path, or a private trust authority.
-- The future **Automation, Triggers, and Scheduling** spec runs non-interactive work under least authority, resolves credentials through the vault at point of use, and obeys the egress governance for any automated outbound transfer; an automation never holds a resolved secret or escalates trust without the user.
-- The future **Extension, Plugin, and MCP Integration** specs own the install, update, enablement, and execution of code; they consume this file's trust establishment, the install-time manifest review, source-integrity records, evidence-based verification, and user trust overrides; a synced or imported record referencing an unapproved source resolves to an untrusted, inert state, and imported trust assertions are evidence rather than local authority.
-- The future **UI** specs render the unlock prompt, the trust-review dialog, the egress confirmation, the credential management surface, and the audit panel from the data contracts this file defines; raw secrets never reach the renderer to be rendered.
+- The **Automation and Triggers** spec (File 33) runs non-interactive work under least authority, resolves credentials through the vault at point of use, and obeys the egress governance for any automated outbound transfer; an automation never holds a resolved secret or escalates trust without the user.
+- The **Extension and Plugin System** (File 35) and **MCP and External Integrations** (File 36) specs own the install, update, enablement, and execution of code; they consume this file's trust establishment, the install-time manifest review, source-integrity records, evidence-based verification, and user trust overrides; a synced or imported record referencing an unapproved source resolves to an untrusted, inert state, and imported trust assertions are evidence rather than local authority.
+- The **UI Shell** spec (File 37) and the **UI Customization** spec (File 38) render the unlock prompt, the trust-review dialog, the egress confirmation, the credential management surface, and the audit panel from the data contracts this file defines; raw secrets never reach the renderer to be rendered.
 - The future **Telemetry, Logging, and Observability** spec consumes security events as data, redacts through this file's detector, and never makes a telemetry view a source of truth or egresses content this file excludes.
 - The future **Evaluation and Benchmarking** spec verifies the secret boundary (no secret in any persisted, transmitted, or exposed path), the redaction detector (golden fixtures for known secret shapes), the audit-chain tamper detection, the egress gate (no `Sensitive` without opt-in, no raw `Secret` ever), the encryption attachment (identity unchanged under encryption), and the no-authority-from-untrusted-content rule; it replays over recorded snapshots and immutable references, not live secret state.
 - Every later spec that introduces a credential, a secret, a trusted source, an encrypted store, or an egress path declares it against this file's vault, boundary, trust model, encryption contract, and egress governance, and obeys the no-inline-secret, no-secret-egress, least-authority, human-governed-security-state, and no-authority-from-untrusted-content rules this file fixes.

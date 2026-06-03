@@ -34,7 +34,7 @@ This file does not define:
 - ledger row format, event-stream wire format, and storage projections — `run.ledger-events-commits` (File 04 §23) owns the contract; later ledger and storage specs own the schema
 - credential vault internals or trust-state cryptographic verification — File 22 owns those
 - sandbox or process isolation primitives — File 23 owns those
-- specific provider rate-limit tracking, circuit breakers, or polling intervals — File 17 owns provider concerns; the future MCP/External Integrations spec owns MCP and external tool-provider concerns
+- specific provider rate-limit tracking, circuit breakers, or polling intervals — File 17 owns provider concerns; File 36 (MCP and External Integrations) owns MCP and external tool-provider concerns
 - approval modal layout, color palettes, modal stacking, or any UI rendering choices — File 06 specifies the data contract; UI specs own presentation
 
 ## Source Resolution
@@ -125,7 +125,7 @@ State awareness is consulted for context: the active surface, focused element, p
 
 ### 2.4 Boundary
 
-File 06 is the runtime evaluation layer. It owns no storage schema, no UI rendering, no execution mechanics, and no capability declarations. Storage of leases and policy events is File 20's concern; presentation of approval prompts and lease management UIs is the future UI Shell and UI Customization specs' concern; the actual execution of approved capability calls is File 04's concern.
+File 06 is the runtime evaluation layer. It owns no storage schema, no UI rendering, no execution mechanics, and no capability declarations. Storage of leases and policy events is File 20's concern; presentation of approval prompts and lease management UIs is File 37 and File 38's concern; the actual execution of approved capability calls is File 04's concern.
 
 ## 3. The Approval Router
 
@@ -310,7 +310,7 @@ Batching granularity is configurable by surface and policy profile: single turn,
 
 ### 5.6 Boundary
 
-Approval flows produce typed decisions through the same hook bus. The user-facing presentation of each flow (conversation-inline approval card, modal dialog, voice confirmation request, command-palette inline confirmation) is owned by the future UI specs; the policy layer specifies the data contract (§13), not the rendering.
+Approval flows produce typed decisions through the same hook bus. The user-facing presentation of each flow (conversation-inline approval card, modal dialog, voice confirmation request, command-palette inline confirmation) is owned by File 37 and File 38; the policy layer specifies the data contract (§13), not the rendering.
 
 ## 6. Touched-Resource Matching Against Lease Scope
 
@@ -408,7 +408,7 @@ The list is illustrative. The canonical rule is: any capability that is irrevers
 
 ### 7.6 Boundary
 
-Typed-confirmation is a policy-flow shape. The actual rendering of the typed-confirmation UI (the modal, the input field, the preview, the cancel button) is owned by the future UI specs. File 06 specifies the data contract: the approval-text template, the confirmation-string pattern, the preview payload, and the typed `TypedConfirmationResponse` carrying the user's typed string. The policy layer validates the typed string against the pattern; mismatch produces a typed `TypedConfirmationMismatch` decision and the flow returns to ask the user again or cancel.
+Typed-confirmation is a policy-flow shape. The actual rendering of the typed-confirmation UI (the modal, the input field, the preview, the cancel button) is owned by File 37 and File 38. File 06 specifies the data contract: the approval-text template, the confirmation-string pattern, the preview payload, and the typed `TypedConfirmationResponse` carrying the user's typed string. The policy layer validates the typed string against the pattern; mismatch produces a typed `TypedConfirmationMismatch` decision and the flow returns to ask the user again or cancel.
 
 ## 8. Auto-Decide Mode
 
@@ -500,7 +500,7 @@ User decisions persist as:
 - capability-specific tier overrides through the settings cascade
 - per-source default-behavior selection through the settings cascade
 
-The user may revisit and edit any of these through settings or through the capability registry's source-management surface (the future UI specs render the management surface). Edits emit the same `LeaseGranted`/`LeaseRevoked`/`SourceRegistrationApproved` events for audit consistency.
+The user may revisit and edit any of these through settings or through the capability registry's source-management surface (File 37 and File 38 render the management surface). Edits emit the same `LeaseGranted`/`LeaseRevoked`/`SourceRegistrationApproved` events for audit consistency.
 
 ### 9.6 Trust Mapping Defaults
 
@@ -520,7 +520,7 @@ The source-approval flow is itself a capability invocation: `policy.review_sourc
 
 ### 9.8 Boundary
 
-The flow's UI rendering (the source-approval modal, the per-capability customization controls, the trust override toggle, the deny-outright button) is owned by the future UI specs. File 06 specifies the data contract — the proposal shape, the user's response shape, the persisted lease shape — and the resolution algorithm. The flow's actual capability registration mechanics (admit declaration, resolve backend binding, emit `CapabilityRegistered`) are owned by `capability.registered-capability` (File 05 §10) and `capability.lifecycle` (File 05 §16); File 06 gates whether registration completes, not how it executes.
+The flow's UI rendering (the source-approval modal, the per-capability customization controls, the trust override toggle, the deny-outright button) is owned by File 37 and File 38. File 06 specifies the data contract — the proposal shape, the user's response shape, the persisted lease shape — and the resolution algorithm. The flow's actual capability registration mechanics (admit declaration, resolve backend binding, emit `CapabilityRegistered`) are owned by `capability.registered-capability` (File 05 §10) and `capability.lifecycle` (File 05 §16); File 06 gates whether registration completes, not how it executes.
 
 ## 10. Mid-Execution Policy Re-Evaluation
 
@@ -724,7 +724,7 @@ A capability invocation may have multiple templates applicable: the capability's
 
 ### 12.7 Boundary
 
-Templates are policy-evaluation declarations. Their storage schema, version evolution, and import/export behavior are owned by File 20 and File 21. Their UI presentation (the template editor, the validator-chain visualizer, the approval-text preview) is owned by the future UI specs. File 06 specifies the field set, the validator verdict semantics, and the composition order.
+Templates are policy-evaluation declarations. Their storage schema, version evolution, and import/export behavior are owned by File 20 and File 21. Their UI presentation (the template editor, the validator-chain visualizer, the approval-text preview) is owned by File 37 and File 38. File 06 specifies the field set, the validator verdict semantics, and the composition order.
 
 ## 13. Approval UI Surface Contract
 
@@ -814,7 +814,7 @@ Any presentation surface implementing the contract must:
 - allow the user to customize `user_customizable_constraints` for any option that declares them
 - for typed-confirmation flows, present the `confirmation_string_pattern` requirement and validate the user's typed string before submission
 - emit the `ApprovalResponse` through the canonical event bus
-- support keyboard navigation, voice control, and screen-reader operation per the canonical accessibility requirements (the future UI Shell and Accessibility specs detail these, but the policy layer's contract here requires that the UI honor them)
+- support keyboard navigation, voice control, and screen-reader operation per the canonical accessibility requirements (File 37 and File 38 detail these, but the policy layer's contract here requires that the UI honor them)
 
 The contract does not specify modal vs inline rendering, color, layout, animation, or any other presentation choice. Multiple surfaces (conversation-inline approval, modal dialog, voice confirmation, command-palette inline confirmation, batched approval review, automation pre-flight review) consume the contract and render appropriately for their context.
 

@@ -30,10 +30,10 @@ This file does not define:
 - routing-frame composition, the route record, or how `tool_surface_strategy` is chosen by the router — File 03 owns those
 - run lifecycle, the capability-call pipeline, hook execution, cancellation, streaming, or postcondition validation — File 04 owns those
 - block schema, artifact lifecycle, evidence model, or the version graph — later specs own those
-- the per-surface specifications themselves (Coder File 27, Web File 28, Data Processor File 29, and the remaining Teacher, GUI Control, System Agent specs) — those specs declare their `SubsystemSurfaceSpec` to the contract this file defines
+- the per-surface specifications themselves (Coder File 27, Web File 28, Data Processor File 29, Teacher File 30, GUI Control File 31, System Agent File 32) — those specs declare their `SubsystemSurfaceSpec` to the contract this file defines
 - the storage schema for surface state, `BorrowGrant`s, policy leases, or settings — File 20 owns those
-- UI rendering choices (palette layout, voice cadence, shortcut display) — File 07 specifies the data contract, the future UI Shell and UI Customization specs render
-- MCP transport mechanics, plugin install lifecycle internals, provider rate limits, or sandbox primitives — the future MCP and External Integrations and Extension and Plugin System specs and File 23 own those; File 17 owns provider concerns
+- UI rendering choices (palette layout, voice cadence, shortcut display) — File 07 specifies the data contract, File 37 and File 38 render
+- MCP transport mechanics, plugin install lifecycle internals, provider rate limits, or sandbox primitives — File 36 (MCP and External Integrations), File 35 (Extension and Plugin System), and File 23 own those; File 17 owns provider concerns
 
 ## Source Resolution
 
@@ -120,7 +120,7 @@ Every `ResolvedToolSurface` is recorded as a surface snapshot in the execution l
 
 A `ToolSurface` is the projection layer over the Capability Registry. It owns no declarations of its own. The same canonical algorithm runs for every invoker kind; per-kind variation lives in the invocation-lens filter step (§11) and the presentation rendering owned by later UI specs.
 
-File 20 owns durability of recorded surface snapshots and user-customization settings. The future UI Shell and Customization specs own how a `ResolvedToolSurface` is rendered to humans. File 07 specifies the data contract; storage and UI consume it.
+File 20 owns durability of recorded surface snapshots and user-customization settings. File 37 and File 38 own how a `ResolvedToolSurface` is rendered to humans. File 07 specifies the data contract; storage and UI consume it.
 
 ## 3. The Zone Model
 
@@ -310,7 +310,7 @@ Cross-surface capability access through `tool.borrow` does not require a primary
 
 ### 5.6 Boundary
 
-`SubsystemSurfaceSpec` is a contract this file defines; the actual specs for the work surfaces (Coder, Web, Teacher, Data Processor, GUI Control, System Agent), the capability-owning substrate services, and any user-registered subsystems are declared in those subsystems' own canonical specs once they are written. File 07 names the contract shape; later specs fill the contract for their subsystem.
+`SubsystemSurfaceSpec` is a contract this file defines; the actual specs for the work surfaces (Coder, Web, Teacher, Data Processor, GUI Control, System Agent), the capability-owning substrate services, and any user-registered subsystems are declared in those subsystems' own canonical specs (the baseline work surfaces are Files 27–32). File 07 names the contract shape; later specs fill the contract for their subsystem.
 
 ## 6. Routing Influence
 
@@ -784,14 +784,14 @@ The `Palette` lens renders the surface as a searchable user-facing list. The ren
 - `description` and `short_description` localized
 - `family` for grouping
 - `tags` for filtering
-- `icon_key` (per `capability.display-fields`, File 05 §3.2) for visual identification (the actual icon image is owned by the future UI spec)
+- `icon_key` (per `capability.display-fields`, File 05 §3.2) for visual identification (the actual icon image is owned by File 37)
 - `default_shortcut` (per `capability.display-fields`, File 05 §3.2) and any user-bound shortcut for inline display
 - `source` for source filtering
 - `effective_tier` (resolved per `policy.effective-tier-resolution` (File 06 §4)) for showing approval indicators ("requires approval", "typed-confirmation required", "blocked", "trusted")
 - `availability_status` (per `capability.registered-capability`, File 05 §10) for showing currently-unavailable entries
 - `zone` for visual grouping (Primary appears prominently; Borrowable appears slightly de-emphasized; Deferred appears only if user revealed)
 
-The palette consumes this typed data and renders. File 07 specifies the data; the future UI spec specifies layout, color, animation, search behavior.
+The palette consumes this typed data and renders. File 07 specifies the data; File 37 specifies layout, color, animation, search behavior.
 
 ### 12.2 Voice Lens
 
@@ -799,14 +799,14 @@ The `Voice` lens filters capabilities tagged `voice-invokable` (per `capability.
 
 - `display_name` and `description`
 - `voice_aliases` — the spoken phrases that map to this capability (per File 05 display fields and unit-spec recommendations); examples like "read the file", "open the project", "send an email"
-- `argument_extraction_hints` — typed hints for the voice-to-arguments extraction (per the future Voice spec)
+- `argument_extraction_hints` — typed hints for the voice-to-arguments extraction (per File 26)
 - `effective_tier` — voice invocation may produce a typed-confirmation request for high-tier capabilities (per `policy.approval-ui-surface-contract`, File 06 §13)
 
 Voice invocation invokes the capability through the same `run.call-pipeline` (File 04 §8.2) pipeline as agent or user invocation. The voice resolver is just another invoker.
 
 ### 12.3 Shortcut Lens
 
-The `Shortcut` lens renders a chord-to-capability map. Entries are capabilities with a declared `default_shortcut` or a user-bound shortcut. The chord format is per the future Keybinding spec; File 07 specifies that:
+The `Shortcut` lens renders a chord-to-capability map. Entries are capabilities with a declared `default_shortcut` or a user-bound shortcut. The chord format is per File 26 (the keymap); File 07 specifies that:
 
 - Conflicts are detected at registration time (two capabilities with the same shortcut produce a `ShortcutConflict` event per §13; the registry rejects the second registration unless explicitly overridden)
 - User-bound shortcuts override `default_shortcut` declarations
@@ -816,7 +816,7 @@ The `Shortcut` lens renders a chord-to-capability map. Entries are capabilities 
 
 Anchor: `surface.inspector-lens`
 
-The `Inspector` lens shows the full registry catalog with no filtering — every registered capability, in every zone (including `Disabled`, `Unavailable`, `Forbidden`). The inspector lens is the canonical management surface; the future UI Customization spec renders the inspector as a tab or panel with:
+The `Inspector` lens shows the full registry catalog with no filtering — every registered capability, in every zone (including `Disabled`, `Unavailable`, `Forbidden`). The inspector lens is the canonical management surface; File 38 renders the inspector as a tab or panel with:
 
 - Per-source enable/disable toggle
 - Per-family enable/disable
@@ -836,7 +836,7 @@ The inspector's data contract is the canonical surface customization surface. Us
 The `AutomationTrigger` lens filters capabilities tagged `automation-trigger` and capabilities that can be invoked as automation actions. The lens carries:
 
 - per-capability `automation_input_template` — typed structure naming which inputs are required, which are derived from trigger context (event payload, scheduled context, watch state), which are pinned at save time
-- per-capability `automation_constraints` — typed constraints the future Automation spec evaluates (e.g., automation cannot invoke capabilities with `replay_class: not_replayable`)
+- per-capability `automation_constraints` — typed constraints File 33 (Automation and Triggers) evaluates (e.g., automation cannot invoke capabilities with `replay_class: not_replayable`)
 
 ### 12.6 External MCP Lens
 
@@ -854,7 +854,7 @@ Each lens enforces its own visibility rules in step 11 of the composition algori
 
 ### 12.8 Boundary
 
-File 07 specifies the per-lens data contract. The future UI Shell and UI Customization specs render those contracts into actual UI. The future Voice spec specifies voice-to-arguments extraction. The future Automation spec specifies trigger evaluation and action invocation. File 07 hands them the canonical lens data and the lens-filter algorithm.
+File 07 specifies the per-lens data contract. File 37 and File 38 render those contracts into actual UI. File 26 (the Voice rail) specifies voice-to-arguments extraction. File 33 (Automation and Triggers) specifies trigger evaluation and action invocation. File 07 hands them the canonical lens data and the lens-filter algorithm.
 
 ## 13. Surface-Relevant Events
 
@@ -1022,7 +1022,7 @@ External-API capabilities (declared in TOML or equivalent per `capability.capabi
 
 ### 15.7 Boundary
 
-File 07 specifies how source-derived capabilities surface. The actual MCP transport, plugin install lifecycle, external-API definition format are owned by their respective later specs (MCP and External Integrations, Extension and Plugin System). File 07 consumes their registered output through the unified registry contract from File 05.
+File 07 specifies how source-derived capabilities surface. The actual MCP transport, plugin install lifecycle, external-API definition format are owned by File 36 (MCP and External Integrations) and File 35 (Extension and Plugin System). File 07 consumes their registered output through the unified registry contract from File 05.
 
 ## 16. Tool-Choice Mechanics
 
@@ -1227,13 +1227,13 @@ The canonical principles later specs must follow:
 - File 13 consumes the rendered `Primary` and `Borrowable` outputs of the composition algorithm as part of the model request; it does not invent its own surface; it places the surface in the canonical request position (§11.1) and applies cache markers as appropriate
 - File 20 stores `BorrowGrant`s, settings, ledger entries, and consumed surface snapshots per the contracts here; it does not introduce parallel durability paths
 - File 15 implements settings resolution, profile contexts, profile layers, locality, and agent exposure for the dimensions in §18; it does not redefine the dimensions
-- the future Extension and Plugin System spec and MCP and External Integrations spec hand their registered capabilities through the unified Capability Registry per `capability.sourcing` (File 05 §9); the surface composition picks them up automatically
+- File 35 (Extension and Plugin System) and File 36 (MCP and External Integrations) hand their registered capabilities through the unified Capability Registry per `capability.sourcing` (File 05 §9); the surface composition picks them up automatically
 - File 24 defines workspace boundaries; the surface composition consumes workspace_id from `scope_context` as one of the resolution inputs; workspace switching emits the appropriate `SurfaceSettingsChanged` event
-- the per-surface specs (Coder File 27, Web File 28, Data Processor File 29, and the remaining Teacher, GUI Control, System Agent specs) and the capability-owning substrate-service specs declare their `SubsystemSurfaceSpec` and any specialized discovery capabilities or specialized auto-shrink priorities specific to their subsystem
-- the future Automation and Triggers spec consumes the `AutomationTrigger` lens through the canonical contract; it pins surface strategies at save time through the same `tool_surface_strategy` field as runtime routing
-- the future Workflows, Templates, and Reuse spec composes capabilities through the unified registry; workflow nodes reference capability ids; the surface composition for a workflow execution honors the workflow's declared capability list as an additional input
-- the future UI Shell, Layout, Presentation, and Interaction Models spec renders the `Palette`, `Inspector`, `Voice`, `Shortcut`, `AutomationTrigger` lens data into UI; File 07 hands them the canonical data contract
-- the future UI Customization, Widgets, and Theming spec renders the surface inspector and the per-capability settings views; the data contract is what File 07 specifies
+- the per-surface specs (Coder File 27, Web File 28, Data Processor File 29, Teacher File 30, GUI Control File 31, System Agent File 32) and the capability-owning substrate-service specs declare their `SubsystemSurfaceSpec` and any specialized discovery capabilities or specialized auto-shrink priorities specific to their subsystem
+- File 33 (Automation and Triggers) consumes the `AutomationTrigger` lens through the canonical contract; it pins surface strategies at save time through the same `tool_surface_strategy` field as runtime routing
+- File 34 (Workflows, Templates, and Reuse) composes capabilities through the unified registry; workflow nodes reference capability ids; the surface composition for a workflow execution honors the workflow's declared capability list as an additional input
+- File 37 (UI Shell, Layout, Presentation, and Interaction Models) renders the `Palette`, `Inspector`, `Voice`, `Shortcut`, `AutomationTrigger` lens data into UI; File 07 hands them the canonical data contract
+- File 38 renders the surface inspector and the per-capability settings views; the data contract is what File 07 specifies
 - the future Quality Control and Validation spec may consume the surface for static analysis (capability availability checks, lens consistency checks, shortcut conflict detection); it does so through the canonical inspector lens
 - the future Evaluation and Benchmarking spec consumes the surface snapshot recorded in the ledger to evaluate tool-use efficiency; replay reconstructs the exact surface a past invocation saw
 - the future Telemetry, Logging, and Observability spec captures surface-relevant events for monitoring; it consumes the canonical event vocabulary

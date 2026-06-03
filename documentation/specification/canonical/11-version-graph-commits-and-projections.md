@@ -49,7 +49,7 @@ This file does not define:
 - model strategy, provider routing, rate-limit reconciliation, or provider-health tracking — Files 16 and 17 own those
 - workspace materialization mechanics, materialized-path resolution, disk → block sync, or workspace-tree management beyond declaring that disk state is a projection of the active version's view per `artifact.disk-entity-sync` (File 09 §7.5) — File 24 owns those
 - security primitives, sandbox isolation, or credential management — Files 22 and 23 own those
-- UI rendering choices for the version-timeline, tree view, comparison-board, history-panel, inspector previews, undo affordances, or accessibility surfaces — the future UI Shell and UI Customization specs and the per-surface specs own those; this file specifies the canonical data contracts those surfaces consume
+- UI rendering choices for the version-timeline, tree view, comparison-board, history-panel, inspector previews, undo affordances, or accessibility surfaces — File 37, File 38, and the per-surface specs own those; this file specifies the canonical data contracts those surfaces consume
 - specific evaluation-suite or benchmark schemas — the future Evaluation and Benchmarking spec owns those, though it consumes the replay surface defined here
 
 ## Source Resolution
@@ -189,8 +189,8 @@ It does not own:
 - the run lifecycle or capability-call pipeline (File 04)
 - the policy evaluation algorithm or lease lifecycle (File 06)
 - the tool-surface composition algorithm (File 07)
-- the storage on-disk layout or sync transport (future specs)
-- the UI rendering of timelines, comparison boards, or inspectors (future UI specs)
+- the storage on-disk layout or sync transport (Files 20 and 21)
+- the UI rendering of timelines, comparison boards, or inspectors (File 37 and File 38)
 - the retrieval algorithms (File 12) and context-assembly / compaction algorithms (File 13)
 
 ## 3. `ContextVersion`

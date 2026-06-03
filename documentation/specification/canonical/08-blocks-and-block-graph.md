@@ -36,7 +36,7 @@ This file does not define:
 - context assembly, compaction algorithms, or token-budget mechanics — File 13 owns those
 - memory promotion, salience scoring, or memory lifecycle — File 14 owns those
 - run lifecycle, the capability-call pipeline, or hook execution — File 04 owns those
-- block-rendering UI choices (collapsible cards, syntax highlighting, hover states) — the future UI presentation and customization specs own those
+- block-rendering UI choices (collapsible cards, syntax highlighting, hover states) — File 37 and File 38 own those
 - storage schema, sync, or import/export — File 20 and File 21 own those
 
 ## Source Resolution
@@ -577,7 +577,7 @@ A block whose committed references resolve to non-existent targets at read time 
 
 ### 8.5 Boundary
 
-Identity, validation, and hashing are commit-time concerns owned by this file. Storage of these fields and propagating them to surface displays are owned by File 20 and the future UI specs; indexing is owned by File 12.
+Identity, validation, and hashing are commit-time concerns owned by this file. Storage of these fields and propagating them to surface displays are owned by File 20, File 37, and File 38; indexing is owned by File 12.
 
 ## 9. Sensitivity
 

@@ -43,7 +43,7 @@ This file does not define:
 - the `CapabilityDeclaration` field set, registry operations, or backend bindings — File 05 owns those; this file declares the entity-level capabilities listed above as canonical built-in capability declarations
 - the policy evaluation algorithm, approval flows, leases, or contradiction-checking — File 06 owns those; this file specifies which entity mutations are tier-gated and how
 - tool-surface zones, surface composition, or zone semantics — File 07 owns those; this file requires that artifact, claim, evidence, and provenance capabilities surface uniformly
-- UI rendering choices for artifact previews, claim cards, evidence panels, citation chips, observation viewers, provenance trees, or validation badges — the future UI Shell and UI Customization specs own those; this file specifies the canonical data contracts those surfaces consume
+- UI rendering choices for artifact previews, claim cards, evidence panels, citation chips, observation viewers, provenance trees, or validation badges — File 37 and File 38 own those; this file specifies the canonical data contracts those surfaces consume
 - storage of credentials referenced by an artifact, claim, or evidence record — File 22 owns those
 - sandbox primitives, isolation policy, or rendering-runtime details — File 23 owns those
 - per-surface specifications (Coder, Web, Data Processor, Teacher, GUI Control, System Agent) — those specs declare which artifact kinds and observation kinds they primarily produce; File 09 declares the canonical baseline
@@ -138,7 +138,7 @@ Entity events emit through the canonical event bus per `run.event-stream` (File 
 
 ### 2.7 Boundary
 
-File 09 is the entity and provenance-query layer. It owns no storage schema, no event-bus implementation, no UI rendering, no capability execution mechanics, and no block content carriage. Storage of entity records is File 20's concern; presentation of entity surfaces is the future UI Shell and UI Customization specs' concern; the actual execution of entity-mutating capability calls is `run.call-pipeline` (File 04 §8.2)'s pipeline.
+File 09 is the entity and provenance-query layer. It owns no storage schema, no event-bus implementation, no UI rendering, no capability execution mechanics, and no block content carriage. Storage of entity records is File 20's concern; presentation of entity surfaces is File 37 and File 38's concern; the actual execution of entity-mutating capability calls is `run.call-pipeline` (File 04 §8.2)'s pipeline.
 
 ## 3. `Artifact`
 
@@ -249,7 +249,7 @@ Every artifact declares its `artifact_kind` at creation. The canonical closed ca
 
 **Workflow and reuse:**
 
-- `WorkflowTemplate` — a reusable workflow declaration (per the future Workflows, Templates, and Reuse spec)
+- `WorkflowTemplate` — a reusable workflow declaration (per File 34)
 - `Adapter` — a registered adapter capability authored by user or agent (per `capability.adapter-capabilities`, File 05 §17.4)
 - `Validator` — a registered validation rule authored by user or agent (typically pairs with the QC subsystem)
 
@@ -783,7 +783,7 @@ A URL-only citation is a durable reference, not durable source content. Evidence
 - `FileRange` — a reference to a range within a workspace file; `reference_value` is `(file_path, range_kind, range_value)` where `range_kind` is one of `LineRange`, `ByteRange`, `CharacterRange`
 - `PriorBlock` — a reference to any block in the pool by `block_id`
 - `McpResource` — a reference to an MCP server resource by `(server_id, resource_uri)`
-- `KnowledgeEntry` — a reference to a `Memory`-kind block or to a future-spec'd knowledge-base entry by its stable id
+- `KnowledgeEntry` — a reference to a `Memory`-kind block or to a File 12 knowledge-base entry by its stable id
 - `Repository` — a reference to a code repository commit or path (`repo_url`, `commit_hash`, optional `path`)
 - `ExternalDoiUrn` — a reference to a DOI, URN, ISBN, or other stable scholarly identifier
 - `ProvenanceRecord` — a reference to a ledger entry by `(run_id, ledger_entry_id)` for self-referential provenance
@@ -1102,7 +1102,7 @@ Each surface projects the entity pool through surface-specific filters:
 - the Data Processor surface presents `Dataset`, `Chart`, `Notebook`, `Table`, plus the data-lineage projection of `derives_from` edges
 - the Teacher surface presents `Lesson`, `Curriculum`, `Quiz`, `ExerciseSet`, `FlashcardSet`, `Rubric`, plus custom Teacher-surface artifact kinds for specialized pedagogy and learner-progress projections
 - the GUI Control surface presents `Macro`, `ScreenshotSeries`, `Observation` (UI tree snapshots), plus action-replay projections
-- the System Agent surface presents change records as artifact-like outputs with rollback projections (the future System Agent spec declares its specific kinds)
+- the System Agent surface presents change records as artifact-like outputs with rollback projections (File 32 declares its specific kinds)
 - the memory management surface presents `Memory`-kind blocks (per `block.kind-catalogue`, File 08 §3.1) and the knowledge-base projection over claims and citations
 - the conversation transcript filters for transcript-anchorable kinds and resolves artifact references to inline cards or sidecar panes
 - the inspector lens (per `surface.inspector-lens`, File 07 §12.4) presents every entity in the pool, filtered by user-chosen axes (kind, status, scope, source, validation state, review state, lifecycle state)
@@ -1395,7 +1395,7 @@ Later specs must follow these rules:
 - The world model and state-awareness spec must treat artifacts, claims, and observations as part of the world state available to agents; the available-capability set must filter entity capabilities based on the entity catalogue (e.g., `artifact.commit_version` requires the artifact entity to exist).
 - The perception and observation pipelines spec must produce `Observation` blocks conforming to §13's contract (kind, payload, staleness fingerprint) and route observations through the canonical `observation.commit` path for cross-surface/subsystem inspection.
 - The storage and persistence spec must store the entity-record field sets, the version metadata records, the evidence-link edge metadata, the materialized-paths records, and the tombstone rows per the contracts in §18; it must rebuild derived state (lifecycle, status, evidence-set closure) deterministically from the source action log and graph.
-- The sync, import, export, and data portability spec must preserve artifact identity, claim identity, evidence-link relations, and provenance chains across export and import; imported entities receive `Import` producer records per `block.block` (File 08 §2.2) and continue to participate in provenance queries through the future cross-installation mapping table.
+- The sync, import, export, and data portability spec must preserve artifact identity, claim identity, evidence-link relations, and provenance chains across export and import; imported entities receive `Import` producer records per `block.block` (File 08 §2.2) and continue to participate in provenance queries through the cross-installation identity mapping (File 21).
 - The security, credentials, and trust boundaries spec must treat `Secret`-sensitivity citations, observations, and evidence with the same redaction discipline `block.sensitivity` (File 08 §9) establishes for `Secret` blocks; raw secrets in observations must be redacted at commit.
 - The sandbox, process control, and isolation spec must commit `Observation` blocks (per §13) for sandboxed-process snapshots that capability runs depend on for revalidation per `run.call-pipeline` (File 04 §8.2).
 - The workspaces and materialization spec must implement the `InWorkspace` materialization path-resolution algorithm and the disk→entity sync loop per §7.3 and §7.5.

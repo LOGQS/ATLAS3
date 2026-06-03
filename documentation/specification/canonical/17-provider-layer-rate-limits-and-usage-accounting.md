@@ -44,11 +44,11 @@ This file does not define:
 - memory recall, store, or consolidation — File 14 owns those
 - the settings source stack, scope resolution, or profile layering — File 15 owns those
 - credential vault internals, OS keyring integration, secret encryption, or trust-state cryptography — File 22 owns those; this file specifies the vault-reference contract and the namespace
-- MCP transport mechanics for tool servers — the future MCP and External Integrations spec owns those; this file is for model/inference providers, not tool providers
+- MCP transport mechanics for tool servers — File 36 (MCP and External Integrations) owns those; this file is for model/inference providers, not tool providers
 - sandbox primitives, process isolation, or sandboxed-runtime details — File 23 owns those
 - physical storage layout, on-disk schema, or index strategy — File 20 owns those
 - cross-device sync transport — File 21 owns those
-- UI rendering of provider lists, model pickers, usage dashboards, billing views, rate-limit indicators, or credential management surfaces — the future UI specs own those
+- UI rendering of provider lists, model pickers, usage dashboards, billing views, rate-limit indicators, or credential management surfaces — File 37 and File 38 own those
 - packaging, installer behavior, or platform integration — the future Packaging spec owns those
 - concrete provider names, model names, exact pricing values, exact tokenizer crate identifiers, or vendor-specific wire-format details outside the boundaries listed in §6.5
 
@@ -1170,9 +1170,9 @@ Later specs must follow these rules:
 - The Security, Credentials, and Trust Boundaries spec implements the backend-only vault resolution interface this layer references through `resolve_for_use(SecretRef("provider.<provider_id>.<account_id>.<credential_id>"), purpose, invocation_context)` and emits `CredentialRotated` events consumed here
 - File 20 must persist `TokenUsageRecord`s with their full keyed attribution and the cross-references this file enumerates; it must persist `RateLimitState` per-device and exclude it from cross-device sync per §13.8
 - File 21 must respect the per-event sensitivity classifications declared here and the per-`SettingDefinition` locality declarations the settings spec carries
-- The future MCP and External Integrations spec must not subsume the model-provider layer; MCP for tools is a tool-provider concern with its own provider-adapter analogue, not a route through this layer
+- File 36 (MCP and External Integrations) must not subsume the model-provider layer; MCP for tools is a tool-provider concern with its own provider-adapter analogue, not a route through this layer
 - File 23 must support subscription-wrapper subprocess lifecycle in the sandbox primitives declared there (process groups, HOME isolation, shadow homes)
-- The future UI specs must render per-call attribution, derived cost, rate-limit projections, credential states, provider health, and model-catalog freshness from the projections this layer produces; they must not maintain a parallel provider-state store
+- File 37 and File 38 must render per-call attribution, derived cost, rate-limit projections, credential states, provider health, and model-catalog freshness from the projections this layer produces; they must not maintain a parallel provider-state store
 - The future Telemetry, Logging, and Observability spec must consume `ModelCallStarted` / `ModelCallCompleted` / `TokenCountEstimationTelemetry` / `ProviderHealthChanged` / `RateLimitSnapshotReconciled` / `ParameterClamped` / `CacheBreakDetected` events without inventing parallel emission paths
 - The future Evaluation and Benchmarking spec should use `TokenUsageRecord` and `PricingSnapshot` references as primary artifacts for cost-correctness, cache-effectiveness, and tokenizer-accuracy measurements
 - Plugin and extension specs that register adapters or profiles must pass through the source-approval flow in `policy.source-approval-flow` (File 06 §9); they must implement the full `ProviderAdapter` contract and produce the same typed projections

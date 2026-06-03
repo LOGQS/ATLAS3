@@ -44,7 +44,7 @@ This file does not define:
 - the model-strategy layer, provider-routing logic, fallback chains, rate-limit reconciliation, or provider-health tracking — Files 16 and 17 own those; this file specifies the per-call attribution and per-error-class retry classification the ledger records
 - retrieval, indexing, knowledge-base mechanics, retrieval-augmented generation mechanics, or hybrid-search algorithms — File 12 owns those; this file specifies that the ledger is the substrate over which forensic and replay queries operate
 - context-assembly, compaction algorithms, token-budget mechanics, or per-policy block selection — File 13 owns those; this file specifies the typed `ContextPressureObserved` boundary and the compaction-related events that flow through the bus
-- the UI shell, the rendering of live or durable events into UI components, modal layouts, or accessibility surface choices — the future UI specs own those; this file specifies the typed envelope and event vocabulary the UI consumes
+- the UI shell, the rendering of live or durable events into UI components, modal layouts, or accessibility surface choices — File 37 and File 38 own those; this file specifies the typed envelope and event vocabulary the UI consumes
 - specific provider transport mechanics (Tauri IPC, Server-Sent Events, WebSocket, Unix sockets, MCP transports) — the future Runtime Infrastructure and Lifecycle spec owns those; this file specifies the canonical wire-format contract the transport must preserve
 
 ## Source Resolution
@@ -180,7 +180,7 @@ It does not own:
 - the storage on-disk layout (File 20)
 - the sync mechanics (File 21)
 - the security primitives (File 22)
-- the UI rendering (future UI specs)
+- the UI rendering (File 37 and File 38)
 - the model-strategy and provider-routing internals (Files 16 and 17)
 
 ## 3. `ExecutionLedger`
@@ -530,7 +530,7 @@ Domain-specific workspace, source-control, browser, perception, system-watch, me
 
 **Automation, scheduling, and triggers:**
 
-- `AutomationTriggerFired` — automation trigger emitted a run (per future Automation and Triggers spec)
+- `AutomationTriggerFired` — automation trigger emitted a run (per File 33)
 - `WebhookReceived` — external webhook delivered to the system
 - `OsEventReceived` — external OS event delivered
 
@@ -719,7 +719,7 @@ The event bus is the live coordination substrate. It does not own:
 - the underlying transport (Tauri, SSE, WebSocket, Unix socket, MCP — future Runtime Infrastructure spec)
 - the durable persistence of consequential events (File 20)
 - the cross-device sync mechanics (File 21)
-- the UI rendering of event-driven updates (future UI specs)
+- the UI rendering of event-driven updates (File 37 and File 38)
 - the typed-error propagation through services (cross-cutting/errors.md)
 - the policy-evaluation logic that consumes events (File 06)
 

@@ -33,7 +33,7 @@ This file does not define:
 - context-assembly, compaction, token budgets, or trajectory-image retention in the model request — File 13 owns those; this file produces compact, deduplicated captures that File 13 assembles and retains
 - action execution — clicking, typing, navigating, mutating files — is not perception; the per-surface action executors own it; this file owns only sensing and observation
 - credential storage, the secret vault, trust state, or sandbox/process isolation — File 22 and File 23 own those; this file carries sensitivity tags and references, never secret payloads, and references active sandboxes/devices without owning their isolation
-- workspace identity and materialization, storage layout, sync transport, or UI rendering — File 24, File 20, File 21, and the future UI specs own those
+- workspace identity and materialization, storage layout, sync transport, or UI rendering — File 24, File 20, File 21, File 37, and File 38 own those
 - the per-surface runtimes themselves (Coder, Web, Data Processor, Teacher, GUI Control, System Agent) — those specs declare their specific sensors and consume this substrate; this file declares the cross-cutting baseline
 
 ## Source Resolution
@@ -53,7 +53,7 @@ Resolved tensions:
 
 - "screen-capture infrastructure" (the specbase `ScreenCaptureService` in the infrastructure layer) versus "perception pipeline" (the GUI Control source material's three-tier element-detection pipeline): unified — there is one `Perception` substrate with a `Sensor` model, a processor model, and a tier strategy; the screen-capture service is the screen sensor, grounding is a registered processor over a capture, and the GUI three-tier pipeline is one instantiation of the canonical tier model. The per-surface specs instantiate; this file defines the shared substrate.
 - "structured state exposure is stronger than screenshot self-perception" (the first-party invariant and the strategic review) versus the pervasive screenshot-first patterns in external capture systems: resolved by the tiered sensing strategy — structured is the foundation, grounded is the bridge, raw is deliberate evidence or fallback, and raw media is exposed only when the capture need requires it or lower tiers are insufficient.
-- "never use time-based conditions or polling" (project constraint, `core.workspace-model`, File 01 §3) versus the pervasive polling/TTL patterns in source systems (periodic screenshots, git-status polling, screen-capture TTL caches, metric watch intervals): resolved exactly as `world.observation-state-update` (File 18 §8.6) resolves it — event-driven capture is canonical; every polling or staleness-TTL pattern surfaced in the sources is treated as a flagged, configurable fallback for sources without change events, never a default mechanism and never a correctness condition.
+- "never use time-based conditions or polling" (project constraint, `core.event-first-by-default`, File 01 §7.15) versus the pervasive polling/TTL patterns in source systems (periodic screenshots, git-status polling, screen-capture TTL caches, metric watch intervals): resolved exactly as `world.observation-state-update` (File 18 §8.6) resolves it — event-driven capture is canonical; every polling or staleness-TTL pattern surfaced in the sources is treated as a flagged, configurable fallback for sources without change events, never a default mechanism and never a correctness condition.
 - "every producer self-registers; there is no central observer that scrapes a rendered view" (`world.observation-state-update`, File 18 §8.1) versus the need to observe applications, pages, files, audio, and the system: resolved by source-of-truth boundary — Atlas-owned surfaces self-register their structured state to the world model (`world.observation-state-update`, File 18 §8.1) and are never screen-scraped to learn Atlas state; perception captures externally mutable or non-self-registering sources such as other applications, the open web, workspace files, repositories, terminals, processes, audio devices, OS windows, and system state.
 - "maintain a durable replay substrate" versus "high-frequency surface churn must stay transient": resolved by deferring durability to `world.durability-tiers` (File 18 §7) — perception emits both transient signals and deliberate `Observation` captures, and the world model classifies each into the `Ephemeral` / `Durable` / `Observed` tiers.
 
@@ -88,7 +88,7 @@ Anchor: `perception.boundaries-with-adjacent-layers`
 
 ### 2.1 With File 01 (Core Thesis)
 
-`core.world-model` (File 01 §6.7) declares that screenshot-driven self-perception is fallback, not foundation; §5 of this file makes that the tiered sensing strategy. Perception honors `core.non-destructive-by-default` (File 01 §7.13) (capture is read-only with respect to the world; it never mutates the source), `core.canonical-hash` (File 01 §7.14) and `core.canonical-encoding` (File 01 §6.15) (every capture hash and fingerprint is computed over a declared encoding, §6.4), `core.explicit-rejections` (File 01 §8) (model-derived capture results — grounding, optical-character-recognition, transcription — are keyed by model identity and never stored as unkeyed scalars, §9.4), and the `core.workspace-model` (File 01 §3) constraint forbidding time-based behavior (§8).
+`core.world-model` (File 01 §6.7) declares that screenshot-driven self-perception is fallback, not foundation; §5 of this file makes that the tiered sensing strategy. Perception honors `core.non-destructive-by-default` (File 01 §7.13) (capture is read-only with respect to the world; it never mutates the source), `core.canonical-hash` (File 01 §7.14) and `core.canonical-encoding` (File 01 §6.15) (every capture hash and fingerprint is computed over a declared encoding, §6.4), `core.explicit-rejections` (File 01 §8) (model-derived capture results — grounding, optical-character-recognition, transcription — are keyed by model identity and never stored as unkeyed scalars, §9.4), and the `core.event-first-by-default` (File 01 §7.15) constraint forbidding time-based behavior (§8).
 
 ### 2.2 With File 18 (World Model and State Awareness)
 
@@ -377,7 +377,7 @@ Capture is event-driven by default. The canonical triggers are:
 - **on-demand** — a consumer requests a fresh capture (a capability call, a re-observation request); the most common trigger for deliberate captures
 - **on-event** — a change signal from the source drives re-capture: an operating-system UI event (focus, structure, window create/destroy), a file-system change notification, a browser protocol event (document changed, navigation completed, network response), a connection lifecycle signal, or a voice-activity onset
 
-Event-first capture is the only mechanism that satisfies the project constraint against time-based conditions (`core.workspace-model`, File 01 §3). A sensor that has a change-event source must use it and must not poll.
+Event-first capture is the only mechanism that satisfies the project constraint against time-based conditions (`core.event-first-by-default`, File 01 §7.15). A sensor that has a change-event source must use it and must not poll.
 
 ### 8.2 The Polling Exception
 
@@ -389,7 +389,7 @@ Capture time is recorded as provenance metadata only (§6.6). Perception does no
 
 ### 8.4 Boundary
 
-This file owns the trigger model for capture. Scheduled and event automation that drives work (as opposed to capture) is the future Automation and Triggers spec's; that spec consumes perception's change signals.
+This file owns the trigger model for capture. Scheduled and event automation that drives work (as opposed to capture) is File 33 (Automation and Triggers)'s; that spec consumes perception's change signals.
 
 ## 9. Output Contract
 
@@ -646,7 +646,7 @@ The following shapes are wrong for this layer:
 - skipping an available, cheaper tier or escalating to a higher-cost tier when a lower tier already yields the needed structure (§5.3)
 - a central observer that screen-scrapes Atlas's own rendered UI — owned surfaces self-register their structured state (`world.observation-state-update`, File 18 §8.1); perception captures externally mutable or non-self-registering sources (§5.4)
 - defining a parallel state model — perception produces observations and signals; the world model (File 18) holds and projects state (§2.2)
-- polling as the primary capture mechanism — capture is event-first; polling and staleness-cache policies are flagged, configurable fallbacks for sources without change events, never correctness conditions (§8, `core.workspace-model`, File 01 §3)
+- polling as the primary capture mechanism — capture is event-first; polling and staleness-cache policies are flagged, configurable fallbacks for sources without change events, never correctness conditions (§8, `core.event-first-by-default`, File 01 §7.15)
 - deriving capture cadence, scheduling, or correctness from elapsed time except through the flagged polling fallback — capture time is provenance only (§8.3)
 - a non-deterministic record of a capture — the world is non-deterministic, but a recorded capture is immutable and replay-stable, and replay never re-captures live sensors or re-runs processors against live sources (§9.5)
 - storing a processor-derived capture result (optical-character recognition, grounding, transcription, captioning) as an unkeyed scalar — such results are keyed by full processor invocation identity (§9.4, `core.explicit-rejections`, File 01 §8)

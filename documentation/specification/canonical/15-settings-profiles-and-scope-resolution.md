@@ -124,7 +124,7 @@ Definitions may also carry:
 - `deprecated` - successor key and removal guidance.
 - `depends_on` - declarative UI dependency hints; these do not affect resolution.
 - `tags` - typed tags for search and filtering.
-- `display_hints` - non-semantic hints for future UI specs.
+- `display_hints` - non-semantic hints for the UI layer (File 37 and File 38).
 - `extension_fields` - typed owner-registered metadata that cannot alter canonical field meaning.
 
 There is no canonical field for progressive disclosure level. UI specs may choose how much to show by default using categories, tags, search, dependencies, risk, complexity, profile context, and surface-specific presentation rules.

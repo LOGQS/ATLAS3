@@ -734,6 +734,12 @@ This applies without exception, including `content_hash`, `diff_hash`, `expected
 
 Order-insensitive collections are sorted by a stable key before hashing; order-sensitive sequences preserve their order and are declared order-sensitive (§6.15). Two peers may rely on hash equality only when they share the same `CanonicalEncoding` version. Cross-device hash equality is an optimization for deduplication and duplicate-suppression, never the correctness basis for sync.
 
+### 7.15 Event-First by Default
+
+Anchor: `core.event-first-by-default`
+
+Observation, reactivity, and projection rebuild are event-driven wherever a change source exists; a component that has a change-event source must consume it and must not poll. Time-based polling is never a correctness mechanism. Polling intervals, staleness timers, and periodic refresh are permitted only as flagged, configurable fallbacks for sources that emit no change events, or as explicit scheduler timers and safety guards owned by the relevant subsystem and computed as deadlines rather than evaluated as continuous conditions. Reading the current time as a world fact is grounding, not scheduling. Auto-continue countdowns, animation timings, and similar timed affordances are conveniences, never correctness conditions. Every exception is flagged and justified by the owning spec.
+
 ## 8. Explicit Rejections
 
 Anchor: `core.explicit-rejections`

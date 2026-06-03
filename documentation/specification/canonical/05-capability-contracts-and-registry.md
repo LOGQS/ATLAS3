@@ -30,8 +30,8 @@ This file does not define:
 - run lifecycle, execution graph, hook execution mechanics, or runtime input coercion mechanics — File 04 owns those
 - routing or `RunIntent` selection — File 03 owns those
 - block schema, artifact lifecycle, evidence model — Files 08 and 09 own those
-- specific provider integration internals, rate-limit tracking, circuit-breaker mechanics, or polling intervals — File 17 owns provider concerns; the future MCP/External Integrations spec owns MCP and external tool-provider concerns
-- specific subsystem-runtime designs (Coder, Web, Teacher, Memory, etc.) — the per-surface specs own those (Coder is File 27, Web is File 28; Memory is the substrate-service File 14; Teacher and the remaining surfaces are future)
+- specific provider integration internals, rate-limit tracking, circuit-breaker mechanics, or polling intervals — File 17 owns provider concerns; File 36 (MCP and External Integrations) owns MCP and external tool-provider concerns
+- specific subsystem-runtime designs (Coder, Web, Teacher, Memory, etc.) — the per-surface specs own those (Coder is File 27, Web is File 28, Data Processor is File 29, Teacher is File 30, GUI Control is File 31, System Agent is File 32; Memory is the substrate-service File 14)
 
 ## Source Resolution
 
@@ -150,7 +150,7 @@ Display fields use a localizable descriptor: a literal default carries the canon
 - `icon_key`: optional icon identifier for surface presentation
 - `default_shortcut`: optional keyboard shortcut for direct user invocation; user-overridable through settings
 
-Display fields are declarative only. Surface presentation is owned by File 07 and the future UI specs. Display fields must not be hardcoded into surface logic — surfaces read from the declaration.
+Display fields are declarative only. Surface presentation is owned by File 07, File 37, and File 38. Display fields must not be hardcoded into surface logic — surfaces read from the declaration.
 
 ### 3.3 Schema Fields
 
@@ -510,7 +510,7 @@ Every declaration names its source. The source is one of:
 
 - `Builtin` — compiled into the application binary; ships with every install; cannot be unregistered without an update
 - `Subsystem { subsystem_id }` — owned by a registered subsystem (work surface or substrate service such as Memory, Routing, Context Assembly, Retrieval, Knowledge Indexing, Settings, Evaluation, Policy); registered when the subsystem registers; loaded as part of the subsystem. A subsystem is any registered work surface or substrate service that owns capabilities. New subsystems may be added or removed through the subsystem-registration capability (proposal-first per §16.2), so subsystem composition itself is first-class and customizable.
-- `Plugin { plugin_id, plugin_version }` — bundled in a plugin (per `core.extension-planes`, File 01 §6.14 extension planes; see the future Extension and Plugin System spec); registered when the plugin loads; unregistered when the plugin unloads
+- `Plugin { plugin_id, plugin_version }` — bundled in a plugin (per `core.extension-planes`, File 01 §6.14 extension planes; see File 35); registered when the plugin loads; unregistered when the plugin unloads
 - `McpServer { server_id, server_uuid, server_version }` — sourced from an external Model Context Protocol server; registered when the server connects; unregistered when the server disconnects
 - `Api { api_name, api_definition_path }` — sourced from a user-authored external-API TOML or equivalent declarative definition; registered when the definition file is loaded
 - `UserDefined { backend, scope }` — registered at runtime by the user or, with explicit user approval, by the agent through a capability-registration capability; backend is `Wasm` or `Shell` (per `run.interruption-pause-cancellation`, File 04 §17 self-modification); scope is `conversation`, `workspace`, or `global`
@@ -799,7 +799,7 @@ A capability may declare `prerequisite_capabilities` — a list of scoped prereq
 
 A prerequisite is satisfied when the named capability has been invoked (with a successful outcome) within the named scope before this capability becomes invocable. Prerequisites are evaluated against the ledger and world-model facts, not against hidden local flags. Used for capabilities whose contract requires sequencing (an `artifact_handoff`-style capability that must precede certain content-generation calls; a guide-must-be-read prerequisite that gates source-tools until onboarding has been performed).
 
-The registry encodes the dependency declaration with its scope. The detailed predicate evaluator lives in the future world-state / availability spec; File 05 names the contract. A capability invocation that violates the prerequisite returns a typed `PrerequisiteUnsatisfied` error variant in-band.
+The registry encodes the dependency declaration with its scope. The detailed predicate evaluator lives in File 18 (the state-aware capability-availability evaluator); File 05 names the contract. A capability invocation that violates the prerequisite returns a typed `PrerequisiteUnsatisfied` error variant in-band.
 
 ### 15.4 Runtime Discovery Capabilities
 
@@ -819,8 +819,8 @@ At application startup, the registry is populated in declared phases:
 
 1. Built-in capabilities register first (compiled into the binary; declared statically by every subsystem during `AppState` initialization)
 2. Subsystem capabilities register when subsystem runtimes load (per the subsystem registry referenced in File 03 routing-and-dispatch)
-3. Plugin capabilities register as plugins load (per the future Extension and Plugin System spec)
-4. MCP-sourced capabilities register as configured MCP servers connect (per the future MCP and External Integrations spec)
+3. Plugin capabilities register as plugins load (per File 35)
+4. MCP-sourced capabilities register as configured MCP servers connect (per File 36)
 5. External-API capabilities register as TOML definitions are loaded
 6. User-defined capabilities register from their persisted declarations (per `run.interruption-pause-cancellation`, File 04 §17 self-modification storage and the future user-defined capability storage spec)
 
@@ -946,8 +946,8 @@ Dimensions and ownership:
 - registry-wide collision behavior (warn vs reject vs ask-on-override) — registry-owned
 - discovery-capability enablement (`tool.search`, `mcp.search`, `extensions.search_registry`) — registry-owned
 - alias deprecation enforcement (warn vs refuse on use of deprecated aliases) — registry-owned
-- runtime-registration enablement: whether the agent is permitted to invoke `tools.register_custom`, `extensions.install`, `subsystems.register`, and equivalent registration capabilities at all (off, ask-each-time, allowlist of trusted sources, allow) — declaration carries the dimension; resolution lives in File 06 and the future Extension/Plugin specs
-- per-capability availability-predicate overrides for users who want to expose normally-hidden capabilities at their own risk — declaration carries the dimension; resolution lives in the future world-state spec
+- runtime-registration enablement: whether the agent is permitted to invoke `tools.register_custom`, `extensions.install`, `subsystems.register`, and equivalent registration capabilities at all (off, ask-each-time, allowlist of trusted sources, allow) — declaration carries the dimension; resolution lives in File 06 and File 35
+- per-capability availability-predicate overrides for users who want to expose normally-hidden capabilities at their own risk — declaration carries the dimension; resolution lives in File 18
 - platform-availability surface visibility (whether `unavailable_platform` entries appear in the default discovery view or only in advanced settings) — registry/surface-owned
 - source-approval risk thresholds and defer/cancel fallback behavior — registered entry carries the relevant source state; resolution lives in File 06
 
@@ -955,7 +955,7 @@ Dimensions and ownership:
 
 Anchor: `capability.settings-key-convention`
 
-Capability-related configuration follows File 15's namespaced dotted-key convention: `capabilities.<id>.enabled`, `capabilities.<id>.permission_tier`, `registry.collision_policy`, `registry.source_approval_threshold`, `sources.<source_id>.trust_override`, etc. Plugin-supplied capabilities register their own settings keys at plugin install time per the future Extension and Plugin System spec.
+Capability-related configuration follows File 15's namespaced dotted-key convention: `capabilities.<id>.enabled`, `capabilities.<id>.permission_tier`, `registry.collision_policy`, `registry.source_approval_threshold`, `sources.<source_id>.trust_override`, etc. Plugin-supplied capabilities register their own settings keys at plugin install time per File 35.
 
 ### 18.3 Boundary
 
@@ -987,7 +987,7 @@ The following shapes are wrong for this layer:
 - treating capability versioning as implicit (mutating a registered capability's behavior without bumping `version`) — every observable change is a version increment
 - treating registry state (enable, trust override, collision shadowing, backend binding) as a declaration mutation — declarations are immutable for `(id, version)`; runtime changes live on the registered entry
 - hidden delegation (a capability invoking another capability without declaring it as a dependent and without going through the shared call pipeline) — declaration of dependents is required and is not a bypass
-- treating `Capability` and "skill" / "workflow" / "instruction-pack" as the same primitive — capabilities are typed executable contracts; skills are instruction modules; workflows are reusable orchestrations; each is its own primitive with its own registry (per the future Workflows, Templates, and Reuse spec)
+- treating `Capability` and "skill" / "workflow" / "instruction-pack" as the same primitive — capabilities are typed executable contracts; skills are instruction modules; workflows are reusable orchestrations; each is its own primitive with its own registry (per File 34)
 - preserving `Action` as a parallel registry, adapter layer, or alias for `Capability` — `Action` has been superseded; legacy `Action` shapes map into the declaration field set (per §1) and are not preserved as a second primitive
 
 ## 20. Consequences for Later Specs

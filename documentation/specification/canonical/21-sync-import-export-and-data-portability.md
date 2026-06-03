@@ -120,9 +120,9 @@ File 15 owns setting definitions, scope resolution, locality, profile layers, TO
 
 File 20 owns the physical storage planes, locality partition, blob store, projection store, transaction boundaries, backup primitives, orphan reconciliation, and storage encoding. This file consumes those contracts and introduces no parallel durable store.
 
-### 2.8 With File 22 (Security), File 24 (Workspaces), and Future Packaging and Extension Specs
+### 2.8 With File 22 (Security), File 24 (Workspaces), Files 35 and 36 (Extension/Plugin, MCP), and the future Packaging spec
 
-Security owns encryption, keys, device trust, vault backup internals, and credential handling. Workspaces own materialized workspace identity and file mirrors. Packaging owns application distribution and executable plugin/runtime installation. Extension and MCP specs own install/enable/update mechanics for executable integrations. This file may move registry metadata and inert dependency declarations; it does not install or execute code.
+Security owns encryption, keys, device trust, vault backup internals, and credential handling. Workspaces own materialized workspace identity and file mirrors. Packaging owns application distribution and executable plugin/runtime installation. File 35 (Extension and Plugin System) and File 36 (MCP and External Integrations) own install/enable/update mechanics for executable integrations. This file may move registry metadata and inert dependency declarations; it does not install or execute code.
 
 ## 3. The Sync Transport Contract
 
@@ -578,9 +578,9 @@ Later specs must follow these rules:
 - File 22 owns stream/package encryption, sync-credential storage internals, key derivation, vault backup internals, and device trust. It must keep raw secrets out of sync streams, ordinary packages, substrate backups, logs, events, and agent context.
 - File 24 persists workspace identity and materialized mirrors as substrate families. Workspace export/import uses `PortablePackage`, blob transport, and the import pipeline for lossless movement; surface-owned format exports remain lossy egress capabilities.
 - The **per-surface specs** may declare lossy presentation-format exports, but every such export passes through egress governance, audit recording, and sensitivity filtering. Their durable state rides the syncable substrate and `PortablePackage`, never a private export path.
-- The future **Automation, Triggers, and Scheduling** spec tags machine-bound execution state device-local while replicating portable schedule, watch, and trigger definitions when allowed. It drives nothing from sync cadence.
-- The future **Extension, Plugin, and MCP Integration** specs make synced/imported records referencing missing capabilities, plugins, custom kinds, connectors, or MCP servers resolve to unavailable/inert states. They own installation, execution, enablement, and update of code.
-- The future **UI** specs render sync status, destination profiles, export preview, import review, `ImportPlan`, divergence resolution, collision classes, dependency gaps, omissions/redactions, and backup/restore surfaces from the contracts this file defines.
+- The **Automation and Triggers** spec (File 33) tags machine-bound execution state device-local while replicating portable schedule, watch, and trigger definitions when allowed. It drives nothing from sync cadence.
+- The **Extension and Plugin System** (File 35) and **MCP and External Integrations** (File 36) specs make synced/imported records referencing missing capabilities, plugins, custom kinds, connectors, or MCP servers resolve to unavailable/inert states. They own installation, execution, enablement, and update of code.
+- The **UI Shell** spec (File 37) and the **UI Customization** spec (File 38) render sync status, destination profiles, export preview, import review, `ImportPlan`, divergence resolution, collision classes, dependency gaps, omissions/redactions, and backup/restore surfaces from the contracts this file defines.
 - The future **Telemetry, Logging, and Observability** spec consumes portability events as data and builds views as projections. It never makes telemetry a source of truth and never egresses content this file excludes.
 - The future **Evaluation and Benchmarking** spec verifies package export/import round-trip, import idempotence, interruption safety, tamper rejection, additive sync safety, causal settings conflicts, restore staging, golden canonical-encoding fixtures for package hashes, and replay equivalence over typed package contents. It replays over recorded snapshots and immutable references, not live sync state.
 - Every later spec that produces durable state declares replication eligibility, export inclusion, import handling, dependency declarations, and sensitivity behavior. It obeys no-secret-egress, no-silent-last-write-wins, UUID preservation, content-addressed deduplication, additive sync, typed gaps, and package round-trip rules.

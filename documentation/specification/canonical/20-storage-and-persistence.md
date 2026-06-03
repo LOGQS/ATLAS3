@@ -32,7 +32,7 @@ This file does not define:
 - workspace identity, materialized workspace directories, the disk-to-block materialization mirror, worktree management, and per-surface file layout — File 24 owns those; this file owns the content-addressed blob store those materializations resolve external content from, not the workspace mirror
 - the row-and-column physical schema of any single table as a frozen artifact — this file specifies the substrate families, their source-of-truth-versus-projection classification, their locality, and their durability invariants; the concrete column layout is the migration-script realization governed by §10, not a canonical freeze
 - block, artifact, ledger, version, settings, world, memory, retrieval, or provider semantics — the owning files define those; this file stores them
-- UI rendering of storage-usage dashboards, backup managers, cleanup surfaces, or migration progress — the future UI specs own those; this file specifies the data contracts they consume
+- UI rendering of storage-usage dashboards, backup managers, cleanup surfaces, or migration progress — File 37 and File 38 own those; this file specifies the data contracts they consume
 
 ## Source Resolution
 
