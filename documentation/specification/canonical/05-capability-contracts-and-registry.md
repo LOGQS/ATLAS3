@@ -268,7 +268,7 @@ The wire format is JSON Schema; in capability-author code, generation from typed
 - the policy layer to inspect arguments for tier resolution and lease scope matching
 - the ledger to record inputs in a typed, replayable form
 
-Inputs are validated against `input_schema` before execution. The runtime decision of how to handle schema mismatches (strict reject, safe coercion, model repair, user correction) is execution policy and belongs to File 04 / the future capability-runtime spec; the declaration's role is to require that schemas exist and are honest.
+Inputs are normalized and validated against `input_schema` before execution per `run.input-normalization-schema-validation` (File 04 §8.2.1). The declaration's role is to make aliases, defaults, and allowed deterministic coercions explicit; undeclared runtime coercion is invalid.
 
 ### 4.2 `output_schema`
 
@@ -470,7 +470,7 @@ Beyond schema validation against `input_schema`, a capability may declare additi
 
 Validators run in declared order. A validator may return `valid`, `invalid_with_correction`, or `invalid`. The executor honors corrections (where the validator supplies a normalized argument), records the correction in the ledger, and proceeds. An `invalid` result without correction halts dispatch and produces a typed validation error in-band to the agent.
 
-The policy for how aggressively the runtime should attempt coercion and repair on schema mismatches (strict reject vs safe coerce vs model repair vs user correction) is execution policy and lives in File 04 / the future capability-runtime spec; the declaration's role is to require validators exist, name their order, and surface their corrections.
+The execution policy for schema mismatch, safe coercion, model repair, and user correction is `run.input-normalization-schema-validation` (File 04 §8.2.1). The capability contract declares only the valid normalization and validator paths; the executor applies them, records them, and rejects undeclared coercion.
 
 ### 8.2 `postconditions`
 

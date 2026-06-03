@@ -371,6 +371,7 @@ Every ledger entry declares its `kind` at commit. The canonical closed catalogue
 
 **Capability invocation pipeline (per `run.call-pipeline`, File 04 §8.2):**
 
+- `CapabilityInputNormalized` — raw capability arguments were normalized and schema-validated per `run.input-normalization-schema-validation` (File 04 §8.2.1); payload includes the invocation reference, applied aliases/defaults/coercions/corrections, validation outcome, and redacted raw/final argument references
 - `ToolCallProposed` — proposal entered the pipeline; payload includes the `CapabilityInvocation` record reference, resolved arguments (with sensitivity-tagged redaction), resolved touched-resource expressions
 - `ValidatorRan` — declared input validator ran (per `capability.input-validators`, File 05 §8.1); payload includes validator id, verdict (`valid`, `invalid_with_correction`, `invalid`), correction applied if any
 - `PolicyDecisionMade` — approval router emitted a decision (per `policy.approval-router`, File 06 §3.4); payload includes decision (`Continue`, `Substitute`, `Block`, `RedirectSuggestion`), contributing scope, lease used, contradictions detected
@@ -386,6 +387,7 @@ Every ledger entry declares its `kind` at commit. The canonical closed catalogue
 - `ToolCallStreamingPartial` — capability emitted a partial during streaming (per `run.streaming-partial-execution`, File 04 §12); payload includes partial-block handle, byte counts, sensitivity
 - `ToolCallCompleted` — capability returned its declared output; payload includes produced block ids, postcondition outcomes, declared replay-class metadata
 - `ToolCallFailed` — capability returned a typed error; payload includes the typed `AppError`, recovery action taken or proposed
+- `ExecutionRetryDecided` — execution evaluated `run.execution-retry-policy` (File 04 §20.2.1); payload includes failed attempt reference, retry kind, retryability source, outcome-safety basis, normalized-argument reference, policy snapshot reference, and action (`retried`, `branched`, `surfaced`, `stopped`)
 - `ObservationCommitted` — observation block committed (per `artifact.observation`, File 09 §13); payload includes observation kind, staleness fingerprint, block id
 - `ValidationCommitted` — validation block committed (per `artifact.validation-critique`, File 09 §14); payload includes validation outcome
 - `CritiquePosted` — critique block committed (per `artifact.validation-critique`, File 09 §14)

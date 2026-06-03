@@ -396,17 +396,44 @@ Anchor: `run.call-pipeline`
 A capability execution must follow this logical pipeline:
 
 1. Resolve capability.
-2. Validate input.
-3. Produce proposal if the action can mutate state or cross a policy boundary.
-4. Run validators and policy checks.
-5. Determine denial, approval need, persisted decision, or active lease.
-6. Execute with the declared isolation and concurrency semantics.
-7. Stream partials when supported.
-8. Record observations and result.
-9. Validate postconditions when declared.
-10. Commit or expose output according to capability semantics.
+2. Capture raw arguments, apply declared input normalization, and validate against the declared schema.
+3. Run declared input validators that can act before proposal; apply corrections and revalidate.
+4. Resolve per-call facts and produce a proposal if the action can mutate state or cross a policy boundary.
+5. Run proposal, policy, and pre-execution hooks.
+6. Determine denial, approval need, persisted decision, or active lease.
+7. Execute with the declared isolation and concurrency semantics.
+8. Stream partials when supported.
+9. Record observations and result.
+10. Validate postconditions when declared.
+11. Commit or expose output according to capability semantics.
 
-"Active lease" in step 5 refers to the `Lease` object defined in §11; the pipeline consults active leases before falling back to ad-hoc approval.
+"Active lease" in step 6 refers to the `Lease` object defined in §11; the pipeline consults active leases before falling back to ad-hoc approval.
+
+### 8.2.1 Input Normalization and Schema Mismatch
+
+Anchor: `run.input-normalization-schema-validation`
+
+The executor preserves two argument records for every capability call:
+
+- `raw_arguments` — exactly what the model, user, workflow node, automation, or programmatic unit supplied
+- `normalized_arguments` — the arguments after declared aliases, defaults, deterministic coercions, and validator corrections
+
+The executor may transform raw arguments before dispatch only through declaration-backed normalization:
+
+- aliases declared in `input_schema` metadata
+- defaults declared for optional fields
+- deterministic argument-coercion validators declared by the capability contract
+- `invalid_with_correction` outputs from declared input validators
+
+Safe coercion is narrow: it must be local, deterministic, and lossless for the declared field. Examples include an exact numeric string to number where the field declares that coercion, empty string to `null` where the field is nullable and declares that mapping, or a declared enum alias to its canonical value. Coercion must not infer user intent from conversation history, model reasoning, world state, UI labels, or handler internals. It must not broaden touched resources, permission tier, credential scope, data-egress destination, side-effect class, or approval scope.
+
+After normalization and after every validator correction, the executor revalidates `normalized_arguments` against `input_schema` and recomputes resolved touched resources, permission tier, preview payload, lease match, and policy decision from the corrected arguments. A handler never receives schema-invalid arguments. Raw arguments, normalization steps, validator corrections, validation failures, and final arguments are recorded in the execution ledger with sensitivity-aware redaction.
+
+If schema validation still fails:
+
+- For model-driven and programmatic calls, dispatch halts before handler execution and the active unit receives a typed `InputSchemaMismatch` or `InputValidationFailed` result in-band, including the field path, expected shape, actual shape, and declared repair options that are safe to reveal. The model or programmatic executor may issue a corrected new call; that new call starts at the beginning of the call pipeline and is governed by the execution retry policy (§20.2.1).
+- For direct user-authored invocations, the surface highlights the invalid fields and requests correction through the normal input UI. The correction is a new explicit invocation or proposal, not an invisible mutation of the original call.
+- The executor asks the user to repair a model-generated malformed call only when the missing or ambiguous value is genuinely user-owned or policy requires user choice. User prompting is not the default repair path for ordinary model schema errors.
 
 Every capability declares minimum execution-relevant metadata beyond input/output schemas:
 
@@ -971,6 +998,36 @@ Required recovery strategies:
 - restore or propose rollback of materialized output
 - stop with typed failure
 
+#### 20.2.1 Execution-Level Retry Policy
+
+Anchor: `run.execution-retry-policy`
+
+Execution-level retry is a retry of a model step, capability call, workflow node, child run, or programmatic unit after a typed error has reached the execution layer. It is not provider transport retry (File 17), connector transport retry (File 36), scheduler delivery retry (File 33), or worker supervision restart (File 42).
+
+A retry is allowed only when all of the following hold:
+
+- the typed error, recovery hook, or capability declaration permits retry; a non-retryable error is not retried as-is
+- the retry is outcome-safe: the failed attempt did not reach the side-effect boundary, the capability is read-only, the capability is idempotent for the normalized arguments, or an `idempotency_key`, completion marker, or recorded no-commit proof prevents duplicate effects
+- the relevant retry budget, run budget, and stuck-detection thresholds have not been exhausted
+- cancellation, pause, shutdown, or user intervention has not blocked the unit
+- the input, context, world-state, lease, resource-lock, and observation-currency facts needed by the retry are still valid, or the retry first re-observes, reassembles, and revalidates them
+
+Execution recognizes these retry shapes:
+
+- `same_input_retry` — retry the same normalized arguments; valid only for transient, pre-dispatch, read-only, or idempotent calls whose outcome is known safe
+- `corrected_input_retry` — retry after schema repair, validator correction, or model/programmatic correction; this is a new invocation and re-enters the full call pipeline
+- `reobserve_then_retry` — refresh stale observations or resource state, then retry if the new proposal still satisfies policy
+- `alternate_implementation_retry` — switch capability implementation, backend binding, or model profile through the registered recovery path
+- `branch_retry` — preserve the failed attempt and create a linked branch or child run when both attempts must remain inspectable
+
+Any retry whose arguments, touched resources, permission tier, side-effect class, credential scope, egress destination, backend binding, or approval scope changed must rerun input normalization, schema validation, validators, proposal generation, policy, leases, and hooks. A previously granted lease may satisfy the new attempt only if its typed scope still matches the recomputed proposal.
+
+Unknown outcome is conservative. If a consequential non-idempotent attempt may have committed externally and no completion marker or idempotency key can prove duplicate safety, execution does not automatically retry. It returns a typed `UnknownOutcomeRequiresReview` recovery result to the active model or user-facing surface, preserving the partial record for inspection.
+
+Retry pacing may use a typed retry strategy only as a killable safety and rate-governance guardrail with configurable bounds. Elapsed time is never proof of recovery; source recovery signals, successful revalidation, or explicit user action decide whether retry is semantically allowed. Provider-suggested retry timing stays in the provider layer; connector-suggested retry timing stays in the connector layer.
+
+Every retry decision is recorded in the execution ledger with the failed attempt reference, retry kind, retryability source, outcome-safety basis, normalized-argument reference, policy snapshot reference, and resulting action: retried, branched, surfaced, or stopped.
+
 ### 20.3 Stuck Detection
 
 Anchor: `run.stuck-detection`
@@ -1234,6 +1291,8 @@ At minimum, settings must support:
 - approval policy template selection
 - custom approval policy templates and per-scope overrides
 - prior-run resolution policy for retry, reroute, and branch, with a general default and per-action overrides
+- execution-level retry policy: allowed retry shapes, per-error and per-capability caps, unknown-outcome behavior, outcome-safety requirements, and retry-pacing strategy with finite killable bounds
+- input-normalization posture: declared safe coercion enabled or strict-only, per-capability overrides, and whether direct user invocations may prompt for correction
 - permission tier resolution and `Denied`-tier override paths, including `typed-confirmation` selection per capability or capability family
 - lease scope hierarchy enablement (single-proposal, run, intent-thread, task, conversation, workspace, global, reusable-policy-rule) and the policy-validation rules that reject contradictory combinations across scope levels
 - approval-policy mode selection, including model-mediated `auto-decide` and per-template prompts
@@ -1273,6 +1332,12 @@ The following shapes are wrong for this layer:
 - automatic merge of parallel outputs without an explicit merge path
 - automatic compaction as an execution-layer side effect
 - provider retry and failover logic implemented inside the execution layer
+- executing a capability handler with schema-invalid arguments, or coercing arguments through undeclared handler-local behavior invisible to the ledger and policy layers
+- hidden semantic coercion of model-supplied arguments using conversation history, world state, or inferred intent instead of declared deterministic normalization
+- asking the user to repair ordinary model-generated schema errors by default instead of returning a typed in-band validation result to the active executor
+- reusing a prior approval or lease after retry-time argument, resource, effect, egress, credential, backend, or approval-scope changes without rerunning the call pipeline
+- automatically retrying a consequential non-idempotent call with unknown outcome and no idempotency key, completion marker, or no-commit proof
+- treating `retryable: true` as sufficient for execution-level retry without outcome-safety, budget, cancellation, freshness, and policy checks
 - hardcoding one tool-loading policy with no meaningful user override
 - hardcoding one approval-policy interpretation mode or template with no meaningful user override
 - hardcoding retry, loop, budget, or stuck thresholds outside settings
