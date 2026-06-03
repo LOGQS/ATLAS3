@@ -34,7 +34,7 @@ This file does not define:
 - the `Workspace`, materialization mirror, the disk↔substrate sync loop, the `.atlas/` internal layout, the `ATLAS.md` hierarchy, or mounted-project ingestion identity — File 24 owns those; this file consumes them and projects them into data views
 - the `SecretVault`, credential lifecycle, the trust model, the egress-tier policy, the untrusted-content structural rule, or capture privacy — File 22 and File 19 own those; this file consumes them for database credentials, untrusted source data, and capture
 - the capability-declaration field set, the registry, policy evaluation, approval flows, leases, tool-surface composition, or the control-rail mechanics — Files 05, 06, 07, and 26 own those; this file declares the data contributions and references the rules
-- the storage substrate, sync, the provider layer, the ledger row format, Files 33 (Automation), 34 (Workflows), 35 (Extension/Plugin), 36 (MCP), and 37 (UI Shell), the future Quality-Control and UI Customization specs, or any concrete engine, library, or renderer (the analytical engine, dataframe library, document parsers, optical-character-recognition engine, media toolchain, charting library, notebook runtime, and canvas widget are replaceable implementations) — the owning files and the source resolution hold those; this file specifies only the data contracts they consume
+- the storage substrate, sync, the provider layer, the ledger row format, Files 33 (Automation), 34 (Workflows), 35 (Extension/Plugin), 36 (MCP), 37 (UI Shell), 38 (UI Customization), and 39 (Quality Control), or any concrete engine, library, or renderer (the analytical engine, dataframe library, document parsers, optical-character-recognition engine, media toolchain, charting library, notebook runtime, and canvas widget are replaceable implementations) — the owning files and the source resolution hold those; this file specifies only the data contracts they consume
 - the other per-surface specs (Coder, Web, Teacher, GUI Control, System Agent) — those declare their own `SurfaceContract`s; this file borrows web extraction and coder code-execution only by reference and never re-owns them
 
 ## Source Resolution
@@ -429,7 +429,7 @@ The validation capability (`data.validate.schema` and its variants) checks a dat
 
 ### 12.3 Boundary
 
-This section owns the data-validation workflow. File 09 owns the `Validation`/`SchemaValidation` contract and the validation-state derivation; File 04 §22 owns the completion floor; File 10 owns the hook surface; the future Quality-Control spec registers data validators through the canonical mechanism. The validation framework is a replaceable implementation behind the capability.
+This section owns the data-validation workflow. File 09 owns the `Validation`/`SchemaValidation` contract and the validation-state derivation; File 04 §22 owns the completion floor; File 10 owns the hook surface; File 39 registers data validators through the canonical mechanism. The validation framework is a replaceable implementation behind the capability.
 
 ## 13. Visualization
 

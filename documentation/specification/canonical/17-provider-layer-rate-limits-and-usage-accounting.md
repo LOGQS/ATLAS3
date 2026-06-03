@@ -49,7 +49,7 @@ This file does not define:
 - physical storage layout, on-disk schema, or index strategy — File 20 owns those
 - cross-device sync transport — File 21 owns those
 - UI rendering of provider lists, model pickers, usage dashboards, billing views, rate-limit indicators, or credential management surfaces — File 37 and File 38 own those
-- packaging, installer behavior, or platform integration — the future Packaging spec owns those
+- packaging, installer behavior, or platform integration — File 43 owns those
 - concrete provider names, model names, exact pricing values, exact tokenizer crate identifiers, or vendor-specific wire-format details outside the boundaries listed in §6.5
 
 ## Source Resolution
@@ -1173,7 +1173,7 @@ Later specs must follow these rules:
 - File 36 (MCP and External Integrations) must not subsume the model-provider layer; MCP for tools is a tool-provider concern with its own provider-adapter analogue, not a route through this layer
 - File 23 must support subscription-wrapper subprocess lifecycle in the sandbox primitives declared there (process groups, HOME isolation, shadow homes)
 - File 37 and File 38 must render per-call attribution, derived cost, rate-limit projections, credential states, provider health, and model-catalog freshness from the projections this layer produces; they must not maintain a parallel provider-state store
-- The future Telemetry, Logging, and Observability spec must consume `ModelCallStarted` / `ModelCallCompleted` / `TokenCountEstimationTelemetry` / `ProviderHealthChanged` / `RateLimitSnapshotReconciled` / `ParameterClamped` / `CacheBreakDetected` events without inventing parallel emission paths
-- The future Evaluation and Benchmarking spec should use `TokenUsageRecord` and `PricingSnapshot` references as primary artifacts for cost-correctness, cache-effectiveness, and tokenizer-accuracy measurements
+- The Telemetry, Logging, and Observability spec (File 41) must consume `ModelCallStarted` / `ModelCallCompleted` / `TokenCountEstimationTelemetry` / `ProviderHealthChanged` / `RateLimitSnapshotReconciled` / `ParameterClamped` / `CacheBreakDetected` events without inventing parallel emission paths
+- The Evaluation and Benchmarking spec (File 40) should use `TokenUsageRecord` and `PricingSnapshot` references as primary artifacts for cost-correctness, cache-effectiveness, and tokenizer-accuracy measurements
 - Plugin and extension specs that register adapters or profiles must pass through the source-approval flow in `policy.source-approval-flow` (File 06 §9); they must implement the full `ProviderAdapter` contract and produce the same typed projections
 - Domain specs that introduce siblings to model providers (STT, TTS, image, embedding) should adopt the same provider-adapter pattern with sibling traits sharing the credential, rate-limit, usage, and event infrastructure declared here, without forcing those siblings into the LLM-specific surface this file defines

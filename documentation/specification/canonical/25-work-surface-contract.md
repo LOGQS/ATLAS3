@@ -362,7 +362,7 @@ Disabling a surface prevents new activation and new tool-surface composition for
 
 ### 10.5 Boundary
 
-This section owns the surface registry and lifecycle. File 05 owns the proposal-first registration mechanism and the subsystem-registration path; File 06 owns source approval; File 22 owns trust establishment; File 20 owns the physical persistence and the surface-directory placement; File 35 (Extension and Plugin System) owns the plugin install lifecycle a plugin surface rides; the future Runtime Infrastructure spec orchestrates the startup registration. This file declares the registry contract; those files realize it.
+This section owns the surface registry and lifecycle. File 05 owns the proposal-first registration mechanism and the subsystem-registration path; File 06 owns source approval; File 22 owns trust establishment; File 20 owns the physical persistence and the surface-directory placement; File 35 (Extension and Plugin System) owns the plugin install lifecycle a plugin surface rides; File 42 orchestrates the startup registration. This file declares the registry contract; those files realize it.
 
 ## 11. Surface Activation, the Shell, and Multi-Surface Composition
 

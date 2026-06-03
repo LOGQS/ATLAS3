@@ -40,7 +40,7 @@ This file does not define:
 - the per-surface node libraries, recording mechanics, surface-specific runtimes, or surface workflows — the per-surface specs (Files 27–32) own those; this file owns the one body grammar, the one library, and the one reuse layer they realize over
 - plugin packaging, contribution-point registration, and the plugin install lifecycle — File 35 (Extension and Plugin System) owns those; this file owns the workflow body a plugin bundles
 - webhook and external-protocol transport for externally triggered workflows — File 33 and File 36 (MCP and External Integrations) own those
-- the workflow-reliability evaluation harness, the validator catalogue, or completion-check internals — File 09, `run.termination` (File 04 §22), and the future Quality Control and Evaluation specs own those; a workflow's validation policy selects among them
+- the workflow-reliability evaluation harness, the validator catalogue, or completion-check internals — File 09, `run.termination` (File 04 §22), and the Quality Control and Evaluation specs (Files 39 and 40) own those; a workflow's validation policy selects among them
 - UI rendering — the workflow editor canvas, the template-library browser, the parameter-entry form, the simulation view, and the reliability dashboard — File 37 and File 38 own those; this file specifies the data and resolution contracts they consume
 
 ## Source Resolution
@@ -458,7 +458,7 @@ Simulation is coverage-aware. Read-only and deterministic previewable nodes may 
 
 ### 12.3 Validation Policy
 
-A workflow's `validation_policy` declares which validators and completion checks a run must satisfy to count as successful, selecting among the existing validation substrate (`Validation`/`Critique` blocks, `artifact.validation-critique` File 09 §14; the completion-verification hook surface, `run.termination` File 04 §22; the future Quality Control validators). A run that completes without satisfying its validation policy is recorded as a failed run, feeding the reuse metadata (§10) and any referencing automation's failure handling (`automation.failure-handling`, File 33 §13). The policy reuses the substrate; it defines no new validators.
+A workflow's `validation_policy` declares which validators and completion checks a run must satisfy to count as successful, selecting among the existing validation substrate (`Validation`/`Critique` blocks, `artifact.validation-critique` File 09 §14; the completion-verification hook surface, `run.termination` File 04 §22; File 39's validators). A run that completes without satisfying its validation policy is recorded as a failed run, feeding the reuse metadata (§10) and any referencing automation's failure handling (`automation.failure-handling`, File 33 §13). The policy reuses the substrate; it defines no new validators.
 
 ### 12.4 Output Contract and Drift
 
@@ -467,7 +467,7 @@ A workflow's `validation_policy` declares which validators and completion checks
 
 ### 12.5 Reliability
 
-A workflow's reliability — its success rate, its recurring failure modes, its cost profile — is derived from its run history (§10) and evaluated by the future Evaluation and Benchmarking spec's harness, which this file's reliability metadata feeds. This file specifies the data contract a reliability evaluation consumes; the harness is the future spec's.
+A workflow's reliability — its success rate, its recurring failure modes, its cost profile — is derived from its run history (§10) and evaluated by File 40's harness, which this file's reliability metadata feeds. This file specifies the data contract a reliability evaluation consumes; the harness is File 40's.
 
 ### 12.6 Rule
 
@@ -477,7 +477,7 @@ A workflow's reliability — its success rate, its recurring failure modes, its 
 
 ### 12.7 Boundary
 
-File 09 and File 04 §22 own the validators and completion checks; the future Quality Control and Evaluation specs own the validator catalogue and the reliability harness; File 04 owns the preview modes simulation uses. This section owns the validate-before-save rule, the simulation contract, and the per-workflow validation/output declarations.
+File 09 and File 04 §22 own the validators and completion checks; the Quality Control and Evaluation specs (Files 39 and 40) own the validator catalogue and the reliability harness; File 04 owns the preview modes simulation uses. This section owns the validate-before-save rule, the simulation contract, and the per-workflow validation/output declarations.
 
 ## 13. Workflow Execution
 

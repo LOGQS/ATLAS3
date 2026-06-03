@@ -50,7 +50,7 @@ This file does not define:
 - workspace materialization mechanics, materialized-path resolution, disk → block sync, or workspace-tree management beyond declaring that disk state is a projection of the active version's view per `artifact.disk-entity-sync` (File 09 §7.5) — File 24 owns those
 - security primitives, sandbox isolation, or credential management — Files 22 and 23 own those
 - UI rendering choices for the version-timeline, tree view, comparison-board, history-panel, inspector previews, undo affordances, or accessibility surfaces — File 37, File 38, and the per-surface specs own those; this file specifies the canonical data contracts those surfaces consume
-- specific evaluation-suite or benchmark schemas — the future Evaluation and Benchmarking spec owns those, though it consumes the replay surface defined here
+- specific evaluation-suite or benchmark schemas — the Evaluation and Benchmarking spec (File 40) owns those, though it consumes the replay surface defined here
 
 ## Source Resolution
 

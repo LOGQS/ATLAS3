@@ -45,7 +45,7 @@ This file does not define:
 - retrieval, indexing, knowledge-base mechanics, retrieval-augmented generation mechanics, or hybrid-search algorithms — File 12 owns those; this file specifies that the ledger is the substrate over which forensic and replay queries operate
 - context-assembly, compaction algorithms, token-budget mechanics, or per-policy block selection — File 13 owns those; this file specifies the typed `ContextPressureObserved` boundary and the compaction-related events that flow through the bus
 - the UI shell, the rendering of live or durable events into UI components, modal layouts, or accessibility surface choices — File 37 and File 38 own those; this file specifies the typed envelope and event vocabulary the UI consumes
-- specific provider transport mechanics (Tauri IPC, Server-Sent Events, WebSocket, Unix sockets, MCP transports) — the future Runtime Infrastructure and Lifecycle spec owns those; this file specifies the canonical wire-format contract the transport must preserve
+- specific provider transport mechanics (Tauri IPC, Server-Sent Events, WebSocket, Unix sockets, MCP transports) — the Runtime Infrastructure and Lifecycle spec (File 42) owns those; this file specifies the canonical wire-format contract the transport must preserve
 
 ## Source Resolution
 
@@ -338,7 +338,7 @@ Additional integrity rules:
 
 ### 3.8 Boundary
 
-The ledger defines durable execution truth. The event bus delivers live coordination. The version graph records the version-tree state machine. The storage layer realizes durability. None of those layers invents new entry semantics; they consume what this file defines. File 20 realizes the durability contract; File 21 realizes cross-device propagation; the future Telemetry, Logging, and Observability spec consumes ledger entries to drive projections; the future Evaluation and Benchmarking spec reads the ledger for replay.
+The ledger defines durable execution truth. The event bus delivers live coordination. The version graph records the version-tree state machine. The storage layer realizes durability. None of those layers invents new entry semantics; they consume what this file defines. File 20 realizes the durability contract; File 21 realizes cross-device propagation; the Telemetry, Logging, and Observability spec (File 41) consumes ledger entries to drive projections; the Evaluation and Benchmarking spec (File 40) reads the ledger for replay.
 
 ## 4. Canonical `LedgerEntryKind` Catalogue
 
@@ -622,7 +622,7 @@ Every event carries the canonical envelope:
 - `context_refs` — typed contextual references when applicable: `run_id`, `step_id`, `node_id`, `workspace_id`, `worktree_id`, `backend_id`, `capability_id`, `ledger_entry_id`, and registered extension refs. Inapplicable refs are absent rather than null-padded.
 - `parent_event_id` — the causally-prior event (the event whose handler emitted this event); `None` for root events; enables causality chain reconstruction
 - `causal_event_ids` — optional set of additional events this event depends on when one parent is insufficient
-- `trace_context` — optional propagation envelope for cross-run observability (per `routing.run-intent`, File 03 §4.3); typically a stable trace id and a span id, semantics defined by the future Telemetry spec
+- `trace_context` — optional propagation envelope for cross-run observability (per `routing.run-intent`, File 03 §4.3); typically a stable trace id and a span id, semantics defined by File 41
 - `sequence_scope` — the tuple within which `sequence` is monotonic, usually the conversation/run/worktree/backend context that produced the event
 - `sequence` — monotonic identifier within `sequence_scope`; used for de-duplication and ordering within a context
 - `timestamp` — full-granularity timestamp. It may support display, search, and explicit uncertainty-bearing fallback inference, but never replaces sequence or causal links as the correctness basis.
@@ -668,7 +668,7 @@ The bus delivers events through these rules:
 - **Fan-out** to multiple subscribers happens in parallel; the bus does not block one subscriber's processing on another's.
 - **Blocking hook dispatch** happens at interceptable boundaries before the consequential action proceeds. Passive bus delivery is non-blocking fan-out and does not become the authority for mutating or approving the action.
 - **Backpressure** is bounded per subscriber: each subscription declares a buffer profile. Overflow emits `EventBufferOverflow` and marks the subscription `degraded`; degraded subscriptions stop receiving events until the subscriber acknowledges recovery through an explicit reconnection.
-- **Cross-process delivery** uses the transport substrate (Tauri channels for backend-to-frontend, Server-Sent Events for browser clients, Unix sockets for shell-script hooks, MCP transport for external clients). The transport substrate preserves the wire-format contract this file specifies; specifics are owned by the future Runtime Infrastructure and Lifecycle spec.
+- **Cross-process delivery** uses the transport substrate (Tauri channels for backend-to-frontend, Server-Sent Events for browser clients, Unix sockets for shell-script hooks, MCP transport for external clients). The transport substrate preserves the wire-format contract this file specifies; specifics are owned by the Runtime Infrastructure and Lifecycle spec (File 42).
 - **Persistence boundary**: consequential events commit to the ledger before being delivered to the bus, or atomically alongside delivery (the storage layer specifies the durability semantics). The ordering guarantee is: if an event is durably persisted, all subscribers see its ledger commit before any subscriber observes a later sequence number in the same context tuple. Transient events may be delivered without ledger commit.
 
 The owning subsystem commits consequential facts through the ledger API and emits an event referencing the committed `ledger_entry_id` or causal entry. Observing an event never creates the durable fact; a consequential event without its required durable record is an incomplete execution state.
@@ -710,13 +710,13 @@ The bus exposes a Tauri-or-equivalent bridge for frontend subscription. Frontend
 - gates `Secret`-tagged events: the frontend never receives a raw secret payload; redaction happens at the bridge boundary
 - supports per-event-kind subscription filters: the frontend declares which event kinds it subscribes to, reducing wire traffic
 
-The bridge implementation is owned by the future Runtime Infrastructure and Lifecycle spec. This file specifies the contract.
+The bridge implementation is owned by the Runtime Infrastructure and Lifecycle spec (File 42). This file specifies the contract.
 
 ### 5.8 Boundary
 
 The event bus is the live coordination substrate. It does not own:
 
-- the underlying transport (Tauri, SSE, WebSocket, Unix socket, MCP — future Runtime Infrastructure spec)
+- the underlying transport (Tauri, SSE, WebSocket, Unix socket, MCP — File 42)
 - the durable persistence of consequential events (File 20)
 - the cross-device sync mechanics (File 21)
 - the UI rendering of event-driven updates (File 37 and File 38)
@@ -810,7 +810,7 @@ These are sibling ledger entries to `TokenUsageRecord`; cost calculation reads t
 
 ### 6.7 Boundary
 
-Per-call attribution is owned by this file. Per-model pricing maintenance, accuracy projections, and budget-enforcement actions are owned by adjacent specs (File 17 and the future Budget and Telemetry specs). This file specifies what must be recorded; those specs specify what to do with the records.
+Per-call attribution is owned by this file. Per-model pricing maintenance, accuracy projections, and budget-enforcement actions are owned by adjacent specs (Files 04, 17, and 41). This file specifies what must be recorded; those specs specify what to do with the records.
 
 ## 7. `Hook`
 
@@ -916,7 +916,7 @@ A hook participates in the lifecycle through:
 Hooks fall into canonical categories that share defaults:
 
 - **Approval hooks**: the approval router (per `policy.approval-router`, File 06 §3), the typed-confirmation flow, the batched-approval flow. Priority `+100`, blocking, fail-closed, `allow_capable` authority.
-- **Quality-control validators** (future Quality Control spec): structural / semantic / real-time validators. Priority `0`, blocking, fail-closed by default as security-category hooks unless their owning policy explicitly classifies them as advisory, `narrowing_only` authority.
+- **Quality-control validators** (File 39): structural / semantic / real-time validators. Priority `0`, blocking, fail-closed by default as security-category hooks unless their owning policy explicitly classifies them as advisory, `narrowing_only` authority.
 - **Audit and logging hooks**: structured-logging recorders, telemetry collectors. Priority `-100`, blocking (so logs capture pre-validation state) or non-blocking (so logs do not slow execution), fail-open, `observe_only` authority.
 - **Transformers** (per `run.hook-integration`, File 04 §23.3): argument normalizers, sensitivity-tag adjusters, locale-converters. Priority `0`, blocking, category/authority-dependent fail-direction, `narrowing_only` or `substitute_capable` authority for the substitution kind they emit.
 - **Observers** (per `run.hook-integration`, File 04 §23.3): UI state-awareness watchers, surface inspectors, completion summarizers. Non-blocking (the emitter does not wait), `observe_only` authority, fail-open.
@@ -932,7 +932,7 @@ Each category has settings-driven defaults (priority, timeout, fail-direction, a
 
 ### 7.8 Boundary
 
-This section defines the hook primitive. The approval router's specific algorithm is owned by File 06. The completion-verification hook surface's specific deterministic / model-mediated mechanics are owned by `run.termination` (File 04 §22) and the future Quality Control spec. Specific quality-control validators are owned by the future Quality Control and Validation spec. This file specifies the subscription contract, the decision vocabulary, the priority and authority rules, and the lifecycle events.
+This section defines the hook primitive. The approval router's specific algorithm is owned by File 06. The completion-verification hook surface's specific deterministic / model-mediated mechanics are owned by `run.termination` (File 04 §22) and File 39. Specific quality-control validators are owned by the Quality Control and Validation spec (File 39). This file specifies the subscription contract, the decision vocabulary, the priority and authority rules, and the lifecycle events.
 
 ## 8. Hook Registration and Discovery
 
@@ -1220,7 +1220,7 @@ Forensic queries are themselves capabilities (registered with `ReadOnly` tier) a
 
 ### 11.6 Boundary
 
-Replay is the consumer of the ledger and the durable snapshots. The replay engine itself is owned by the future Evaluation and Benchmarking spec. This file specifies what is required for replay to succeed (the cross-references, snapshot identifiers, replay-class consumption); the engine realizes the actual replay.
+Replay is the consumer of the ledger and the durable snapshots. The replay engine itself is owned by the Evaluation and Benchmarking spec (File 40). This file specifies what is required for replay to succeed (the cross-references, snapshot identifiers, replay-class consumption); the engine realizes the actual replay.
 
 ## 12. Streaming and Live Partials
 
@@ -1291,7 +1291,7 @@ For coordination across multiple browser tabs, multiple processes, or multiple d
 - inter-process: Tauri events (or equivalent transport) for backend-to-frontend
 - inter-device: cross-device sync (File 21); the bus does not directly cross devices (File 21 handles propagation)
 
-The transport-layer specifics are owned by the future Runtime Infrastructure and Lifecycle spec. This file specifies the contract: every transport preserves the canonical envelope, the ordering, the sensitivity filtering, and the per-context-tuple sequence semantics.
+The transport-layer specifics are owned by the Runtime Infrastructure and Lifecycle spec (File 42). This file specifies the contract: every transport preserves the canonical envelope, the ordering, the sensitivity filtering, and the per-context-tuple sequence semantics.
 
 ### 12.7 Boundary
 
@@ -1612,7 +1612,7 @@ Per §13.4, shutdown stops new work, signals active work, flushes acknowledged c
 
 ### 17.5 Boundary
 
-Lifecycle integration ties the durable and live recording layer into the application's startup, runtime, and shutdown sequences. The actual lifecycle mechanics are owned by the future Runtime Infrastructure and Lifecycle spec.
+Lifecycle integration ties the durable and live recording layer into the application's startup, runtime, and shutdown sequences. The actual lifecycle mechanics are owned by the Runtime Infrastructure and Lifecycle spec (File 42).
 
 ## 18. Explicit Rejections
 

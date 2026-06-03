@@ -38,8 +38,8 @@ This file does not define:
 - the sandbox contract, isolation tiers, process control, or the elevated helper — File 23 owns those; the interactive-artifact runtime and any confined preview run through that contract
 - the secret vault, trust model, egress governance, encryption, or the untrusted-content rule — File 22 owns those; this file honors the no-raw-secret-in-shareable-state and untrusted-content rules
 - design tokens, the theme system and engine, named saved layouts and the save/switch/customize flow, widgets and widget placement, AI-assisted UI customization, plugin UI placement mechanics, or the realization of the `customization_policy` — File 38 owns those; this file owns the shell, the layout container, the rendering contracts, the interaction models, and the semantic-token discipline they consume
-- packaging, the installer, the auto-updater, window-decoration platform mechanics, or sidecar lifecycle — the future Packaging, Platform, and Distribution spec (File 43) owns those; this file owns the shell regions, the multi-window model, and the window-state presentation
-- telemetry collection, log retention, or trace storage — the future Telemetry, Logging, and Observability spec owns those; this file owns the observability and debug surfaces that render them
+- packaging, the installer, the auto-updater, window-decoration platform mechanics, or sidecar lifecycle — the Packaging, Platform, and Distribution spec (File 43) owns those; this file owns the shell regions, the multi-window model, and the window-state presentation
+- telemetry collection, log retention, or trace storage — the Telemetry, Logging, and Observability spec (File 41) owns those; this file owns the observability and debug surfaces that render them
 
 ## Source Resolution
 
@@ -462,7 +462,7 @@ A management surface is a user-facing presentation of a substrate service's data
 
 ### 13.3 Boundary
 
-This section owns management-surface rendering. The substrate-service specs (Files 06, 07, 12, 13, 14, 18, 20, 21, 33, 34, 35, 36 and the future telemetry and evaluation specs) own the content; File 25 §14 classifies them; File 11 owns the version-graph replay the reconstruction view renders; the future Telemetry, Logging, and Observability and Evaluation specs own the data the observability surface renders. This file renders them.
+This section owns management-surface rendering. The substrate-service specs (Files 06, 07, 12, 13, 14, 18, 20, 21, 33, 34, 35, 36, 40, and 41) own the content; File 25 §14 classifies them; File 11 owns the version-graph replay the reconstruction view renders; Files 40 and 41 own the data the observability surface renders. This file renders them.
 
 ## 14. Accessibility
 

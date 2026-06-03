@@ -438,7 +438,7 @@ Search results carry the canonical metadata (name, family, short_description, so
 
 ### 7.5 Discovery Is Auditable
 
-Every `tool.search`, `mcp.search`, `tool.borrow`, `tool.borrow_persistent`, and `tool.inspect` call is recorded in the execution ledger per `run.execution-ledger` (File 04 §23.1). Audit reconstructs which capabilities the agent searched for, which it borrowed, and which it ultimately invoked. The future Quality Control and Evaluation spec may inspect this trace for tool-use efficiency analysis.
+Every `tool.search`, `mcp.search`, `tool.borrow`, `tool.borrow_persistent`, and `tool.inspect` call is recorded in the execution ledger per `run.execution-ledger` (File 04 §23.1). Audit reconstructs which capabilities the agent searched for, which it borrowed, and which it ultimately invoked. The Quality Control and Evaluation specs (Files 39 and 40) may inspect this trace for tool-use efficiency analysis.
 
 ### 7.6 Boundary
 
@@ -644,7 +644,7 @@ The algorithm's behavior is configurable through settings (per §18):
 
 ### 9.5 Boundary
 
-The algorithm is the canonical contract. Implementations may use any data structure, any caching strategy, any concurrency model that produces byte-identical results from identical inputs. The future runtime infrastructure spec defines the implementation patterns; File 07 defines the contract.
+The algorithm is the canonical contract. Implementations may use any data structure, any caching strategy, any concurrency model that produces byte-identical results from identical inputs. File 42 defines the implementation patterns; File 07 defines the contract.
 
 ## 10. Tool Surface and Capability Policy
 
@@ -1234,10 +1234,10 @@ The canonical principles later specs must follow:
 - File 34 (Workflows, Templates, and Reuse) composes capabilities through the unified registry; workflow nodes reference capability ids; the surface composition for a workflow execution honors the workflow's declared capability list as an additional input
 - File 37 (UI Shell, Layout, Presentation, and Interaction Models) renders the `Palette`, `Inspector`, `Voice`, `Shortcut`, `AutomationTrigger` lens data into UI; File 07 hands them the canonical data contract
 - File 38 renders the surface inspector and the per-capability settings views; the data contract is what File 07 specifies
-- the future Quality Control and Validation spec may consume the surface for static analysis (capability availability checks, lens consistency checks, shortcut conflict detection); it does so through the canonical inspector lens
-- the future Evaluation and Benchmarking spec consumes the surface snapshot recorded in the ledger to evaluate tool-use efficiency; replay reconstructs the exact surface a past invocation saw
-- the future Telemetry, Logging, and Observability spec captures surface-relevant events for monitoring; it consumes the canonical event vocabulary
-- the future Runtime Infrastructure and Lifecycle spec implements the composition algorithm with deterministic semantics; File 07 specifies the contract, the runtime realizes it
-- the future Packaging, Platform, and Distribution spec packages built-in `Capability` declarations including the canonical discovery capabilities (`tool.borrow`, `tool.borrow_persistent`, `tool.search`, `mcp.search`, `tool.inspect`); they ship in every ATLAS3 install as the `Builtin` source
+- the Quality Control and Validation spec (File 39) may consume the surface for static analysis (capability availability checks, lens consistency checks, shortcut conflict detection); it does so through the canonical inspector lens
+- the Evaluation and Benchmarking spec (File 40) consumes the surface snapshot recorded in the ledger to evaluate tool-use efficiency; replay reconstructs the exact surface a past invocation saw
+- the Telemetry, Logging, and Observability spec (File 41) captures surface-relevant events for monitoring; it consumes the canonical event vocabulary
+- the Runtime Infrastructure and Lifecycle spec (File 42) implements the composition algorithm with deterministic semantics; File 07 specifies the contract, the runtime realizes it
+- the Packaging, Platform, and Distribution spec (File 43) packages built-in `Capability` declarations including the canonical discovery capabilities (`tool.borrow`, `tool.borrow_persistent`, `tool.search`, `mcp.search`, `tool.inspect`); they ship in every ATLAS3 install as the `Builtin` source
 
 Specific integration contracts will be stated in those files when they are written. Until then, the canonical contract here is the load-bearing reference.

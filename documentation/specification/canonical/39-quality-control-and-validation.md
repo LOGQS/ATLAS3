@@ -31,7 +31,7 @@ This file does not define:
 - the `RunCompletionContract`, the completion-forgery guard, the completion-verification hook surface mechanics, or the capability-call pipeline — File 04 owns those; this file specifies the validator content that runs on the hook surface and how validations become completion requirements
 - the `CapabilityDeclaration` field set (`input_validators`, `postconditions`, `stale_state_revalidation`), the registry, or backend bindings — File 05 owns those; this file generalizes the per-capability validators into the cross-cutting `Validator` concept
 - the policy engine, the approval router, approval-policy templates, leases, permission tiers, or the behavioral and safety policy templates (`prefer_dedicated_tools`, `fetch_fallback_ban`, `clarify_first`, protected-branch rules) — File 06 owns those; this file owns quality validators, not permission gating
-- offline evaluation suites, benchmarks, regression harnesses, scenario fixtures, golden-artifact comparison, and judge-prompt optimization runs — the future Evaluation and Benchmarking spec owns those; this file owns inline runtime validation that gates live execution
+- offline evaluation suites, benchmarks, regression harnesses, scenario fixtures, golden-artifact comparison, and judge-prompt optimization runs — the Evaluation and Benchmarking spec (File 40) owns those; this file owns inline runtime validation that gates live execution
 - the secret vault, secret detection/redaction primitives, untrusted-content/injection defense primitives, or encryption — File 22 owns those; this file wraps them as `SafetyCheck` validators where they gate output quality
 - sandbox or process isolation primitives within which validators execute code — File 23 owns those
 - storage schemas, projection rebuild internals, or sync/portability of validation records — Files 20 and 21 own those
@@ -48,7 +48,7 @@ Resolved design:
 - Validation gates execution at declared boundaries. A blocking validator denies, redirects, or narrows a proposed action; gates a commit; or contributes a completion requirement. An advisory validator records and surfaces without blocking.
 - Corrections are non-destructive. A correction creates a sibling version or returns a typed in-band signal; it never silently mutates the produced output in place.
 - Quality control ships machinery, not foregone verdicts. The system ships the validator primitive, the deterministic check backends, and the model-mediated judge slot. It does not ship a built-in general-purpose correctness or hallucination judge as a default.
-- Inline validation (this file) and offline evaluation (the future Evaluation and Benchmarking spec) are two layers of one quality discipline. This file owns the layer that runs during and around live execution and gates it; the offline layer runs over recorded runs to measure and compare.
+- Inline validation (this file) and offline evaluation (the Evaluation and Benchmarking spec (File 40)) are two layers of one quality discipline. This file owns the layer that runs during and around live execution and gates it; the offline layer runs over recorded runs to measure and compare.
 
 ## 1. Chosen Model
 
@@ -66,7 +66,7 @@ There is no second registry, no per-subsystem bespoke quality pipeline, no paral
 
 `Validator` is the canonical noun for the checking rule. "Guardrail", "tripwire", "validator node", "inspector", "verifier pass", "critic", and "quality gate" are vocabulary variants in source material for one or more aspects of the system this file defines; the canonical names here are `Validator`, `ValidationBoundary`, `ValidationSeverity`, `CorrectionPolicy`, and `ValidationReport`.
 
-This model elaborates `core.evidence` (File 01 §4.4) (validations are a kind of evidence), `core.evidence-provenance` (File 01 §7.12) (important outputs preserve validation state), the execution-ledger requirement to record validations (`core.execution-ledger`, File 01 §6.4), and `run.hook-integration` (File 04 §23.3)'s rule that "quality control validators … integrate through this shared mechanism … must not create a second hidden execution path." It discharges the "future Quality Control and Validation spec" deferrals named in `ledger.hook` (File 10 §7.7, §7.8) and `run.termination` (File 04 §22), and the quality-control note left by `customize.validation` (File 38 §23).
+This model elaborates `core.evidence` (File 01 §4.4) (validations are a kind of evidence), `core.evidence-provenance` (File 01 §7.12) (important outputs preserve validation state), the execution-ledger requirement to record validations (`core.execution-ledger`, File 01 §6.4), and `run.hook-integration` (File 04 §23.3)'s rule that "quality control validators … integrate through this shared mechanism … must not create a second hidden execution path." It discharges the quality-control deferrals named in `ledger.hook` (File 10 §7.7, §7.8) and `run.termination` (File 04 §22), and the quality-control note left by `customize.validation` (File 38 §23).
 
 ## 2. Boundaries with Adjacent Layers
 
@@ -94,7 +94,7 @@ The line between quality control and policy is fixed and load-bearing. File 06 g
 
 ### 2.6 With Evaluation and Benchmarking
 
-File 39 owns the **inline** layer — validators that run during and around live execution and gate it in real time. The future Evaluation and Benchmarking spec owns the **offline** layer — evaluation suites, benchmarks, regression harnesses, scenario fixtures, golden-artifact comparison, scoring over recorded runs, and judge-prompt optimization. The two layers share the `Validator` primitive and the `Validation`/`Critique` result objects: an offline evaluation suite runs the same validators over recorded inputs and aggregates their outcomes. The strategic target-state framing of one `EvaluationService` spanning inline and offline layers is honored by this split — File 39 is the inline service, the future spec is the offline service, and both consume the same validator and result contracts. File 39 names the surface through which a validator is promoted into an offline suite; the future spec owns the suite, the run record, the scoring aggregation, and the optimization pipeline.
+File 39 owns the **inline** layer — validators that run during and around live execution and gate it in real time. The Evaluation and Benchmarking spec (File 40) owns the **offline** layer — evaluation suites, benchmarks, regression harnesses, scenario fixtures, golden-artifact comparison, scoring over recorded runs, and judge-prompt optimization. The two layers share the `Validator` primitive and the `Validation`/`Critique` result objects: an offline evaluation suite runs the same validators over recorded inputs and aggregates their outcomes. The strategic target-state framing of one `EvaluationService` spanning inline and offline layers is honored by this split — File 39 is the inline service, File 40 is the offline service, and both consume the same validator and result contracts. File 39 names the surface through which a validator is promoted into an offline suite; File 40 owns the suite, the run record, the scoring aggregation, and the optimization pipeline.
 
 ### 2.7 With File 22 (Security, Credentials, and Trust Boundaries)
 
@@ -122,7 +122,7 @@ A `Validator` is not:
 - a `Validation` block — the block is the result; the validator is the rule that produces it
 - an approval-policy template or a permission inspector — those gate on permission and live in File 06; a validator gates on quality
 - a capability — a deterministic validator's check backend is a capability, but the validator is the boundary binding plus the severity and correction policy layered over that capability
-- an evaluation suite — a suite in the future Evaluation and Benchmarking spec is an offline collection of validators run over recorded inputs; a validator is a single inline rule
+- an evaluation suite — a suite in the Evaluation and Benchmarking spec (File 40) is an offline collection of validators run over recorded inputs; a validator is a single inline rule
 
 ### 3.2 Required Properties
 
@@ -228,7 +228,7 @@ Where a quality concern admits a deterministic check, the deterministic check is
 
 ### 5.5 Boundary
 
-The taxonomy classifies; it does not extend the kind set. The future Evaluation and Benchmarking spec reuses the same kinds in offline suites. Surfaces and subsystems declare which kinds their owned validators produce. The `Custom` kind is registered through the proposal-first mechanism (`capability.runtime-mutation`, File 05 §16.2) and declares its structural-versus-semantic classification so the runtime can choose its blocking and latency defaults.
+The taxonomy classifies; it does not extend the kind set. The Evaluation and Benchmarking spec (File 40) reuses the same kinds in offline suites. Surfaces and subsystems declare which kinds their owned validators produce. The `Custom` kind is registered through the proposal-first mechanism (`capability.runtime-mutation`, File 05 §16.2) and declares its structural-versus-semantic classification so the runtime can choose its blocking and latency defaults.
 
 ## 6. `validator_kind` and the Model-Mediated Judge Discipline
 
@@ -244,7 +244,7 @@ Anchor: `qc.judge-discipline`
 
 ### 6.2 The Judge Discipline
 
-A `ModelMediated` validator is a judge. The system ships the judge machinery — the `ModelMediated` validator slot, the policy model-request template surface, the annotation and optimization handoff to the future Evaluation and Benchmarking spec — but it does not ship a built-in general-purpose judge as a default validator. The following discipline is canonical for every `ModelMediated` validator, built-in or user-authored:
+A `ModelMediated` validator is a judge. The system ships the judge machinery — the `ModelMediated` validator slot, the policy model-request template surface, the annotation and optimization handoff to the Evaluation and Benchmarking spec (File 40) — but it does not ship a built-in general-purpose judge as a default validator. The following discipline is canonical for every `ModelMediated` validator, built-in or user-authored:
 
 - **Narrow, not omnibus.** A judge validates one error mode (one failure cluster derived from observed traces), not "is this good." Each error mode gets its own judge. An omnibus judge cannot be calibrated and is rejected (§21).
 - **Context-isolated by default.** A judge receives an isolated, validation-relevant context through a fresh model invocation: the validation criterion, run/task success criteria and completion contract where relevant, the target artifact or block, cited evidence and source excerpts with authority classes, and required typed references. It does not inherit the producer's intermediate reasoning, self-justification, or unrelated conversation history unless the validator explicitly opts in and its declaration says why. Isolation is configurable per validator, but inherited producer reasoning is never the default.
@@ -258,7 +258,7 @@ A built-in "general correctness judge" or "general hallucination judge" surfaced
 
 ### 6.4 Boundary
 
-The judge discipline constrains validator declarations; it does not define the offline optimization pipeline that calibrates a judge against annotated traces — that pipeline is a long-running evaluation run owned by the future Evaluation and Benchmarking spec, gated by explicit user invocation, with cost preview. File 39 owns the registration of the resulting judge as a validator and the inline execution of that judge against live targets.
+The judge discipline constrains validator declarations; it does not define the offline optimization pipeline that calibrates a judge against annotated traces — that pipeline is a long-running evaluation run owned by the Evaluation and Benchmarking spec (File 40), gated by explicit user invocation, with cost preview. File 39 owns the registration of the resulting judge as a validator and the inline execution of that judge against live targets.
 
 ## 7. Outcome, Severity, and Findings
 
@@ -448,7 +448,7 @@ Given the same target and the same block-pool, version-graph, and ledger snapsho
 
 ### 12.4 Boundary
 
-The report is a query surface over File 09's result blocks. File 39 specifies the aggregation contract; File 09 owns the blocks and the `ValidationState` derivation; Files 37 and 38 render the report as a badge, a panel, or a timeline; the future Telemetry, Logging, and Observability spec consumes report aggregates for observability.
+The report is a query surface over File 09's result blocks. File 39 specifies the aggregation contract; File 09 owns the blocks and the `ValidationState` derivation; Files 37 and 38 render the report as a badge, a panel, or a timeline; the Telemetry, Logging, and Observability spec (File 41) consumes report aggregates for observability.
 
 ## 13. Real-Time and Streaming Validation
 
@@ -583,15 +583,15 @@ Quality control emits through the canonical ledger and event kinds already reser
 
 ### 17.2 Metrics
 
-Quality metrics are aggregates over the recorded validations, computed downstream and never surfaced as per-validation continuous scores (§6.2): the proportion of targets passing a given validator over a window, the per-validator false-positive rate from user feedback, the per-validator latency distribution, and the most-common violation kinds. These aggregates are projections; the future Telemetry, Logging, and Observability spec renders them, and the future Evaluation and Benchmarking spec uses them for offline measurement. File 39 names the metric sources and the feedback loop.
+Quality metrics are aggregates over the recorded validations, computed downstream and never surfaced as per-validation continuous scores (§6.2): the proportion of targets passing a given validator over a window, the per-validator false-positive rate from user feedback, the per-validator latency distribution, and the most-common violation kinds. These aggregates are projections; the Telemetry, Logging, and Observability spec (File 41) renders them, and the Evaluation and Benchmarking spec (File 40) uses them for offline measurement. File 39 names the metric sources and the feedback loop.
 
 ### 17.3 The Accuracy Feedback Loop
 
-A validation may receive user feedback (`Accepted`, `Rejected`, `Ignored`, `FalsePositive`) through `validation.record_feedback`. The feedback drives the validator-accuracy projection (which validators are noisy), informs per-profile default tuning (a high-false-positive validator may be downgraded to advisory or disabled for a profile), and — for `ModelMediated` validators — feeds the offline judge-optimization pipeline in the future Evaluation and Benchmarking spec that calibrates a judge against annotated examples. The agent may propose registering a new validator trained from a conversation where it failed; the user gates the registration. File 39 owns the inline feedback recording and the registration handoff; the future spec owns the optimization run.
+A validation may receive user feedback (`Accepted`, `Rejected`, `Ignored`, `FalsePositive`) through `validation.record_feedback`. The feedback drives the validator-accuracy projection (which validators are noisy), informs per-profile default tuning (a high-false-positive validator may be downgraded to advisory or disabled for a profile), and — for `ModelMediated` validators — feeds the offline judge-optimization pipeline in the Evaluation and Benchmarking spec (File 40) that calibrates a judge against annotated examples. The agent may propose registering a new validator trained from a conversation where it failed; the user gates the registration. File 39 owns the inline feedback recording and the registration handoff; File 40 owns the optimization run.
 
 ### 17.4 Boundary
 
-Events and the ledger are owned by File 10; the telemetry projection by the future Telemetry, Logging, and Observability spec; the offline optimization by the future Evaluation and Benchmarking spec. File 39 names the events, the metric sources, and the feedback loop.
+Events and the ledger are owned by File 10; the telemetry projection by the Telemetry, Logging, and Observability spec (File 41); the offline optimization by the Evaluation and Benchmarking spec (File 40). File 39 names the events, the metric sources, and the feedback loop.
 
 ## 18. Settings, Profiles, and Customization
 
@@ -682,7 +682,7 @@ The following shapes are wrong for this layer:
 - a quality validator that re-implements permission policy, secret detection, redaction, or injection defense — those are Files 06 and 22; a validator orchestrates them, it does not duplicate them
 - a quality validator that reaches into a subsystem's private state — the subsystem registers its own validators with the access it owns; the quality layer does not open a second path
 - a blocking validator set to fail open without typed confirmation, or any validator that bypasses a permission floor, typed-confirmation requirement, contradiction detection, or touched-resource constraint — quality control narrows, it never escalates authority
-- folding offline evaluation suites, benchmarks, regression harnesses, or judge-optimization runs into this layer — those are owned by the future Evaluation and Benchmarking spec; this layer is inline validation that gates live execution
+- folding offline evaluation suites, benchmarks, regression harnesses, or judge-optimization runs into this layer — those are owned by the Evaluation and Benchmarking spec (File 40); this layer is inline validation that gates live execution
 - treating an `Inconclusive` outcome as `Passed` at any blocking boundary — uncertainty must gate or follow an explicit allowed `inconclusive_policy`
 - presenting skipped validators as passed in a validation report — skipped checks remain visible as skipped diagnostics
 - gating generation on a synchronous human judgment — blocking validators are automatic; human adjudication is asynchronous over the non-destructive sibling
@@ -696,8 +696,8 @@ Anchor: `qc.consequences-for-later-specs`
 
 Later specs must follow these rules:
 
-- the future **Evaluation and Benchmarking** spec must build offline eval suites by running the `Validator` primitive and aggregating `Validation`/`Critique` results over recorded runs; it must own the judge-optimization pipeline, the suite and run records, and the scoring aggregation, and it must consume — never redefine — the validator and result contracts of this file. The boundary is fixed: File 39 is the inline layer that gates live execution; the future Evaluation and Benchmarking spec is the offline layer that measures and compares.
-- the future **Telemetry, Logging, and Observability** spec must compute quality metrics as projections over the quality-control ledger entries and validation blocks named here, surfacing validator-accuracy, false-positive, latency, and pass-rate aggregates without introducing a parallel quality store.
+- the **Evaluation and Benchmarking** spec (File 40) must build offline eval suites by running the `Validator` primitive and aggregating `Validation`/`Critique` results over recorded runs; it must own the judge-optimization pipeline, the suite and run records, and the scoring aggregation, and it must consume — never redefine — the validator and result contracts of this file. The boundary is fixed: File 39 is the inline layer that gates live execution; the Evaluation and Benchmarking spec (File 40) is the offline layer that measures and compares.
+- the **Telemetry, Logging, and Observability** spec (File 41) must compute quality metrics as projections over the quality-control ledger entries and validation blocks named here, surfacing validator-accuracy, false-positive, latency, and pass-rate aggregates without introducing a parallel quality store.
 - the **per-surface specs** (Files 27–32) must register their owned validators through the one path, produce canonical `Validation`/`Critique` blocks, attach at canonical `ValidationBoundary` values, gate per §8, and declare their default required validations and per-surface enablement defaults; none may introduce a private validation pipeline.
 - **automation and workflow specs** (Files 33, 34) — already written — bind required validations through the run-completion contract and the workflow body; this file confirms that a workflow's or automation's declared validation requirement is a `Completion`-boundary required validation, gated per §14, and that an automation's non-interactive safety posture treats a `Failed` required validation as a park-and-notify outcome, never an auto-pass.
 - the **plugin and extension spec** (File 35) — already written — contributes validators through the plugin contribution path under source-approval and trust narrowing, seeds per-profile defaults through `[plugin.quality_control.defaults]`, and never grants a plugin validator authority above `narrowing_only` without explicit user upgrade.

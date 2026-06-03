@@ -31,8 +31,8 @@ This file does not define:
 - offline evaluation suites, benchmarks, scoring aggregation, the replay engine, or judge optimization — File 40 owns those; this file owns the live-metric layer of the same quality discipline
 - the `Shell`, the renderer registry, the Observatory's and debug surface's rendering, panel layout, or accessibility presentation — Files 37 and 38 own those; this file owns the data contracts they render
 - the run lifecycle, the capability-call pipeline, cancellation, context assembly, token counting, or the version graph — Files 04, 13, and 11 own those; this file observes and projects them
-- process lifecycle, startup and shutdown orchestration, background-worker scheduling, queues, service supervision, or operational remediation — the future Runtime Infrastructure and Lifecycle spec owns those; this file observes their facts and exposes health projections, and it operates nothing
-- crash-reporter bundling into the installer, update-channel telemetry distribution, platform crash-handler registration, or release-channel analytics — the future Packaging, Platform, and Distribution spec owns those; this file owns the in-app diagnostic-bundle export and the consent boundary
+- process lifecycle, startup and shutdown orchestration, background-worker scheduling, queues, service supervision, or operational remediation — the Runtime Infrastructure and Lifecycle spec (File 42) owns those; this file observes their facts and exposes health projections, and it operates nothing
+- crash-reporter bundling into the installer, update-channel telemetry distribution, platform crash-handler registration, or release-channel analytics — the Packaging, Platform, and Distribution spec (File 43) owns those; this file owns the in-app diagnostic-bundle export and the consent boundary
 - the settings cascade, scope resolution, profiles, the TOML overlay, or bootstrap environment variables — File 15 owns those; this file names the dimensions it exposes
 
 ## Source Resolution
@@ -106,9 +106,9 @@ File 37 owns the rendering of the Observatory surface and the debug surface (`ui
 
 File 04 owns the run lifecycle, the capability-call pipeline, child runs, cancellation, budgets, and the run presentation (`run.presentation`, File 04 §25) the Observatory's execution timeline projects. File 11 owns the version graph and the forensic reconstruction the Observatory's "what the model saw" view renders. File 13 owns context assembly, token counting, the `BudgetReport`, and the `ContextPressureObserved` boundary the Observatory's context-budget metric surfaces. File 41 observes and projects all three; it owns none of their mechanics, computes no token count of its own, and re-derives nothing from live mutable state at replay or reconstruction time (`context.assembly-replay-snapshot`).
 
-### 2.9 With the future Runtime Infrastructure and Lifecycle spec (File 42) and Packaging spec (File 43)
+### 2.9 With File 42 (Runtime Infrastructure and Lifecycle) and File 43 (Packaging, Platform, and Distribution)
 
-The future Runtime Infrastructure and Lifecycle spec owns process lifecycle, startup and shutdown orchestration, background-worker scheduling, queues, service supervision, liveness-state classification, and operational remediation. The `41↔42` boundary is: File 41 **observes** operational facts and exposes health projections (§11); File 42 **operates** and remediates. A background worker's `BackgroundWorkerSpawned` / `BackgroundWorkerHeartbeat` / `BackgroundWorkerStopped` / `BackgroundWorkerFailed` facts are emitted by their owning subsystem (`ledger.lifecycle-integration`, File 10 §17.2); File 41 surfaces them as a health projection and operates nothing. The future Packaging, Platform, and Distribution spec owns crash-handler registration at the platform layer, crash-reporter bundling into the installer, update-channel telemetry distribution, and release-channel analytics. File 41 owns the in-app `DiagnosticBundle` export and the `TelemetryConsent` boundary; the platform crash handler that File 43 registers feeds the same redaction and consent boundary this file defines.
+File 42 owns process lifecycle, startup and shutdown orchestration, background-worker scheduling, queues, service supervision, liveness-state classification, and operational remediation. The `41↔42` boundary is: File 41 **observes** operational facts and exposes health projections (§11); File 42 **operates** and remediates. A background worker's `BackgroundWorkerSpawned` / `BackgroundWorkerHeartbeat` / `BackgroundWorkerStopped` / `BackgroundWorkerFailed` facts are emitted by their owning subsystem (`ledger.lifecycle-integration`, File 10 §17.2); File 41 surfaces them as a health projection and operates nothing. File 43 owns crash-handler registration at the platform layer, crash-reporter bundling into the installer, update-channel telemetry distribution, and release-channel analytics. File 41 owns the in-app `DiagnosticBundle` export and the `TelemetryConsent` boundary; the platform crash handler that File 43 registers feeds the same redaction and consent boundary this file defines.
 
 ### 2.10 Boundary
 
@@ -196,7 +196,7 @@ Operator- and developer-facing diagnostic log messages are written in the projec
 
 ### 4.8 Boundary
 
-This section owns the `LogRecord`, the `LogLevel`, the emission-as-`DebugLog` contract, the redaction-before-write rule, the device-local diagnostic stream, and the session-log-as-projection rule. The `DebugLog` event kind and the bus are File 10's; the redaction primitive is File 22's; the structured-tracing crate and the frontend transport are realizations the future Runtime Infrastructure spec orchestrates; the log-viewer rendering is File 37's; the storage of the diagnostic stream is File 20's.
+This section owns the `LogRecord`, the `LogLevel`, the emission-as-`DebugLog` contract, the redaction-before-write rule, the device-local diagnostic stream, and the session-log-as-projection rule. The `DebugLog` event kind and the bus are File 10's; the redaction primitive is File 22's; the structured-tracing crate and the frontend transport are realizations File 42 orchestrates; the log-viewer rendering is File 37's; the storage of the diagnostic stream is File 20's.
 
 ## 5. Tracing and Spans
 
@@ -298,7 +298,7 @@ Every export through a `TelemetrySink` passes the egress pipeline:
 
 ### 7.4 The Diagnostic Bundle
 
-A `DiagnosticBundle` is a user-initiated, redacted, sensitivity-filtered export of recent logs, traces, metrics, and selected ledger excerpts, assembled for the user to inspect or share when reporting a problem. It is the in-app diagnostics export, distinct from the platform crash handler the future Packaging spec registers. The bundle passes the same egress pipeline (§7.3): redaction first, sensitivity filtering with `Public`-only by default and `Sensitive` only on typed confirmation, `Secret` never. It is a governed diagnostic export with a manifest, integrity record, dependency list, and redaction/omission records, but it is not a `PortablePackage` profile unless File 21 explicitly adds such a profile; it has no import, recovery, or round-trip guarantee. Assembling a bundle records a ledger entry; sharing it is an egress the user explicitly performs.
+A `DiagnosticBundle` is a user-initiated, redacted, sensitivity-filtered export of recent logs, traces, metrics, and selected ledger excerpts, assembled for the user to inspect or share when reporting a problem. It is the in-app diagnostics export, distinct from the platform crash handler File 43 registers. The bundle passes the same egress pipeline (§7.3): redaction first, sensitivity filtering with `Public`-only by default and `Sensitive` only on typed confirmation, `Secret` never. It is a governed diagnostic export with a manifest, integrity record, dependency list, and redaction/omission records, but it is not a `PortablePackage` profile unless File 21 explicitly adds such a profile; it has no import, recovery, or round-trip guarantee. Assembling a bundle records a ledger entry; sharing it is an egress the user explicitly performs.
 
 ### 7.5 The Optional Export Protocol
 
@@ -306,7 +306,7 @@ The export protocol behind a `TelemetrySink` is the standard open telemetry prot
 
 ### 7.6 Boundary
 
-This section owns the zero-egress default, the `TelemetrySink` and `TelemetryConsent` contracts, the egress pipeline (redaction, anonymization, sensitivity gating), the `DiagnosticBundle`, and the optional-export-protocol framing. The redaction primitive, the egress policy semantics, and the secret boundary are File 22's; governed movement and egress mechanics are File 21's; the policy gate is File 06's; the audit recording is File 10's; the platform crash handler and update-channel distribution are the future Packaging spec's.
+This section owns the zero-egress default, the `TelemetrySink` and `TelemetryConsent` contracts, the egress pipeline (redaction, anonymization, sensitivity gating), the `DiagnosticBundle`, and the optional-export-protocol framing. The redaction primitive, the egress policy semantics, and the secret boundary are File 22's; governed movement and egress mechanics are File 21's; the policy gate is File 06's; the audit recording is File 10's; the platform crash handler and update-channel distribution are File 43's.
 
 ## 8. The Debug Surface and Developer Observability
 
@@ -322,7 +322,7 @@ The live event-log data contract is a bounded in-memory ring buffer of recent `A
 
 ### 8.3 The Performance Monitor
 
-The performance-monitor data contract is a projection of recent operation timings and resource usage: agent-step duration with its phase breakdown, model-call and tool-call latencies, database-query timings with a slow-query threshold, streaming throughput, and host-resource gauges (memory and CPU). The thresholds (the slow-query threshold, the resource-warning thresholds) are settings, not hardcoded constants. The performance monitor surfaces observed timing and resource facts; it does not throttle, kill, or remediate (that is the run model's and the future Runtime Infrastructure spec's). Resource gauges are sampled (§8.5).
+The performance-monitor data contract is a projection of recent operation timings and resource usage: agent-step duration with its phase breakdown, model-call and tool-call latencies, database-query timings with a slow-query threshold, streaming throughput, and host-resource gauges (memory and CPU). The thresholds (the slow-query threshold, the resource-warning thresholds) are settings, not hardcoded constants. The performance monitor surfaces observed timing and resource facts; it does not throttle, kill, or remediate (that is the run model's and File 42's). Resource gauges are sampled (§8.5).
 
 ### 8.4 Debug Toggles
 
@@ -334,7 +334,7 @@ Most observability is event-first (§11; `core.event-first-by-default`, File 01 
 
 ### 8.6 Boundary
 
-This section owns the debug-surface data contracts: the ring-buffer event log, the performance-monitor projection, the debug toggles, and the resource-sampling exception. The aggregation and delivery classes are File 10's; the rendering, the keyboard activation, and the panel layout are File 37's; the storage of the buffer is device-local per File 20; the resource-control mechanics (limits, kills) are the run model's and the future Runtime Infrastructure spec's.
+This section owns the debug-surface data contracts: the ring-buffer event log, the performance-monitor projection, the debug toggles, and the resource-sampling exception. The aggregation and delivery classes are File 10's; the rendering, the keyboard activation, and the panel layout are File 37's; the storage of the buffer is device-local per File 20; the resource-control mechanics (limits, kills) are the run model's and File 42's.
 
 ## 9. Observability Retention
 
@@ -376,15 +376,15 @@ File 41 owns the observability data contract for system health: a composite, pro
 
 ### 11.2 The Observe-Not-Operate Boundary (41↔42)
 
-File 41 observes operational facts and exposes them; it operates nothing. Background workers (the memory consolidator, the scheduler, the watch poller, the audit writer, the lineage tracker) emit `BackgroundWorkerSpawned` / `BackgroundWorkerHeartbeat` / `BackgroundWorkerStopped` / `BackgroundWorkerFailed` (`ledger.lifecycle-integration`, File 10 §17.2); File 41 surfaces their liveness as a health projection. Provider health transitions (`ProviderHealthChanged`, File 17), connector connection states (`mcp.connection-lifecycle`, File 36), and storage integrity events (File 20) surface the same way. The future Runtime Infrastructure and Lifecycle spec owns the worker scheduling, the restart, the queue, the supervision, and the remediation; File 41 owns the health view over them. There is no File 41 watchdog that restarts, kills, or remediates anything.
+File 41 observes operational facts and exposes them; it operates nothing. Background workers (the memory consolidator, the scheduler, the watch poller, the audit writer, the lineage tracker) emit `BackgroundWorkerSpawned` / `BackgroundWorkerHeartbeat` / `BackgroundWorkerStopped` / `BackgroundWorkerFailed` (`ledger.lifecycle-integration`, File 10 §17.2); File 41 surfaces their liveness as a health projection. Provider health transitions (`ProviderHealthChanged`, File 17), connector connection states (`mcp.connection-lifecycle`, File 36), and storage integrity events (File 20) surface the same way. File 42 owns the worker scheduling, the restart, the queue, the supervision, and the remediation; File 41 owns the health view over them. There is no File 41 watchdog that restarts, kills, or remediates anything.
 
 ### 11.3 Liveness Is Event-First; Resource Is the Sampled Exception
 
-Worker and connection liveness are event-first: the owning runtime, worker, provider, connector, or subsystem emits typed lifecycle and liveness-state facts (`Healthy`, `Degraded`, `Stale`, `Failed`, or equivalent), and the health projection consumes them. File 41 does not infer staleness from missing heartbeats and owns no liveness timeout, cooldown, restart, or remediation policy; those belong to the future Runtime Infrastructure spec or the owning subsystem. The scheduled-health-ping anti-pattern (`provider.health` File 17 §12.4's rejected scheduled ping; the deprecated health-ping `references/GLOSSARY.md` records) is rejected here too. The one sampled signal is the host-resource gauge (§8.5), flagged and configurable because it has no change-event source.
+Worker and connection liveness are event-first: the owning runtime, worker, provider, connector, or subsystem emits typed lifecycle and liveness-state facts (`Healthy`, `Degraded`, `Stale`, `Failed`, or equivalent), and the health projection consumes them. File 41 does not infer staleness from missing heartbeats and owns no liveness timeout, cooldown, restart, or remediation policy; those belong to File 42 or the owning subsystem. The scheduled-health-ping anti-pattern (`provider.health` File 17 §12.4's rejected scheduled ping; the deprecated health-ping `references/GLOSSARY.md` records) is rejected here too. The one sampled signal is the host-resource gauge (§8.5), flagged and configurable because it has no change-event source.
 
 ### 11.4 Boundary
 
-This section owns the health-status data contract and the observe-not-operate boundary. The worker, queue, and supervision mechanics are the future Runtime Infrastructure spec's; the provider-health state machine is File 17's; the connector connection state is File 36's; the storage health is File 20's; the rendering of the health card is File 37's.
+This section owns the health-status data contract and the observe-not-operate boundary. The worker, queue, and supervision mechanics are File 42's; the provider-health state machine is File 17's; the connector connection state is File 36's; the storage health is File 20's; the rendering of the health card is File 37's.
 
 ## 12. Per-Surface and Per-Subsystem Observability
 
@@ -516,7 +516,7 @@ The following shapes are wrong for this layer:
 - a span with no terminating event silently rendered `Ok`, dropped, or included in a complete-looking trace — incomplete spans and partial traces are explicit
 - cross-clock-domain wall-clock deltas presented as exact span duration, or wall-clock ordering used as canonical trace ordering — sequence is canonical, and cross-clock durations are approximate
 - disabling, weakening, or rerouting the hash-chained audit overlay through the observability layer — audit is never disabled when telemetry is disabled, is never synced, and is surfaced read-only here; observability owns none of it
-- observability that blocks, gates, throttles, kills, or remediates the operation it observes — observability is observe-only; remediation is the run model's and the future Runtime Infrastructure spec's
+- observability that blocks, gates, throttles, kills, or remediates the operation it observes — observability is observe-only; remediation is the run model's and File 42's
 - a per-surface or per-subsystem private telemetry store, metrics database, or trace backend — surface affordances are presentations of the one Observatory service; custom instruments register through the one instrumentation-declaration path
 - a new top-level `AppEvent` or `LedgerEntryKind` for observability, or a parallel observability bus — observability consumes the closed catalogue and registers `Custom { namespace: "observability" }` extensions on the one bus
 - a hardcoded log level, rotation size, buffer cap, sampling interval, flush cadence, or retention horizon — every one is a configurable setting with a canonical default; time-based retention is opt-in, not the hidden default shape
@@ -539,8 +539,8 @@ Every later spec that emits a fact, produces a metric source, needs a diagnostic
 
 Specific integration contracts:
 
-- the future **Runtime Infrastructure and Lifecycle** spec owns process lifecycle, background-worker scheduling, queues, supervision, liveness-state classification, and operational remediation; it emits the worker, queue, and lifecycle facts this file surfaces as health projections, and it owns the operation while this file owns the observation. The observe-not-operate boundary (§11.2) is fixed: this file remediates nothing and infers no stale liveness state.
-- the future **Packaging, Platform, and Distribution** spec owns the platform crash-handler registration, the crash-reporter bundling, the update-channel telemetry distribution, and the release-channel analytics; the platform crash handler feeds the redaction and consent boundary this file defines, and the in-app `DiagnosticBundle` and `TelemetryConsent` remain this file's.
+- the **Runtime Infrastructure and Lifecycle** spec (File 42) owns process lifecycle, background-worker scheduling, queues, supervision, liveness-state classification, and operational remediation; it emits the worker, queue, and lifecycle facts this file surfaces as health projections, and it owns the operation while this file owns the observation. The observe-not-operate boundary (§11.2) is fixed: this file remediates nothing and infers no stale liveness state.
+- the **Packaging, Platform, and Distribution** spec (File 43) owns the platform crash-handler registration, the crash-reporter bundling, the update-channel telemetry distribution, and the release-channel analytics; the platform crash handler feeds the redaction and consent boundary this file defines, and the in-app `DiagnosticBundle` and `TelemetryConsent` remain this file's.
 - the **per-surface specs** (Files 27–32) present observability under their own vocabulary (activity feeds, session logs, network logs, lineage views, health cards, cost panels) as presentations of the one Observatory service, register their custom instruments and log categories through the one path, and own no private telemetry store.
 - the **storage and sync specs** (Files 20, 21) — already written — realize observability retention as recorded policy over the one garbage collector with dry-run and accounting, use size/count/storage-accounting bounds by default and time horizons only as explicit policy, keep trace and metric projections rebuildable, hold the diagnostic stream, ring buffer, active telemetry consent, and audit overlay device-local, and never sync raw secret or unredacted `Sensitive` observability content.
 - the **UI specs** (Files 37, 38) — already written — render the Observatory and debug surfaces and the observability widgets from the data contracts this file defines, gate raw-payload inspection and export behind File 22 egress and File 06 policy, and present observability as management surfaces, never as work surfaces.

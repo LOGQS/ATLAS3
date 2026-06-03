@@ -415,7 +415,7 @@ Every persistence contract requires deterministic reconstruction across restart,
 
 ### 13.4 Boundary
 
-This section owns the storage lifecycle and reconstruction realization. The semantics of a recovered run, a revalidated lease, or a resolved snapshot are owned by Files 04, 06, 11, and 18; this file owns the ordered sequence and the determinism guarantee. The broader application lifecycle beyond storage — provider warmers, UI initialization — is the future Runtime Infrastructure and Lifecycle spec's; this file owns the storage phases within it.
+This section owns the storage lifecycle and reconstruction realization. The semantics of a recovered run, a revalidated lease, or a resolved snapshot are owned by Files 04, 06, 11, and 18; this file owns the ordered sequence and the determinism guarantee. The broader application lifecycle beyond storage — provider warmers, UI initialization — is File 42's; this file owns the storage phases within it.
 
 ## 14. The Secret-Vault and Audit-Overlay Storage Boundaries
 

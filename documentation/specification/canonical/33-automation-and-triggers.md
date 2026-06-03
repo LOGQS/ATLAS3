@@ -39,7 +39,7 @@ This file does not define:
 - the sandbox, isolation tiers, process control, killability, or the elevated helper — File 23 owns those; an automation declares a sandbox profile by reference
 - per-surface workflows, the surface-specific monitor presentations, or the per-surface capability families — the per-surface specs (27–32) own those; this file owns the one scheduler they alias over
 - UI rendering — the automations dashboard layout, the schedule editor, the trigger-config pane, widget chrome, notification presentation, and accessibility — File 37 and File 38 own those; this file specifies the data and resolution contracts they consume
-- quality-control validators, evaluation harnesses, or completion-check internals — File 09, File 04 §22, and the future Quality Control spec own those; an automation's validation policy selects among them
+- quality-control validators, evaluation harnesses, or completion-check internals — File 09, File 04 §22, and File 39 own those; an automation's validation policy selects among them
 
 ## Source Resolution
 
@@ -169,7 +169,7 @@ On startup, the `Scheduler` reconciles: it computes which triggers were due duri
 
 ### 3.6 Boundary
 
-This section owns the recurrence contract, the timer-arming rule, and missed-fire reconciliation. The wall-clock and timezone facts are world-model grounding (File 18 §6); the timer primitive and background-worker placement are the `Scheduler`'s (§9) over `infrastructure/lifecycle.md`'s task model realized by File 10 and the future Runtime Infrastructure spec.
+This section owns the recurrence contract, the timer-arming rule, and missed-fire reconciliation. The wall-clock and timezone facts are world-model grounding (File 18 §6); the timer primitive and background-worker placement are the `Scheduler`'s (§9) over `infrastructure/lifecycle.md`'s task model realized by Files 10 and 42.
 
 ## 4. `WorldCondition` Triggers and Watch Evaluation
 
@@ -377,7 +377,7 @@ The `Scheduler` is the one substrate service that detects trigger firings and em
 
 ### 9.4 Boundary
 
-File 10 owns the background-worker registration and lifecycle, and the event bus emission flows through; File 26 owns the rail; File 18 owns the subscriptions; the future Runtime Infrastructure spec owns the worker scheduling primitives. This section owns the detection-and-arbitration service over them.
+File 10 owns the background-worker registration and lifecycle, and the event bus emission flows through; File 26 owns the rail; File 18 owns the subscriptions; File 42 owns the worker scheduling primitives. This section owns the detection-and-arbitration service over them.
 
 ## 10. The Automation Run
 
@@ -504,7 +504,7 @@ Anchor: `automation.validation-and-output`
 
 ### 14.1 Validation Policy
 
-An `Automation`'s `validation_policy` declares which validators and completion checks a run must satisfy to be considered successful, selecting among the existing validation substrate — `Validation` and `Critique` blocks (`artifact.validation-critique`, File 09 §14), the completion-verification hook surface (`run.termination`, File 04 §22), and the future Quality Control spec's validators. A run that completes without satisfying its validation policy is recorded as a failed (not successful) run and is subject to the failure-handling policy (§13). The validation policy reuses the substrate; it does not define new validators.
+An `Automation`'s `validation_policy` declares which validators and completion checks a run must satisfy to be considered successful, selecting among the existing validation substrate — `Validation` and `Critique` blocks (`artifact.validation-critique`, File 09 §14), the completion-verification hook surface (`run.termination`, File 04 §22), and File 39's validators. A run that completes without satisfying its validation policy is recorded as a failed (not successful) run and is subject to the failure-handling policy (§13). The validation policy reuses the substrate; it does not define new validators.
 
 ### 14.2 Output Contract
 
@@ -523,7 +523,7 @@ A run that completes without satisfying its output contract is a failed run, eve
 
 ### 14.4 Boundary
 
-File 09 owns the validation and artifact contracts; File 04 §22 owns completion verification; the future Quality Control spec owns the validator catalogue; File 10 owns the delivery events. This section owns the per-automation validation and output declarations.
+File 09 owns the validation and artifact contracts; File 04 §22 owns completion verification; File 39 owns the validator catalogue; File 10 owns the delivery events. This section owns the per-automation validation and output declarations.
 
 ## 15. Creation and the Graduation Path
 
