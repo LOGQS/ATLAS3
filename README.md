@@ -6,4 +6,4 @@
 
 ## Progress
 
-- Planning
+- Canonical specifications first pass finished.
