@@ -366,6 +366,7 @@ A loop may stop when:
 
 - no tool calls are proposed
 - an explicit finish capability is invoked
+- a capability returns a terminal-result hint and the termination contract is already satisfied
 - the run is cancelled
 - the run is paused or awaits user input
 - a configured budget is reached
@@ -434,6 +435,18 @@ If schema validation still fails:
 - For model-driven and programmatic calls, dispatch halts before handler execution and the active unit receives a typed `InputSchemaMismatch` or `InputValidationFailed` result in-band, including the field path, expected shape, actual shape, and declared repair options that are safe to reveal. The model or programmatic executor may issue a corrected new call; that new call starts at the beginning of the call pipeline and is governed by the execution retry policy (§20.2.1).
 - For direct user-authored invocations, the surface highlights the invalid fields and requests correction through the normal input UI. The correction is a new explicit invocation or proposal, not an invisible mutation of the original call.
 - The executor asks the user to repair a model-generated malformed call only when the missing or ambiguous value is genuinely user-owned or policy requires user choice. User prompting is not the default repair path for ordinary model schema errors.
+
+### 8.2.2 Bounded Results and Terminal-Result Hints
+
+Anchor: `run.bounded-results-terminal-hints`
+
+Capability results that may exceed the configured inline-output bound must use a bounded result envelope before the result is returned to the next model step. The envelope carries the inline excerpt or structured summary, a `truncated` flag, omitted range metadata where meaningful, sensitivity, and a reference to the full output stored as a blob, artifact, observation, workspace materialization, or device-local temp handle according to the capability's output contract. The full output is not lost; it is accessed through an explicit follow-up read, range, or artifact capability.
+
+This is a tool-boundary rule, not a context-assembly rule. It prevents unbounded tool output from entering the next model request in the first place; File 13 still decides later assembly, ranking, omission, and compaction over the bounded result and its references. Inline bounds, spill targets, and excerpt policy are settings per capability, capability family, surface, and sensitivity class, never hardcoded constants.
+
+A capability result may carry `terminal_result_hint: true` when the result itself is the user-facing final answer or structured output and no further model synthesis is required. The hint is only a loop optimization: it lets execution skip the next model round-trip when all active units in the completed batch are terminal-compatible, no sibling result requires follow-up, no hook requests continuation, and the run's current `RunCompletionContract` plus postconditions, required validations, approvals, and ledger evidence are already satisfied. A terminal-result hint never weakens the completion contract, never substitutes for ledgered evidence, and never marks a run `completed` by itself.
+
+When execution accepts a terminal-result hint and skips the next model step, it records the decision and eligibility basis in the execution ledger. If the hint is present but ineligible, execution ignores the hint, continues normally, and records no skip.
 
 Every capability declares minimum execution-relevant metadata beyond input/output schemas:
 
@@ -671,6 +684,8 @@ Capabilities must declare enough concurrency metadata for the executor to know w
 - `Exclusive` — runs alone within its declared resource scope.
 
 The default for newly declared capabilities is `Exclusive`. The executor must detect when two `Exclusive` calls have disjoint resource scopes and is permitted to schedule them in parallel; the tag declares the pessimistic case, the executor refines it. Backends, sessions, processes, and external services must not be implicit single-instance locks: parallel runs and parallel calls against the same provider are first-class and must be addressable through the event envelope (§23.2).
+
+For filesystem mutations, resource-scope conflict detection uses the canonical real path resolved by the filesystem chokepoint (`sandbox.filesystem-enforcement`, File 23 §7.3), not the caller-supplied path string. Symlink aliases, `.`/`..` variants, case variants on case-insensitive filesystems, and workspace-relative versus absolute spellings resolve to one mutation key. The executor serializes the whole read-modify-write window for the same resolved file identity: observation, freshness validation, preview/diff computation when it depends on current content, staged write, postcondition check, and commit. Different resolved file identities may still run concurrently when their resource scopes are disjoint.
 
 The executor must preserve stable result ordering even when work finishes out of order.
 
@@ -1297,6 +1312,8 @@ At minimum, settings must support:
 - lease scope hierarchy enablement (single-proposal, run, intent-thread, task, conversation, workspace, global, reusable-policy-rule) and the policy-validation rules that reject contradictory combinations across scope levels
 - approval-policy mode selection, including model-mediated `auto-decide` and per-template prompts
 - coalescing policy (off, recommended, auto-mode model-mediated) per capability or globally, including per-call cache-vs-fresh control
+- capability result bounding: inline-output limits, excerpt strategy, spill target, and full-output follow-up behavior per capability, family, surface, and sensitivity class
+- terminal-result hint behavior: enabled/disabled per capability or family, and whether eligible batches skip the next model step
 - sibling-abort and `depends_on` dispatch behavior per capability and per batch
 - per-capability and category-default cancellation deadlines, partial-output retention overrides, and resume-on-restart enablement, plus the cancel UI's default action and expanded-menu options
 - stuck detection thresholds (per pattern), in-band soft-warning escalation rules, and opt-in model-mediated stuck detection
@@ -1338,6 +1355,9 @@ The following shapes are wrong for this layer:
 - reusing a prior approval or lease after retry-time argument, resource, effect, egress, credential, backend, or approval-scope changes without rerunning the call pipeline
 - automatically retrying a consequential non-idempotent call with unknown outcome and no idempotency key, completion marker, or no-commit proof
 - treating `retryable: true` as sufficient for execution-level retry without outcome-safety, budget, cancellation, freshness, and policy checks
+- treating a terminal-result hint as proof of completion, or using it to bypass postconditions, required validations, approval evidence, ledger evidence, or the completion contract
+- returning unbounded capability output directly into the next model request when the capability could instead provide a bounded excerpt plus a full-output reference
+- locking filesystem mutations by raw path string rather than by the resolved canonical file identity, allowing symlink or path-spelling aliases to bypass `Exclusive` resource scopes
 - hardcoding one tool-loading policy with no meaningful user override
 - hardcoding one approval-policy interpretation mode or template with no meaningful user override
 - hardcoding retry, loop, budget, or stuck thresholds outside settings

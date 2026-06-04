@@ -186,6 +186,8 @@ These fields are declared in `run.call-pipeline` (File 04 §8.2) and referenced 
 - `cooperative_stop_deadline_ms`: u64 with policy default
 - `sibling_abort_on_failure`: bool
 - `resume_on_restart`: bool with optional resume handler reference
+- `result_bounding`: optional declaration for large outputs: inline excerpt shape, full-output reference kind, and sensitivity/locality handling
+- `terminal_result_hint`: optional declaration that successful results may carry a terminal-result hint consumed by File 04
 
 Plus declaration-owned additions:
 
@@ -280,6 +282,12 @@ Inputs are normalized and validated against `input_schema` before execution per 
 - the relationship between produced blocks and the return value made explicit (whether the value contains a block id, the block content inline, or a reference to artifacts)
 
 Capabilities whose output is principally one or more durable blocks (file edits, artifact creation, document edits) declare a return value that references the produced block ids, not the inline content. Inline content in returns is reserved for short structured data and small text outputs.
+
+Capabilities that can produce large text, binary, tabular, log, trace, terminal, or search outputs must declare `result_bounding`. A bounded result returns a configured inline excerpt or structured summary plus a reference to the full output as a blob, artifact, observation, workspace materialization, or device-local temp handle. The declaration states the follow-up capability or reference type used to read ranges of the full output. Numeric inline limits are settings, not declaration constants, unless a capability has a lower correctness or provider-imposed maximum.
+
+A capability that may end the loop without another model step declares whether successful outputs may include `terminal_result_hint: true`. The hint is metadata on the result, not part of the output's truth claim; File 04 decides whether the hint is eligible after completion-contract, postcondition, policy, and validation checks.
+
+`terminal_result_hint` and `terminates_sequence` are unrelated. `terminal_result_hint` is a post-result loop optimization; `terminates_sequence` is a batch-safety declaration that aborts queued sibling calls after a state-invalidating capability completes.
 
 ### 4.3 `error_vocabulary`
 

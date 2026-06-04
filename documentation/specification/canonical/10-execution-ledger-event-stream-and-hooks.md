@@ -385,7 +385,8 @@ Every ledger entry declares its `kind` at commit. The canonical closed catalogue
 - `ToolCallDenied` — proposal denied; payload includes denial reason, in-band synthesis of the typed result block id
 - `ToolCallExecuted` — capability handler invoked; payload includes start timestamp, isolation primitive used (per `run.isolation`, File 04 §16.2), backend binding instance
 - `ToolCallStreamingPartial` — capability emitted a partial during streaming (per `run.streaming-partial-execution`, File 04 §12); payload includes partial-block handle, byte counts, sensitivity
-- `ToolCallCompleted` — capability returned its declared output; payload includes produced block ids, postcondition outcomes, declared replay-class metadata
+- `ToolCallCompleted` — capability returned its declared output; payload includes produced block ids, postcondition outcomes, declared replay-class metadata, bounded-result metadata when output was externalized or truncated, and any `terminal_result_hint`
+- `TerminalResultHintAccepted` — execution accepted a `terminal_result_hint` and skipped the next model step per `run.bounded-results-terminal-hints` (File 04 §8.2.2); payload includes the completed invocation ids, batch id, skipped model-step role if known, completion-contract reference, satisfied eligibility checks, and reason no follow-up model synthesis was required
 - `ToolCallFailed` — capability returned a typed error; payload includes the typed `AppError`, recovery action taken or proposed
 - `ExecutionRetryDecided` — execution evaluated `run.execution-retry-policy` (File 04 §20.2.1); payload includes failed attempt reference, retry kind, retryability source, outcome-safety basis, normalized-argument reference, policy snapshot reference, and action (`retried`, `branched`, `surfaced`, `stopped`)
 - `ObservationCommitted` — observation block committed (per `artifact.observation`, File 09 §13); payload includes observation kind, staleness fingerprint, block id
