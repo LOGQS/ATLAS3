@@ -24,9 +24,7 @@ here beyond the thinnest compileable shell.
 
 ## 3. Prerequisites
 
-None — first phase. (Optional developer warmup, outside this phase's gate: one or two small
-throwaway Rust projects to calibrate Rust + the agent workflow where mistakes are free; recommended,
-not tracked here.)
+None — first phase.
 
 ## 4. Lanes
 
