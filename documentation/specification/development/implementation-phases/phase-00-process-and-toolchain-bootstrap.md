@@ -34,16 +34,27 @@ The signing/provenance job is its own thin lane once the build job exists.
 
 ## 5. Build plan
 
-1. **Repo scaffold** — Cargo workspace with crate layout reserving the canonical layer boundaries
-   (storage, substrate, capability/policy, execution, runtime, UI bridge); Tauri v2 shell crate;
-   React+TypeScript frontend (pnpm) with the semantic-token base and i18n-key convention present from
-   the first component; typed-IPC codegen (tauri-specta) wired but minimal; committed lockfiles +
-   pinned toolchains.
-2. **Zero-spend CI path decision** — choose the CI execution mechanism (`devproc.zero-spend`,
-   invariants doc §27): a public repo/mirror for free hosted minutes, local runners, or another free
-   mechanism. Decide once, now. CI must never depend on paid services or live-provider availability.
-3. **One command surface** — a single local entry point (`just`/`xtask` — one explicit choice,
-   decision-recorded) wired to `fmt`, `lint`, `typecheck`, `test`, `docs`, `gen-check`,
+1. **Repo scaffold** — Cargo workspace, **decided: one crate per major architectural layer,
+   conservative granularity** — kernel/contracts, storage, ledger/events, settings, security/vault,
+   capability registry, policy, execution/runs, context, providers, sandbox/process, substrate
+   services, UI bridge, runtime/app shell — wired as a strict downward dependency DAG.
+   kernel/contracts is the bottom shared-vocabulary crate (ID newtypes, canonical-encoding/hash
+   traits, error envelopes, sensitivity labels, event envelopes, typed references): **kernel holds
+   shapes, owning layers hold machinery** (the event-envelope type lives in kernel; the bus and
+   stream live in ledger/events). Surfaces start as modules/registrations inside their owning
+   layer; a layer is sub-split only when a real seam proves it (independent reuse, or
+   compile-time/ownership pressure). The enforcement is the dependency graph — the compiler
+   rejects illegal cross-layer dependencies. Tauri v2 shell crate; React+TypeScript frontend
+   (pnpm) with the semantic-token base and i18n-key convention present from the first component;
+   typed-IPC codegen (tauri-specta) wired but minimal; committed lockfiles + pinned toolchains.
+2. **Zero-spend CI path** — **decided: GitHub Actions on the public repo** (`devproc.zero-spend`,
+   invariants doc §27): free hosted minutes with all three OSes provided, zero infrastructure to
+   maintain, lives where the code already is. On record: the free tier is tied to the repo staying
+   public — going private inherits a monthly minute cap. CI must never depend on paid services or
+   live-provider availability.
+3. **One command surface** — **decided: `cargo xtask`** (decision-recorded: Rust-first project,
+   tasks written in Rust behave identically on all three OSes — no cross-platform shell divergence,
+   nothing extra to install) wired to `fmt`, `lint`, `typecheck`, `test`, `docs`, `gen-check`,
    `banned-patterns`, `conformance-check`. CI calls the same entry points (CI/local parity).
 4. **CI (GitHub Actions)** — 3-OS matrix from the first commit (compile + test + lint per OS);
    banned-pattern greps (invariants doc §28, `devproc.banned-patterns` — checks vacuous until code
@@ -55,10 +66,14 @@ The signing/provenance job is its own thin lane once the build job exists.
    `Result`-everywhere, no `unwrap`/`expect` in production paths) and the tracing scaffold
    (structured spans, redaction-by-default sink) — matured by P1/P2/P21.
 6. **Build + integrity job** — tag-triggered: build per-target artifacts, compute content hashes,
-   sign with the update key, emit `ReleaseManifest` + `ReleaseProvenance` (pinned toolchain +
-   lockfiles recorded); a verify step checks the signature against the embedded public key.
-7. **Signing-key custody** — private key in CI encrypted secrets + offline backup; the File 43 §5.2
-   key-rotation path (transition record signed by an already-trusted key) documented in-repo.
+   emit `ReleaseManifest` + `ReleaseProvenance` (pinned toolchain + lockfiles recorded). Signing
+   with the update key is a local manual step (custody policy, step 7); the CI verify step checks a
+   pre-signed golden fixture against the embedded public key — the private key never enters CI.
+7. **Signing-key custody** — **decided policy**: P0 locks the signing scheme, embedded public key,
+   verification path, and rotation contract. The private key remains offline; CI verifies only.
+   Moving signing into CI later requires an explicit P4/P22 custody decision and threat review.
+   The File 43 §5.2 key-rotation path (transition record signed by an already-trusted key)
+   documented in-repo.
 8. **Conformance-matrix tooling** — extracts every rule anchor from
    `documentation/specification/canonical/` and emits the traceability matrix (anchor → owning spec →
    module → test/evidence → phase → status); accepts not-yet-built anchors as explicit `planned`
@@ -70,7 +85,8 @@ The signing/provenance job is its own thin lane once the build job exists.
 10. **Agent instructions** — one source of truth projected to `AGENTS.md`/`CLAUDE.md` with a drift
     check; encodes the invariants doc, this phase plan, and the overview §6 cross-phase rules.
 11. **Docs skeleton** — repo README, developer setup doc (commands, toolchain, run/test), docs index
-    for the canonical corpus + this series, decision record for the command-surface choice.
+    for the canonical corpus + this series, decision records (command surface = `cargo xtask`,
+    CI = GitHub Actions on the public repo, signing-custody policy).
 
 ## 6. Test obligations & acceptance evidence
 
@@ -78,8 +94,8 @@ The signing/provenance job is its own thin lane once the build job exists.
 - **Guards demonstrably fire**: a deliberately introduced banned pattern (a raw color, an `unwrap` in
   a production path) fails the grep harness, and removing it passes; a deliberately stale generated
   artifact fails `gen-check`; a known-bad license fixture fails cargo-deny (run once, then removed).
-- **Integrity golden**: a fixed input artifact signs and verifies against the embedded public key; a
-  tampered artifact fails verification.
+- **Integrity golden**: a pre-signed golden fixture (signed locally) verifies against the embedded
+  public key; a tampered artifact fails verification. The private key never enters CI.
 - Conformance matrix: structurally valid; all anchors present as `planned`; the matrix-sync check is
   able to fail on a missing anchor.
 
@@ -87,8 +103,8 @@ The signing/provenance job is its own thin lane once the build job exists.
 
 - **Generated artifacts**: agent-instruction projection (drift-checked); conformance-matrix scaffold;
   the generated-artifact registry itself.
-- **Docs**: README; developer setup; command-surface decision record; conformance-matrix usage doc;
-  key-custody/rotation doc.
+- **Docs**: README; developer setup; decision records (command surface, CI path, signing custody);
+  conformance-matrix usage doc; key-custody/rotation doc.
 - **CI/local commands**: `fmt`, `lint`, `typecheck`, `test`, `docs`, `gen-check`, `banned-patterns`,
   `conformance-check`, `build-artifact`, `verify-signature`.
 
@@ -96,7 +112,8 @@ The signing/provenance job is its own thin lane once the build job exists.
 
 - [ ] One documented local command gives a new contributor/agent a meaningful green result; CI runs
       the same checks on all 3 OSes.
-- [ ] Tag → content-hashed, signed build artifact per target; signature verification passes;
+- [ ] Tag → content-hashed build artifact per target, signed locally (key offline); signature
+      verification passes in CI against the embedded public key;
       `ReleaseProvenance` records pinned inputs; the per-platform installer-size budget check wired
       (seed value in the initial development profile — invariants doc §27; settings-tunable per
       File 43 §15 — asserted once bundles exist in P4).
@@ -106,11 +123,13 @@ The signing/provenance job is its own thin lane once the build job exists.
 
 ## 9. Locked in this phase
 
-- **Update-signing keypair + embedded public key** (43 §5.2) — the v1 integrity root; a wrong
-  rotation design strands clients forever.
+- **Update-signing scheme + embedded public key + verification path + rotation contract** (43 §5.2)
+  — the v1 integrity root; a wrong rotation design strands clients forever. Private-key custody is
+  deliberately *not* frozen here: offline at P0 (CI verifies only), revisited by an explicit
+  P4/P22 custody decision + threat review (build plan step 7).
 - **Content-hash artifact identity across channels/mirrors** (43 §3.2).
 - **Channel-as-build-configuration** (43 §4.3) — feature-flag arrays, not forks.
-- Workspace/crate layout reserving canonical layer boundaries; the command-surface choice; CI job
-  names.
+- Workspace/crate layout — one crate per major architectural layer, kernel/contracts as the bottom
+  shared-vocabulary crate, strict downward DAG; the command surface (`cargo xtask`); CI job names.
 - **Core first run is offline-capable** (43 §6.2) — nothing in the build may assume a live
   distribution host at first launch.
