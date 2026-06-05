@@ -53,7 +53,8 @@ prerequisites).
 
 1. **RendererRegistry**: kind→component dispatch (BlockKind/ArtifactKind/ObservationKind/PanelKind/
    AppEvent/media); registration through the proposal-first path; renderer trust ≠ content trust;
-   the typed placeholder fallback.
+   the typed placeholder fallback; renderer choices are per-kind implementations behind the registry,
+   not canonical library commitments.
 2. **Shell + layout**: regions (command rail, focus surface, inspector dock, execution console,
    conversation view, status, notifications); the default conversation-first preset; progressive
    disclosure as the staging axis; per-region auto-reveal configurable with badge-only selectable.
@@ -96,8 +97,11 @@ prerequisites).
 - Self-registration mandatory: every interactive panel/control registers structural state on
   mount/focus/selection/change; structurally-invisible controls are invalid (§18, with 25 §5.2).
 - Secret-masked rendering, incl. screenshots/exports (§3.2/§19); views never poll (§3.2);
-  compile-time IPC type-bridge break test (§16.2); interactive-responsiveness budgets as tested
-  settings, not constants (§16.6).
+   compile-time IPC type-bridge break test (§16.2); interactive-responsiveness budgets as tested
+   settings, not constants (§16.6).
+- Renderer-performance evidence: any shell, inspector, registry, graph, canvas, or large-list panel
+  introduced here has a File 40 `Latency` suite over recorded fixtures on the three desktop platform
+  webview realizations; the weakest supported engine's result is binding for the budget.
 - Headless parity retained: the CLI client still drives the same flows (the service layer is
   rendering-agnostic).
 - Conformance matrix gains: 37 anchors; the P4 thin-IPC stub row closes.
@@ -111,8 +115,8 @@ prerequisites).
   presentation-as-projection doc; the focused-dialog + verbatim-contract doc; the a11y conformance
   doc; the i18n conventions doc.
 - **CI/local commands**: the a11y suite (automated + keyboard E2E), i18n key-coverage check,
-  token-discipline lint, placeholder-fallback test, multi-client dialog suite, and streaming
-  continuity suite as named CI jobs.
+  token-discipline lint, placeholder-fallback test, multi-client dialog suite, streaming
+  continuity suite, and renderer-latency suite as named CI jobs.
 
 ## 8. Exit criteria
 

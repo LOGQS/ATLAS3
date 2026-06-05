@@ -64,7 +64,8 @@ monitors. Surface validators + eval suites are thin closing lanes in each.
    ManagedProcesses; tests/build/lint committing Validation blocks — the completion floor now bites
    on real engineering runs ("a coder run whose contract required action cannot complete on prose").
 3. **Coder index slice**: event-first structural extraction; symbol/dependency/build-test graphs
-   into File 12; code search; extraction-identity cache keying.
+   into File 12; code search; extraction-identity cache keying; graph renderers stay behind the
+   `RendererRegistry` and are selected by measured performance, not by a default DOM/SVG assumption.
 4. **Coder collaboration slice**: the git family + safety rules (the P5 seed rules go live);
    worktree-backed parallel child runs + merge + the comparison board projection.
 5. **Web fetch slice**: search/fetch/extract with durable source records, fingerprints, citations;
@@ -105,6 +106,9 @@ monitors. Surface validators + eval suites are thin closing lanes in each.
 - **Cross-surface borrow proven under policy**: a Coder run borrows `web.fetch` through
   `tool.borrow` — same declaration, same policy, same ledger (the P6 discovery capabilities
   exercised for real).
+- Renderer-performance evidence: symbol/dependency/build-test graph views and the worktree
+  comparison board have File 40 `Latency` suites over recorded project fixtures on all three desktop
+  webview engines.
 - **Closed-set pinning**: both surfaces' panel/selection/produced-kind sets; the coder event names;
   the web `ArtifactKind`s (BrowserExtract/WebDocument/ScreenshotSeries/Macro) + `ObservationKind`s
   (BrowserDom/NetworkResponseSnapshot/Screenshot).
@@ -119,8 +123,8 @@ monitors. Surface validators + eval suites are thin closing lanes in each.
   (the persistent-web-layer reframe + the grounding rules); the borrow-graph note (what each surface
   exports/borrows); decision records: first search backend, Managed-browser realization.
 - **CI/local commands**: the coder round-trip suite, web round-trip suite, git-safety suite,
-  redirect/untrusted-content suite, and borrow-path suite as named CI jobs — all over recorded
-  fixtures.
+  redirect/untrusted-content suite, borrow-path suite, and coder-graph-renderer-latency suite as
+  named CI jobs — all over recorded fixtures.
 
 ## 8. Exit criteria
 

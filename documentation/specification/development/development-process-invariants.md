@@ -293,7 +293,9 @@ Every behavior change must carry executable evidence appropriate to the anchors 
 - Settings changes require tests for source-stack resolution, metadata, invalid values,
   profile/default interaction, scope, and "why active" explanations.
 - UI changes require data-contract tests first, then rendered interaction, accessibility, and visual
-  tests where presentation behavior matters.
+  tests where presentation behavior matters. Heavy graph-like or canvas-like panels also require
+  per-OS renderer-performance evidence against their declared interaction-latency budget; the
+  weakest supported webview engine is binding evidence, not an afterthought.
 - Runtime, worker, queue, timer, process, and sandbox changes require evidence for
   cancellation/killability, restart/recovery, idempotency or completion-marker behavior, and typed
   failure.
@@ -720,7 +722,8 @@ Initial profile:
 - CI should begin with fast local-parity checks and grow into a Windows/macOS/Linux matrix as the
   relevant layers exist.
 - Performance budgets should be tracked early for startup, input latency, streaming render overhead,
-  large-list rendering, search, version switching, package size, and benchmarked substrate hot paths.
+  large-list rendering, heavy graph/canvas interaction, search, version switching, package size, and
+  benchmarked substrate hot paths.
 - Exact timing, size, and coverage numbers belong in tested profiles, benchmark docs, or development
   specs. They may change when real measurements show a better target.
 - Hooks should stay fast enough that developers and agents do not bypass them; heavier checks belong

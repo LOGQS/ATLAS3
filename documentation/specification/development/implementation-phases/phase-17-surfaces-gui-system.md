@@ -83,7 +83,8 @@ enablement is a thin closing lane over (a)'s audio sensor.
    state set (data root, DB, blob store, vault, `.atlas/` internals, audit overlay, helper state,
    policy kernel) derived from runtime identities; both guards reject pre-dispatch.
 4. **GUI observation slice**: `AccessibilityTreeSnapshot` observations; observation-local ordinal
-   labels (never durable identity); the compact model-facing projection.
+   labels (never durable identity); the compact model-facing projection. Large tree and inspector
+   renderers stay behind the `RendererRegistry` and are selected by measured per-platform evidence.
 5. **GUI action slice**: element-grounded dispatch through confined input mechanisms;
    observe-act-verify; post-action diff + loop detection → corrective signal → hard stop;
    per-target escalations.
@@ -131,6 +132,9 @@ enablement is a thin closing lane over (a)'s audio sensor.
   exception (§12.2).
 - Environment-boundary tests: Web drives the page, GUI drives applications/chrome, System operates
   the OS — composition only via borrow/reroute.
+- Renderer-performance evidence: large accessibility trees, element inspectors, process/service
+  trees, rollback/provenance views, and equivalent system dashboards have File 40 `Latency` suites
+  over recorded fixtures on all three desktop platform webview realizations.
 - **Closed-set pinning**: dispatch tiers, operating modes, reversibility classes, multi-target
   semantics, env/PATH scopes, both surfaces' panel/selection/produced kinds (`Macro` shared;
   `SystemStateSnapshot`/`SystemHealthSnapshot` custom ObservationKinds; **no `Script` artifact
@@ -147,8 +151,8 @@ enablement is a thin closing lane over (a)'s audio sensor.
   (the safe-operation reframe + the reversibility model); the self-protection doc (both guards); the
   elevated-helper doc; per-platform mechanism notes with typed gaps.
 - **CI/local commands**: the GUI round-trip, system safe-op lifecycle, self-protection,
-  coordinate-mapping, rollback, helper-boundary, and unattended-safety suites as named CI jobs —
-  recorded fixtures in CI, live smoke local per platform.
+  coordinate-mapping, rollback, helper-boundary, unattended-safety, and renderer-latency suites as
+  named CI jobs — recorded fixtures in CI, live smoke local per platform.
 
 ## 8. Exit criteria
 

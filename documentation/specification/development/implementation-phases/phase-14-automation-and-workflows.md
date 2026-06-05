@@ -72,7 +72,8 @@ a short joint design note before the lanes split.
    resolvable refs, parseable constraints, envelope-understatement rejection); parameter slots;
    library persistence over `dag_configs`/`dag_presets`; the adapter-capability invocation path;
    graduation from a successful run gated by the promotion forgery guard (reusing the P3 guard
-   mechanism at crystallization time).
+   mechanism at crystallization time). The workflow DAG editor renders through the `RendererRegistry`
+   and must meet the heavy-graph renderer-performance gate before the phase exits.
 3. **Execution**: workflow runs as ordinary Runs — nodes map to 04 execution units; ready nodes run
    in topological waves with deterministic completion order; per-node policy gating;
    `WorkflowNodeComplete` commits (11 §5.2); pin-at-save-time field set (the single realization all
@@ -129,6 +130,9 @@ a short joint design note before the lanes split.
 - 42: worker restart never double-executes a committed side effect (idempotency-keyed/
   completion-marker-guarded); accepted consequential work never discarded by queue overflow —
   overflow observable; timers tested with the injected clock.
+- Workflow DAG renderer performance: a File 40 `Latency` suite covers representative node counts and
+  edge shapes on all three desktop platform webview realizations; DOM/SVG-heavy rendering is
+  acceptable only while it meets the declared interaction budget.
 - **Closed-set pinning**: TriggerKind, RecurrenceRule variants, WatchPolicy fields, OverlapPolicy,
   missed-fire policy, `run_locality`, NodeKind, EdgeCondition, activation rules, scorer-role and
   source taxonomies.
@@ -145,8 +149,9 @@ a short joint design note before the lanes split.
   trigger binding); the worker-substrate doc; **banned-vocabulary update** (autopilot, cron job,
   scheduled_tasks, Human/Approval node).
 - **CI/local commands**: the timer-vs-poll, missed-fire, fire-idempotency, unattended-safety,
-  promotion-forgery, structural-validation, no-raw-interpolation, and simulation-coverage suites as
-  named CI jobs (injected time throughout — no wall-clock waits).
+  promotion-forgery, structural-validation, no-raw-interpolation, simulation-coverage, and
+  workflow-dag-renderer-latency suites as named CI jobs (injected time throughout — no wall-clock
+  waits).
 
 ## 8. Exit criteria
 

@@ -65,7 +65,9 @@ assessment → mastery/SRS → classroom.
 2. **Data extraction slice**: document parsing with grounding; structured outputs validated against
    declared schemas; `SourceExcerpt` promotion.
 3. **Data composition slice**: transforms; pipelines (data node kinds registered into the P14
-   `NodeKind` catalogue); notebooks; profiling; `SchemaValidation`; charts.
+   `NodeKind` catalogue); notebooks; profiling; `SchemaValidation`; charts. Heavy chart, notebook,
+   pipeline, and graph renderers stay behind the `RendererRegistry` and are selected by measured
+   per-surface evidence.
 4. **Teacher explanation slice**: `teacher.explain` → Lesson artifacts; depth as a workflow
    parameter; transient spoken explanation commits nothing (§6.2).
 5. **Teacher curriculum slice**: teach-from-document over borrowed extraction; the concept graph;
@@ -114,6 +116,9 @@ assessment → mastery/SRS → classroom.
 - **The borrow graph under policy**: Teacher borrowing Coder/Data/Web capabilities passes the same
   declarations/policy/ledger paths — no surface-private shortcuts (the wave's headline integration
   test).
+- Renderer-performance evidence: large chart/table/notebook views, data pipeline graphs, and the
+  teacher concept-prerequisite graph have File 40 `Latency` suites over recorded fixtures on all
+  three desktop platform webview realizations.
 - **Closed-set pinning**: both surfaces' panel/selection/produced-kind sets; data event names;
   teacher event names; director strategies; classroom roles.
 - Conformance matrix gains: 29/30 anchors; Data + Teaching eval families seeded.
@@ -128,7 +133,7 @@ assessment → mastery/SRS → classroom.
   subdir conventions; decision record: the analytical-engine choice (replaceable behind the
   contract).
 - **CI/local commands**: the data round-trip, teacher round-trip, grounding, borrow-under-policy,
-  learner-privacy, and no-private-table grep suites as named CI jobs.
+  learner-privacy, renderer-latency, and no-private-table grep suites as named CI jobs.
 
 ## 8. Exit criteria
 
