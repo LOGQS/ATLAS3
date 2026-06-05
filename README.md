@@ -7,3 +7,4 @@
 ## Progress
 
 - Canonical specifications first pass finished.
+- Development specifications first pass finished.
