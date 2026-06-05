@@ -67,8 +67,9 @@ The signing/provenance job is its own thin lane once the build job exists.
    (structured spans, redaction-by-default sink) — matured by P1/P2/P21.
 6. **Build + integrity job** — tag-triggered: build per-target artifacts, compute content hashes,
    emit `ReleaseManifest` + `ReleaseProvenance` (pinned toolchain + lockfiles recorded). Signing
-   with the update key is a local manual step (custody policy, step 7); the CI verify step checks a
-   pre-signed golden fixture against the embedded public key — the private key never enters CI.
+   with the update key is a local manual release step (custody policy, step 7). P0 proves the
+   mechanism with a pre-signed golden fixture that CI verifies against the embedded public key; CI
+   does not sign, and does not require access to the private key.
 7. **Signing-key custody** — **decided policy**: P0 locks the signing scheme, embedded public key,
    verification path, and rotation contract. The private key remains offline; CI verifies only.
    Moving signing into CI later requires an explicit P4/P22 custody decision and threat review.
@@ -95,7 +96,8 @@ The signing/provenance job is its own thin lane once the build job exists.
   a production path) fails the grep harness, and removing it passes; a deliberately stale generated
   artifact fails `gen-check`; a known-bad license fixture fails cargo-deny (run once, then removed).
 - **Integrity golden**: a pre-signed golden fixture (signed locally) verifies against the embedded
-  public key; a tampered artifact fails verification. The private key never enters CI.
+  public key in CI; a tampered artifact fails verification. A local signing drill signs a sample
+  content hash and verifies it locally. The private key never enters CI.
 - Conformance matrix: structurally valid; all anchors present as `planned`; the matrix-sync check is
   able to fail on a missing anchor.
 
@@ -112,11 +114,11 @@ The signing/provenance job is its own thin lane once the build job exists.
 
 - [ ] One documented local command gives a new contributor/agent a meaningful green result; CI runs
       the same checks on all 3 OSes.
-- [ ] Tag → content-hashed build artifact per target, signed locally (key offline); signature
-      verification passes in CI against the embedded public key;
-      `ReleaseProvenance` records pinned inputs; the per-platform installer-size budget check wired
-      (seed value in the initial development profile — invariants doc §27; settings-tunable per
-      File 43 §15 — asserted once bundles exist in P4).
+- [ ] Tag → content-hashed build artifact per target; `ReleaseProvenance` records pinned inputs.
+      CI verifies the pre-signed golden fixture against the embedded public key; a local offline
+      signing drill signs and verifies a sample content hash. The per-platform installer-size budget
+      check is wired (seed value in the initial development profile — invariants doc §27;
+      settings-tunable per File 43 §15 — asserted once bundles exist in P4).
 - [ ] Banned-pattern, gitleaks, cargo-deny, coverage-ratchet, gen-check, and matrix-sync jobs all
       active and demonstrably able to fail.
 - [ ] Agent-instruction drift check green; later phases have a stable directory + naming convention.
