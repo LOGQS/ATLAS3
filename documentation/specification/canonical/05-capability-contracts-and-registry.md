@@ -549,6 +549,8 @@ There is no parallel "MCP tool list," "plugin tool list," or "user-tool list." A
 
 ### 9.4 Platform Conditioning
 
+Anchor: `capability.platform-availability`
+
 Platform mismatch is registry availability state, not a registration filter. A declaration whose `platforms` list omits the current OS still registers; the registered entry carries `availability_status: unavailable_platform` and no resolved backend binding. Such capabilities are visible in settings, plugin inspection, dependency diagnostics, automation validation, and cross-device transparency, but are not invocable on the current platform.
 
 A surface or discovery layer may hide unavailable capabilities from default views; advanced settings can reveal them so users understand why an automation that works on one device does not work on another. Equivalent semantic capabilities for different platforms (a Windows registry-write capability and a macOS plist-write capability) may share the same family and be selected by the routing layer based on the platform; capability ids remain platform-disambiguated.

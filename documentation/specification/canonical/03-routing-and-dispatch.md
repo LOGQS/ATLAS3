@@ -167,6 +167,8 @@ The trigger content consumed by the routing frame may be the result of determini
 
 ### 3.2 Deterministic Prechecks
 
+Anchor: `routing.deterministic-prechecks`
+
 Deterministic prechecks run before the router model. A precheck is any deterministic function over the routing frame that may resolve, constrain, or no-op the routing decision. They exist to avoid wasting model effort on cases that are already clear from runtime state.
 
 When a precheck fully resolves the route, the router model step is skipped. When a precheck constrains or prefills routing (for example, "the request must use the coder primary surface" or "force the explicit-model-override to model X"), the router model receives the constraints and decides only the unconstrained fields. When a precheck no-ops, dispatch continues to the router model unchanged.

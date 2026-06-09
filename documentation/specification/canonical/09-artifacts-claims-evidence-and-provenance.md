@@ -1071,6 +1071,8 @@ File 09 declares the following canonical entity-level capabilities. Each is a bu
 
 ### 16.2 Capability Metadata Declarations
 
+Anchor: `artifact.capability-metadata-declarations`
+
 Every capability above declares the canonical `capability.declaration` (File 05 §3) field set. Key declarations specific to File 09:
 
 - `output_block_kinds` declarations name the block kinds the capability produces, drawn from File 08's canonical catalogue plus the `Claim` extension this file declares
