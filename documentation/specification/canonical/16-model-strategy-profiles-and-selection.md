@@ -147,7 +147,7 @@ Whether the model/provider supports provider-native callable declarations. This 
 
 `parser_tool_call_fallback_support`
 
-Whether the response parser can recover tool calls from model text for this model/profile. This is a parser fallback, not native tool support. It requires explicit profile or policy allowance and stricter validation.
+Whether the response parser can recover tool calls from model text for this model/profile, and which registered parser-format identities are known to work for it. The field carries a format set (possibly empty or `Unknown`) with an optional recommended format, not a bare boolean. Format identities are provider-invariant registered identities; provider- or vendor-native format names are adapter normalization inputs, never canonical identities. This is a parser fallback, not native tool support. It requires explicit profile or policy allowance and stricter validation.
 
 `multimodal_input_support`
 
@@ -274,6 +274,7 @@ Profiles may declare semantic behavioral intents:
 - cost posture
 - cache-continuity preference
 - model-request/style template reference consumed by File 13
+- parser-format preference for parser-fallback tool calling
 - stop-sequence preference
 
 These are intents, not provider wire fields. Provider adapters map resolved intents to provider-native request parameters in File 17.
@@ -659,6 +660,7 @@ Settings dimensions include:
 - cost posture and unknown-cost policy
 - named selection strategy or tie-breaker policy
 - parser-fallback allowance
+- parser-format selection, keyed globally, per provider, per model, and per profile
 - multi-model plan enablement for explicit comparison/ensemble flows
 
 Provider health backoff, descriptor refresh mechanics, rate-limit windows, retry timing, cache billing, provider pricing ingestion, and usage accounting are File 17 settings. Exact default values belong to setting definitions and profile layers, not this file.

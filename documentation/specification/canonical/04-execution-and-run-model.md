@@ -489,7 +489,7 @@ The executor must support:
 - partial tool blocks
 - failed tool results as first-class model context
 
-The response parser may vary by provider. The execution pipeline after parsing must not vary.
+The response parser is one shared component. Which text-pattern format it applies is a registered parser-format identity resolved through settings — keyed globally, per provider, per model, and per profile (`model.settings`, File 16 §14) — never a per-adapter or per-provider fork. The execution pipeline after parsing must not vary.
 
 A capability handling input variants internally (a file-read capability dispatching between text and binary paths based on the resolved file kind) is the same capability with sub-modes; this is not a separate capability call. Variant handling, default-value selection, and progressive-fallback behavior all live inside the capability and pass through one validation, one approval, and one ledger entry.
 

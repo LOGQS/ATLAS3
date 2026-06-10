@@ -385,7 +385,7 @@ Multimodal inputs (images, audio, video, file attachments) cross the adapter bou
 
 ### 7.4 Tool and Callable Declarations
 
-Provider-native callable declarations (the tool array carried with the model request) are serialized by the adapter from the `ToolSurface` snapshot per `surface.surface-relevant-events` (File 07 §13). The adapter must respect the model's declared `native_callable_support` per `model.model-capability-descriptor` (File 16 §3.2); when the model does not support native tool calling, the adapter either rejects the request or, if the active `ModelProfile` permits `parser_fallback`, emits a typed diagnostic and lets the response parser recover tool calls from model text per `model.model-capability-descriptor` (File 16 §3.2).
+Provider-native callable declarations (the tool array carried with the model request) are serialized by the adapter from the `ToolSurface` snapshot per `surface.surface-relevant-events` (File 07 §13). The adapter must respect the model's declared `native_callable_support` per `model.model-capability-descriptor` (File 16 §3.2); when the model does not support native tool calling, the adapter either rejects the request or, if the active `ModelProfile` permits `parser_fallback`, emits a typed diagnostic and lets the response parser recover tool calls from model text per `model.model-capability-descriptor` (File 16 §3.2). The response parser is one shared component; the active parser format is a registered format identity resolved through settings per `model.settings` (File 16 §14), never a per-adapter fork. A resolved format that conflicts with the descriptor's declared `parser_tool_call_fallback_support` set fails as `ProviderError::CapabilityMismatchDiscovered` rather than dispatching silently.
 
 ## 8. Parameter Serialization
 
@@ -1124,7 +1124,7 @@ The following shapes are wrong for this layer:
 - driver-kind crash on unknown — unknown drivers degrade to `Unknown` with diagnostic, not panic
 - silent automatic provider-instance instantiation without registration through the canonical capability surface
 - scheduled active health pings on a fixed interval (event-driven and user-triggered only)
-- silent silent fallthrough on `AuthenticationFailed` — auth failures are not retryable
+- silent fallthrough on `AuthenticationFailed` — auth failures are not retryable
 - silently retrying through `Fatal` `ErrorClassification`
 - cost stored as an unkeyed scalar in any durable row
 - token counts stored on `Block` rows or persisted without `(block_id, tokenizer_id)` keying

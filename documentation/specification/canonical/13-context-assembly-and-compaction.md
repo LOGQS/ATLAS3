@@ -404,6 +404,8 @@ File 07 owns surface composition and loading. This file owns how the resolved su
 
 Under pressure, assembly may request shrinkage, deferred loading, borrowable-catalog reduction, or reference-only descriptions according to File 07. Tool-surface shrinkage must not remove a callable that the execution contract requires unless policy explicitly permits reroute, pause, or failure.
 
+When the resolved request uses parser-fallback tool calling instead of native callable declarations, assembly renders the callable declarations together with the format instruction paired to the resolved parser format (`model.settings`, File 16 §14). The format instruction is budget-accounted like any assembled source. A mismatch between the rendered instruction and the resolved parser format is an assembly failure, not a dispatch-time surprise.
+
 ## 18. Capabilities
 
 Anchor: `context.capabilities`
