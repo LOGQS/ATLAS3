@@ -192,6 +192,17 @@ Every substantial change is checked against these recurring rejection patterns:
 - `closed-sets-closed`: runtime extension uses declared `Custom` variants and registration paths;
   ad-hoc variants are spec violations.
 - `service-layer-logic`: UI, IPC wrappers, and command wrappers do not own product decisions.
+- `deep-modules`: module boundaries follow real ownership, cohesion, and independent change seams.
+  Prefer modules whose coherent interface hides substantial implementation complexity over many
+  shallow ones. Reject speculative layering, pass-through adapters, file-per-type fragmentation, and
+  duplicated implementations — and equally reject oversized modules that combine unrelated
+  responsibilities. Module count is an outcome, not a target.
+- `names-describe-not-historize`: identifiers are truthful, contextual, semantic, and consistent
+  (§9.1) — no qualifier that records edit history instead of naming the thing (a changed role is
+  renamed, not suffixed), no redundant product/crate/module/type prefix, no filler word or type tag
+  that adds nothing. Real domain state (`v2`, `backup`, `tmp`) and meaningful role words
+  (`PlatformCrashHandler`, `Data Processor`) are not violations — judge by whether the token carries
+  information.
 
 These gates should become automated checks wherever possible.
 
@@ -268,9 +279,76 @@ has become implemented.
 Docs are agent context as much as human context. Keep always-loaded instruction files terse and
 high-signal; deeper process or subsystem material belongs in just-in-time docs.
 
+Comments and doc-comments change with the code and meet the same signal bar. Public API documentation
+records the contract that types do not fully enforce: guarantees, errors, side effects, units,
+lifecycle, safety requirements, and examples where needed. Implementation comments carry what the
+code cannot: the rationale of a non-obvious choice or rejected alternative, a non-obvious invariant or
+safety hazard, or a stable spec-anchor citation that ties the code to the canon and the conformance
+matrix. Neither narrates obvious control flow or repeats names and types; prefer a clearer name or
+clearer code where it can carry the same information. Reference blocks that document a locked contract
+(canonical encodings, wire formats, protocol shapes) are legitimate and kept current. Over-commenting
+is a machine-assisted-development failure mode worth naming and enforcing against deliberately:
+generated code tends toward narration, so an implementation comment that loses no information a
+competent reader could not recover from the code, names, and types is deleted.
+
 Product specs should not contain process noise: chat history, model names, review mechanics, or how
 the file was generated. A process document may carry a short source basis, but not narrative
 generation history.
+
+### 9.1 Naming Invariant
+
+Anchor: `devproc.naming-invariant`
+
+A name is the first and most-read documentation, held to the same signal bar as comments; a clearer
+name beats a comment that explains a worse one. A good name is **truthful, contextual, semantic, and
+consistent**: it states what the thing is or does, adds only what its fully-qualified path and type
+signature do not already carry, names a role rather than a quality or filler, and matches how the rest
+of the codebase names the same concept. This governs every identifier — crates, modules, types,
+functions, fields, variables, constants, enum variants, tests, files, settings keys, event/error kinds,
+capability ids.
+
+- **Truthful, not historized.** A name states what a thing *is*, not *when or how it was written*. The
+  signature machine-assisted-development failure mode is appending a qualifier instead of changing the
+  thing: `encode` → `encodeFixed` → `encodeFixedV2`. When you change something you have two correct
+  moves — keep the name and change the body (the role is unchanged), or, if the role changed, **rename
+  it and update every call site**; never a `thingV2` beside `thing`. This bans *edit-history/quality*
+  qualifiers (`fixed`, `improved`, `new`/`old` as "the rewritten one", `wip`, a disambiguating trailing
+  `2`), **not** words that name real domain state: a `v2` protocol, a `LegacyImportPath` compatibility
+  reader, a `backup` artifact, a `tmp`/temporary resource, or a `SchemaV2` test fixture are legitimate
+  when the qualifier is the actual subject, not an excuse to avoid renaming.
+- **Contextual, not redundant.** The crate, module, and enclosing type already qualify the name; do not
+  repeat them. No product/crate prefix on an item inside that crate (an item in an `atlas-*` crate is
+  never named `atlas_*` — the crate path already says it; crate/package names themselves do carry the
+  prefix), no module name echoed in its members, no owning type repeated in a field
+  (`config.config_path` → `config.path`), no enum-name stutter in a variant. Read the name as
+  `path::to::name` and drop what the path already said.
+- **Semantic, not filler.** Name the role or responsibility, not a category bucket or a quality claim.
+  `do_`/`process_`/`handle_` verbs and nouns like `Manager`/`Helper`/`Util`/`Data`/`Info`/`Item` are
+  suspect *when they add no information* — and a marketing adjective (`Smart`, `Fast`, `Simple`,
+  `Robust`, `Unified`) almost never adds information and rots when the claim stops holding. These words
+  are legitimate when they carry real meaning the domain assigns them: `PlatformCrashHandler`, an event
+  `Hook`/handler, the `Data Processor` surface (File 29), or a genuine service-layer role (File 01
+  §7.7) name real things. Reject the word when a more specific role name exists; keep it when it *is*
+  the role. No type tags either (`name`, not `name_string`; `blocks`, not `block_vec`); the signature
+  carries the type, and plural means a collection.
+- **Consistent, and convention-respecting.** Use one spelling per concept (not `cfg`/`config`/
+  `configuration` mixed) and the same verb for the same *kind* of operation across the codebase — which
+  means preserving genuine distinctions, not collapsing them: `get`/`fetch`/`load`/`read` legitimately
+  separate a cheap lookup, a remote acquisition, an initialization/materialization, and a read, so keep
+  each consistent rather than forcing one universal verb. Follow the language's own API conventions
+  rather than inventing local ones — in Rust, the `as_`/`to_`/`into_` cost-and-ownership conventions,
+  the `iter`/`iter_mut`/`into_iter` family, omitting `get_` on field-like accessors and reserving `get`
+  for checked lookup, and predicates that read as predicates (`is_`/`has_`/`should_`). Above all a name
+  must not lie about cost, fallibility, or effect: when behavior changes, re-read the name against it
+  (a `validate` that now mutates, a `parse_` that now fetches) and fix it.
+
+Specificity scales with scope: a public or broad-scope name is specific and unambiguous; a binding
+alive for one short closure may be short. A product/crate prefix on a private, project-owned internal
+definition is a high-confidence mechanically detectable failure and is a banned-pattern check (§28);
+exported, generated, foreign-function-interface, protocol-bound, and externally named symbols are
+excluded. The rest are judgement calls enforced as architectural review gates (§6) and part of the
+definition of done (§25), because the legitimate exceptions above are real and a grep cannot tell them
+apart. A rename to track a changed role is mandatory work, not optional polish.
 
 ## 10. Tests and Evidence
 
@@ -308,6 +386,16 @@ Every behavior change must carry executable evidence appropriate to the anchors 
 - High-trust evidence must trace to a ground-truth anchor: human annotation, deterministic golden,
   property assertion, recorded fixture, or independent review. A generated component gated only by a
   generated suite judged by the same untrusted source is a self-certifying loop, not evidence.
+
+Every test must contribute distinct evidence at a meaningful layer or boundary. Intentional overlap is
+valid when the tests provide different value — fast localization, boundary integration, end-to-end
+confidence, platform coverage, or regression protection. Remove exact duplicates, assertions already
+guaranteed entirely by the type system, and tests that cannot detect a meaningful regression; they cost
+maintenance and dilute signal. Prefer public-interface behavior; test internals only when a critical
+invariant cannot be verified adequately through the interface. Property and negative-path tests cover
+invariants and rejection; deterministic fault injection replaces timing. Goldens for locked encodings
+and hashes are independently verified and frozen per contract version — updating one requires an
+explicit, reviewed, versioned contract change, never a silent regeneration to make a test pass.
 
 If a behavior cannot be tested yet because the substrate does not exist, add a tracked acceptance
 item to the relevant development spec instead of pretending evidence exists.
@@ -754,6 +842,11 @@ The exact grep/linter implementation belongs in tooling, but the checked familie
 - single-user product code accidentally reintroducing multi-user database assumptions
 - inline secrets or non-vault credentials in config, fixtures, logs, commands, or prompts
 - generated files modified by hand
+- the product/crate name used as a prefix on a private, project-owned internal definition inside that
+  crate (e.g. a `fn`/`struct`/`type` named `atlas_*`/`Atlas*` in an `atlas-*` crate), excluding
+  exported, generated, foreign-function-interface, protocol-bound, and externally named symbols
+  (§9.1); edit-history/quality qualifiers and filler words remain review gates (§6), not greps, because
+  legitimate domain uses (`v2`, `backup`, `tmp`, `Handler`, …) are not grep-separable from bad ones
 
 The first implementation of each check may be simple. The invariant is that repeatable violations
 become automated checks.
