@@ -247,6 +247,10 @@ Examples of preferred enforcement:
   declarations before runtime use
 - generated shared types that break the build on contract drift
 - exhaustive matches over closed enums
+- types that enforce a safety invariant make their fields private and route every construction and
+  decoding path through the same validation. Public fields, unchecked constructors, or derived
+  deserialization can otherwise create an inconsistent value (e.g. `retryable: true` with
+  `severity: Fatal`) and falsify any "enforced by construction" claim the docs make
 - CI greps for deleted terms, banned patterns, raw UI colors, hardcoded user-facing strings, sleeps
   without flagged justification, and forbidden storage paths
 - conformance tests named after anchors
@@ -531,6 +535,23 @@ Implementation rules:
 - New durable state declares whether it is syncable, device-local, projection-only, vault-bound, or
   exportable.
 - Concurrent conflict is represented explicitly; silent last-write-wins is invalid.
+- Durable file replacement uses the platform's atomic replace primitive: stage the complete file on
+  the same filesystem, synchronize its contents, atomically replace the destination without a
+  delete-first gap, then synchronize containing-directory metadata where the platform requires and
+  supports it. Never assume one filesystem API has identical overwrite or durability semantics on
+  every supported OS; verify the selected primitive and fault-test interruption around each boundary.
+- Mutations persist before they commit: never change authoritative in-memory state before the durable
+  write succeeds. Stage the change, write durably, then commit in memory only on success. For an
+  external store (keyring, remote), order sub-operations so a partial failure self-heals and never
+  leaves the in-memory view diverged from the durable one. Fault-inject the write-failure path.
+- Validate keying identity before combining two records — a snapshot's scope against the state it
+  reconciles, a usage record's provider/model against the pricing it is costed by. A mismatch is a
+  typed error or typed `Unknown`, never a silent cross-application.
+- Arithmetic never wraps or relies on debug-only overflow panics. Enforcement state such as admission
+  and quota counters may saturate only in the conservative direction — toward blocking or
+  over-counting — when exact reporting is not required. Reportable totals, persisted accounting, and
+  derived projections use checked arithmetic; overflow, a missing unit/currency, or an absent price
+  yields a typed `Unknown` or typed error, never a fabricated maximum, invented default, or silent zero.
 
 Any code path that says "reconstruct", "replay", "restore", "sync", "hash", or "canonical" is
 reviewed against this section.
@@ -559,6 +580,10 @@ Development rules:
   path/linker/interpreter controls.
 - Dependency, sidecar, model asset, plugin, built-in bundle, and release artifacts are verified
   before trust or execution.
+- Authenticated encryption binds all security-relevant envelope metadata (cipher suite, key
+  generation, context, encoding identity) into the AEAD associated data, not only the payload — so
+  tampering any field fails the tag. An unknown or unsupported cipher suite is rejected, never silently
+  opened under the default cipher (no downgrade); the declared context is checked before decryption.
 
 When in doubt, enforce at the chokepoint, not at scattered call sites.
 
@@ -761,6 +786,10 @@ A mergeable change is done only when all applicable items are true:
 - Relevant specs, development docs, architecture docs, user docs, and decision records are updated
   or explicitly unaffected.
 - Tests or equivalent executable evidence cover the changed behavior and error paths.
+- The failure surface is covered, not just the shape and the happy path: failure-atomicity (a
+  mid-operation error leaves consistent state), malformed/tampered/forged-input rejection,
+  arithmetic-overflow safety, and cross-identity validation are exercised by fault-injection and
+  negative tests. "Compiles, has the right fields, and the happy path passes" is not done.
 - Canonical hashes, replay, security, settings, policy, ledger, and UI obligations are tested where
   touched.
 - Generated artifacts are regenerated and drift-checked.
@@ -842,6 +871,10 @@ The exact grep/linter implementation belongs in tooling, but the checked familie
 - single-user product code accidentally reintroducing multi-user database assumptions
 - inline secrets or non-vault credentials in config, fixtures, logs, commands, or prompts
 - generated files modified by hand
+- a guard that does not cover every path it claims to: the no-panic / no-print scan covers the shipped
+  binary and every production crate, not only the libraries. Legitimate exceptions are explicit,
+  reason-carrying allow-markers on the line; a deliberately excluded directory (e.g. dev-only tooling)
+  is documented with its rationale, never a silent omission
 - the product/crate name used as a prefix on a private, project-owned internal definition inside that
   crate (e.g. a `fn`/`struct`/`type` named `atlas_*`/`Atlas*` in an `atlas-*` crate), excluding
   exported, generated, foreign-function-interface, protocol-bound, and externally named symbols
