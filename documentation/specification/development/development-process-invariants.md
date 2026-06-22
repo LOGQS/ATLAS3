@@ -795,6 +795,15 @@ Rules:
 
 - Lockfiles and toolchain pins are committed once relevant package managers exist.
 - Dependency updates are reviewed, tested, and batched where practical.
+- Dependency versions, APIs, release status, advisories, and licenses are verified against current
+  authoritative sources at adoption and update; model or training knowledge is never treated as
+  evidence. A lockfile proves reproducibility, not currency, safety, or suitability.
+- Version selection compares the chosen release with the newest compatible release and newer stable
+  release lines. Older releases, pre-releases, forks, patched sources, or yanked/deprecated releases
+  require a recorded reason such as compatibility, minimum-supported-toolchain constraints, an
+  unresolved regression, or a reviewed security patch. Recurring dependency review checks advisories
+  and newer releases; findings are updated, rejected with evidence, or explicitly tracked rather than
+  silently ignored.
 - New dependencies are justified against standard library, existing dependencies, and owned code.
 - Engines and libraries stay behind typed contracts; they do not become canonical semantics.
 - Licenses remain compatible with the intended release posture. Copyleft or paid/runtime-restricted
