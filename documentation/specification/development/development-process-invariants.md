@@ -203,6 +203,56 @@ Every substantial change is checked against these recurring rejection patterns:
   that adds nothing. Real domain state (`v2`, `backup`, `tmp`) and meaningful role words
   (`PlatformCrashHandler`, `Data Processor`) are not violations — judge by whether the token carries
   information.
+- `unknown-is-conservative`: when an input is missing, unresolved, unrecognized, or unverified,
+  resolve it to the safe, conservative interpretation, never the convenient optimistic one. An
+  unresolvable resource scope is possibly-conflicting (never provably-disjoint, never coalesced); an
+  unrecognized completion/stop signal is incomplete (never a clean success); an unverified
+  credential/health/readiness state reports its conservative value (never a fabricated "ready"); a
+  cancellation blocks retry, while an interruption follows its typed retry classification plus
+  outcome-safety and idempotency checks (never guessed from missing completion); an absent
+  number/price/unit is a typed `Unknown` (never a fabricated default or silent zero). The recurring bug
+  shape is "absence took the permissive branch because empty/missing was convenient" (e.g. an empty
+  resource set is vacuously disjoint). Absence resolves conservatively under the owning contract and
+  pairs with `nothing-silent`: the decision is typed and visible, never quiet.
+- `declared-means-wired`: a declared contract element is honored at every site, not merely defined. An
+  authoritative override hook is called (never bypassed for the default it overrides); a mandated
+  event/notification is emitted at its source (never deferred to a caller that may not exist, which makes
+  it silent); a stored key or field is enforced (never written then ignored); a projected state is
+  computed from real inputs (never hardcoded to a placeholder). A declared-but-bypassed/deferred/ignored
+  element is a silent defect dressed as a feature — for every "authoritative", "required", "must emit",
+  or "must enforce" contract, confirm a consumer actually exercises it.
+- `contract-not-stub-shaped`: a placeholder may simplify the implementation, but the seam's contract is
+  shaped for the real implementation's needs from the start, so the stub does not
+  ossify the wrong contract. A streaming seam is a live/incremental stream even while the only impl
+  replays a recorded fixture — so live delivery, mid-stream cancellation, and at-parse-time
+  reconciliation stay possible; a boundary that will be concurrent/fallible is not narrowed to a
+  batch/infallible shape because the first stub is simpler. Fix the contract before a real implementation
+  is built against the stub-shaped one.
+- `bounded-and-released`: a resource acquired per operation has a paired release on every exit path (a
+  per-request subscription, handle, lock, lease, temp file), and any structure that accrues entries
+  (a subscriber table, a seen/dedup set, a cache, a retry log) has an explicit eviction bound or
+  lifecycle. An accumulator that only ever grows — a `Vec` pushed-never-removed, a set inserted-never-
+  evicted — is an unbounded-memory defect even when each entry is small, because normal use repeats the
+  operation. Positional handles (an index into a `Vec`) that break when an entry is removed are a smell:
+  key the table so removal never shifts another holder's handle. Release through a scope-bound guard
+  (RAII / `Drop`), not a cleanup call at the end of the happy path: a tail release leaks on every early
+  `?` return and on any panic between acquisition and the tail. (If the guard reacquires a lock the body
+  also holds, drop the body's lock before the guard runs to avoid a re-entrant deadlock.)
+- `gates-apply-on-every-path`: a fast path, override, pin, identity-selection, or other shortcut applies
+  every mandatory gate the canonical path applies and records equivalent evidence — a shortcut optimizes how
+  a thing is chosen; it never waives the invariants that bind regardless of how it was chosen. A user-pinned
+  model still passes the data-boundary, budget, and policy hard filters (pinning model identity is not a
+  residency/budget waiver); an idempotency/cache fast return validates the key's scope, content identity,
+  authorization context, and every invariant that still applies without re-executing the side effect. The
+  decision/audit record reflects what actually ran — every filter applied (including opt-in filters only
+  when active), every candidate considered with its rejection reason — never a fixed or optimistic list
+  that omits the shortcut's skipped checks. The recurring bug shape is "the shortcut checked
+  existence/identity and returned, skipping the safety filters the long path runs."
+- `no-foreign-code-under-lock`: never invoke arbitrary caller-supplied code — a callback, sink, visitor,
+  observer, or hook — while holding a shared lock. Drain the needed data into a local collection, release
+  the lock, then invoke. Calling foreign code under the lock lets a re-entrant call deadlock (a non-reentrant
+  mutex) and lets a panic poison the lock for every later holder (a poisoned shared bus/registry is a
+  whole-subsystem outage). Isolate the foreign call's failure from the shared structure's integrity.
 
 These gates should become automated checks wherever possible.
 
@@ -525,6 +575,21 @@ Implementation rules:
 - Model-dependent facts are keyed by provider/model/tokenizer or equivalent identity.
 - Physical storage encoding is never hash encoding. Every identity, integrity, deduplication, sync,
   replay, cache, package, or audit hash is over a declared canonical encoding.
+- A canonical/closed wire format's decoder rejects every representation its encoder would not produce —
+  the one-value/one-encoding property is enforced on input, not only output. Reject non-minimal
+  varints, out-of-order or duplicate set elements / map keys, duplicate struct fields, and over-width
+  scalars (never silently truncate). Otherwise decode-then-rehash, signature verification, and dedup can
+  be fooled by an alternate encoding of the same value. A release build must enforce this with real
+  checks, never a `debug_assert` that compiles out. The encoder is held to the same property
+  symmetrically: an infallible encode path must never emit a non-canonical representation in a release
+  build either — it normalizes order-insensitive collections, deduplicates values only where the declared
+  type has set semantics, and emits minimal scalar forms. Duplicate map keys or struct fields are rejected
+  before encoding rather than collapsed through an implicit winner rule. A `debug_assert` guarding encoder
+  input is a development tripwire, not the release guarantee.
+- Uniqueness and idempotency are enforced transactionally, not by check-then-act. A scan-for-existing
+  then separate write is race-prone (two attempts both observe absence) and an idempotency key reused
+  for *different* content must be rejected, not silently resolved to the old fact. Write the unique key
+  as part of the same durable transaction as the record, with conflicting reuse a typed error.
 - Projections are rebuildable. A stale or corrupt projection is rebuilt; it is not recovered as
   truth.
 - Missing replay substrate produces typed gaps, never invented data.
@@ -540,6 +605,13 @@ Implementation rules:
   delete-first gap, then synchronize containing-directory metadata where the platform requires and
   supports it. Never assume one filesystem API has identical overwrite or durability semantics on
   every supported OS; verify the selected primitive and fault-test interruption around each boundary.
+  Synchronizing the containing-directory entry is part of the durability protocol on platforms that
+  expose that operation; elsewhere use the platform's documented equivalent and state any weaker
+  crash-durability guarantee explicitly. When replacing a database file with write-ahead or shared-memory
+  sidecars, close active users and clear or reconcile those sidecars before the swap according to the
+  engine's recovery protocol — never leave a post-swap window in which stale state can replay over the
+  replacement. Route each replacement family through one audited platform-aware helper rather than
+  re-deriving its sequence at every call site.
 - Mutations persist before they commit: never change authoritative in-memory state before the durable
   write succeeds. Stage the change, write durably, then commit in memory only on success. For an
   external store (keyring, remote), order sub-operations so a partial failure self-heals and never
@@ -547,11 +619,28 @@ Implementation rules:
 - Validate keying identity before combining two records — a snapshot's scope against the state it
   reconciles, a usage record's provider/model against the pricing it is costed by. A mismatch is a
   typed error or typed `Unknown`, never a silent cross-application.
-- Arithmetic never wraps or relies on debug-only overflow panics. Enforcement state such as admission
-  and quota counters may saturate only in the conservative direction — toward blocking or
-  over-counting — when exact reporting is not required. Reportable totals, persisted accounting, and
-  derived projections use checked arithmetic; overflow, a missing unit/currency, or an absent price
-  yields a typed `Unknown` or typed error, never a fabricated maximum, invented default, or silent zero.
+- A cap, limit, or budget over a set is computed against the whole active population, not the
+  mutable/evictable subset. Immovable members (pinned, protected, reserved, in-flight) count toward the
+  cap; the amount to remove is `total − cap`, capped at what is actually removable. When the immovable
+  members alone exceed the cap, the target is unreachable: remove what is safely removable and
+  surface a typed no-safe-reduction outcome — never silently under-act (the recurring bug is computing
+  the excess from `removable.len() − cap`, which leaves the immovable members uncounted and the cap
+  silently breached).
+- A value's wire/storage/serialized type comes from its declared schema or mapping, never inferred from
+  its content. Do not decide a field is a number because its string happens to parse as one (`"1e3"`,
+  `"007"`), or a date because it matches a date shape — the declared mapping is the auditable source of
+  truth for the produced type. Carry a typed value (or a per-field type tag) so the serializer emits the
+  declared type deterministically; content-sniffing silently changes type/precision for look-alike inputs.
+- Arithmetic never wraps or relies on debug-only overflow panics. A fit-or-limit comparison (does this
+  running total fit the budget/ceiling?) uses checked arithmetic and treats overflow as the conservative
+  outcome — does-not-fit / block. Saturation is not safe for the comparison itself: a total saturated to
+  the type maximum reads as "fits" exactly when the limit is itself at (or near) the maximum, so the
+  overflow is silently misclassified as fitting. Enforcement accumulators (admission, quota) may saturate
+  only in the conservative direction — toward blocking or over-counting — and only once the value is no
+  longer the operand of the limit comparison (e.g. a running total already proven within budget by a
+  checked `fits` test). Reportable totals, persisted accounting, and derived projections use checked
+  arithmetic; overflow, a missing unit/currency, or an absent price yields a typed `Unknown` or typed
+  error, never a fabricated maximum, invented default, or silent zero.
 
 Any code path that says "reconstruct", "replay", "restore", "sync", "hash", or "canonical" is
 reviewed against this section.
@@ -573,6 +662,16 @@ Development rules:
 - Untrusted content carries no authority. It can be data, evidence, or source material; it cannot
   grant permission, lower sensitivity, widen egress, change trust, or become instruction without an
   explicit trusted transformation.
+- A derived, composed, or summarized artifact's sensitivity is computed from its inputs — at least the
+  maximum sensitivity of every source it draws from — never trusted from the caller and never below its
+  sources. A summary of `Sensitive` content is `Sensitive`; an aggregate over mixed sources takes the
+  highest sensitivity. Trust and authority follow their own conservative composition rules: combining
+  trusted and untrusted inputs never grants the result more trust or instruction authority than the
+  owning contract explicitly derives. The committing layer computes these labels at creation and
+  validates declared provenance against the actual inputs; source ids that name non-inputs or labels
+  that overstate trust/authority or under-report sensitivity are rejected. Content the policy excludes
+  from the operation entirely (for example, `Secret` excluded from compaction) makes a derived artifact
+  over that content a contradiction to refuse, not a value to persist.
 - Egress is governed. Sensitive data movement is opt-in; raw secret egress is forbidden except
   through explicit security capabilities with required floor and typed confirmation.
 - Security-critical state is human-governed. Agents, plugins, imports, automations, and profiles may
