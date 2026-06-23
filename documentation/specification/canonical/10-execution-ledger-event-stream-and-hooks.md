@@ -75,7 +75,7 @@ ATLAS3 has three primitives in this layer: `ExecutionLedger`, `EventStream`, and
 The three primitives compose:
 
 - the executor produces events at each phase of the capability-call pipeline (per `run.call-pipeline`, File 04 §8.2) — `ToolCallProposed`, `ToolCallApproved`, `ToolCallExecuted`, `ToolCallCompleted`, `ToolCallFailed`, `ToolCallDenied`. Hook subscribers fire at each phase, including the approval router at `ToolCallProposed`. Consequential events also commit to the ledger as typed entries.
-- the model-strategy layer emits `ModelCallStarted` and `ModelCallCompleted` with full per-call attribution. The ledger records `TokenUsageRecord` keyed by `(provider_id, model_id, tokenizer_id, role)` per `run.execution-ledger` (File 04 §23.1).
+- the provider layer emits `ModelCallStarted` and exactly one terminal model-call outcome (`ModelCallCompleted`, `ModelCallFailed`, or `ModelCallCancelled`) with full per-call attribution. The ledger records `TokenUsageRecord` keyed by `(provider_id, model_id, tokenizer_id, role)` per `run.execution-ledger` (File 04 §23.1).
 - the block layer (per `block.streaming-commit-boundary`, File 08 §7) commits blocks at the canonical commit boundaries; each commit emits `BlockCommitted` to the bus and records `BlockCommitted` (with `block_id`, `kind`, `producer`, `origin_run_id`, `content_hash`, sensitivity, scope) to the ledger.
 - the version graph (per File 11) commits version nodes at the canonical boundaries; each commit emits `VersionCommitted` (with `version_id`, `parent_version_id`, `op_summary`, `diff`) to the bus and ledger.
 - the policy layer (per `policy.approval-policy-templates`, File 06 §12) emits `PolicyDecisionMade`, `LeaseGranted`, `LeaseRevoked`, `LeaseStale`, `PolicyContradictionDetected`, `PolicyFloorViolated`, and records each as a ledger entry.
@@ -398,7 +398,8 @@ Every ledger entry declares its `kind` at commit. The canonical closed catalogue
 - `ModelCallStarted` — provider call initiated; payload includes provider id, model id, tokenizer id, role, request fingerprint, and cache markers used
 - `ModelCallCompleted` — provider returned; payload includes the full `TokenUsageRecord` (§6.2), the cost computed from per-model pricing, the stop reason, the parsed `ParsedResponse` reference
 - `ModelCallStreamingDelta` — provider streamed a chunk; payload includes delta size, accumulated counts, partial-block handle (aggregated per §13.4)
-- `ModelCallFailed` — provider returned an error; payload includes the typed provider error (per File 06 errors module), retry classification (`retryable`, `rate_limited`, `fatal`), `retry_after_ms` if provider-supplied
+- `ModelCallFailed` — provider returned an error; payload includes the typed `ProviderError` (File 17 §10), retry classification (`retryable`, `rate_limited`, `fatal`), and `retry_after_ms` if provider-supplied
+- `ModelCallCancelled` — the caller cancelled an in-flight provider call at a safe point (per `run.cancellation`, File 04 §17.3); payload includes the partial `TokenUsageRecord` (§6.2) accumulated before the stop, the stop reason `CancelledByUser`, and the prior `CancellationRequested` entry or stable cancellation-operation id this call belongs to. `CancellationCompleted` later correlates through that same identity rather than requiring a forward reference. This is the model-call terminal for both buffered and streamed cancellation: it is not `ModelCallCompleted` because the provider did not finish, and not `ModelCallFailed` because no provider error occurred. It carries no provider error and is excluded from provider health, transport retry, and model fallback (File 17 §9.3/§11.5/§12). A cancelled provider stream also emits File 17's `StreamCancelled` terminal; File 10's separate `StreamCancelled` entry records the partial-output or orphan-block outcome where applicable.
 - `ProviderHealthChanged` — provider transitioned `Healthy / Degraded / Unhealthy`; payload includes prior state, new state, and contributing failure count
 - `RateLimitSnapshotReconciled` — provider headers reconciled local rate-limit state; payload includes the typed `RateLimitSnapshot`
 - `TokenCountEstimationTelemetry` — post-call accuracy comparison; payload includes estimated count, actual count, delta percentage, tokenizer id
@@ -560,7 +561,7 @@ Domain-specific workspace, source-control, browser, perception, system-watch, me
 The catalogue above is not free-form. The following composition rules apply:
 
 - every capability-invocation kind (`ToolCallProposed`, `ToolCallExecuted`, `ToolCallCompleted`, `ToolCallFailed`, `ToolCallDenied`) shares a single `invocation_id` cross-reference so the full pipeline is correlatable
-- every model-call kind (`ModelCallStarted`, `ModelCallCompleted`, `ModelCallStreamingDelta`, `ModelCallFailed`) shares a single `request_id`
+- every model-call kind (`ModelCallStarted`, `ModelCallCompleted`, `ModelCallStreamingDelta`, `ModelCallFailed`, `ModelCallCancelled`) shares a single `request_id`; exactly one of the completed, failed, or cancelled terminal kinds may commit for that request
 - every block-commit kind (`BlockCommitted`) references the produced `block_id` and the `invocation_id` that produced it (when produced by a capability)
 - every artifact-event kind references the `artifact_id` and the `artifact_version_block_id` it operates on
 - every hook-decision kind (`HookDecisionRecorded`, `HookTimedOut`, `HookHandlerError`) references the originating `event_id` and the `subscription_id`
@@ -736,14 +737,14 @@ Anchor: `ledger.per-call-model-call-attribution`
 
 Per-call model-call attribution is the canonical recording mechanism for every model invocation the system makes. It is load-bearing for cost accounting, replay accuracy, rate-limit reconciliation, evaluation, and the unkeyed-scalar invariant from `core.explicit-rejections` (File 01 §8).
 
-Every `ModelCallCompleted` ledger entry must carry a complete `TokenUsageRecord` keyed by `(provider_id, model_id, tokenizer_id, role)`.
+Every terminal model-call ledger entry (`ModelCallCompleted`, `ModelCallFailed`, or `ModelCallCancelled`) must carry its final or partial `TokenUsageRecord` keyed by `(provider_id, model_id, tokenizer_id, role)`.
 
 ### 6.2 `TokenUsageRecord`
 
 The required schema:
 
 - `record_id` — stable identifier for the record
-- `entry_id` — the parent `ModelCallCompleted` ledger entry id
+- `entry_id` — the parent terminal model-call ledger entry id
 - `conversation_id`, `run_id`, `step_id`, `node_id`, `worktree_id`, `backend_id` — envelope/context identifiers
 - `provider_id` — the provider identity
 - `model_id` — the resolved model identity at call time

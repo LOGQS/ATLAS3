@@ -517,6 +517,8 @@ Fallback consumes typed provider/model failures from File 17:
 
 File 17 may retry the same model before surfacing one of these failures. Once File 16 is asked to act, fallback means selecting a different compatible candidate or surfacing the failure.
 
+Cancellation is not in this set and is never a fallback input. A user-initiated stop surfaces as File 17's `ProviderCallOutcome::Cancelled` or `StreamCancelled`, followed by File 10's durable `ModelCallCancelled` entry. It carries no `ProviderError` and ends the attempt sequence without candidate selection. Fallback selects an alternative only for a genuine provider/model failure; cancellation is the caller declining the work, not the model failing it.
+
 ### 9.3 Fallback Responses
 
 Allowed fallback responses:

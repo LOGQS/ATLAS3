@@ -91,7 +91,7 @@ The layer has the following primitives:
 - `ProviderProfile` — the declarative recipe most adapters are realized from
 - `ProviderInstance` — a configured live binding of an adapter to credentials, account, base URL, and runtime overrides
 - `ProviderRegistry` — the registry holding registered adapters, instances, and their runtime state
-- `ProviderRequest` and `ProviderResponse` — the typed call envelopes carried across the adapter boundary
+- `ProviderRequest`, `ProviderResponse`, and `ProviderCallOutcome` — the typed call envelopes and non-streaming outcome carried across the adapter boundary
 - `ProviderStreamChunk` — the typed streaming-delta envelope
 - `ProviderError` and `ErrorClassification` — the typed error vocabulary and per-error retry advice
 - `ProviderHealth` — the runtime health state machine
@@ -132,7 +132,7 @@ File 16's behavioral intents (`reasoning_posture`, `sampling_posture`, `output_l
 
 ### 2.3 With File 10 (Execution Ledger, Event Stream, and Hooks)
 
-`ledger.entry-kinds` (File 10 §4) enumerates the canonical `LedgerEntryKind` catalogue; the model-call entries (`ModelCallStarted`, `ModelCallCompleted`, `ModelCallStreamingDelta`, `ModelCallFailed`, `ProviderHealthChanged`, `RateLimitSnapshotReconciled`, `TokenCountEstimationTelemetry`) and the related event kinds (`ProviderModelsRefreshed`, `RateLimitHit`, `CapabilityProbed`, `CredentialRotated`, `ParameterClamped`, `CacheBreakDetected`) are emitted by this layer. File 10 owns the entry shape; this file specifies what per-call attribution every model-call entry must carry (`TokenUsageRecord` per §18, cost computed from per-model pricing per §19, never an unkeyed scalar per `core.explicit-rejections`, File 01 §8).
+`ledger.entry-kinds` (File 10 §4) enumerates the canonical `LedgerEntryKind` catalogue; the model-call entries (`ModelCallStarted`, `ModelCallCompleted`, `ModelCallStreamingDelta`, `ModelCallFailed`, `ModelCallCancelled`, `ProviderHealthChanged`, `RateLimitSnapshotReconciled`, `TokenCountEstimationTelemetry`) and the related event kinds (`ProviderModelsRefreshed`, `RateLimitHit`, `CapabilityProbed`, `CredentialRotated`, `ParameterClamped`, `CacheBreakDetected`) are emitted by this layer. File 10 owns the entry shape; this file specifies what per-call attribution every model-call entry must carry (`TokenUsageRecord` per §18, cost computed from per-model pricing per §19, never an unkeyed scalar per `core.explicit-rejections`, File 01 §8).
 
 `ledger.sensitivity-aware-persistence-retention` (File 10 §10)'s sensitivity classification (`Public`/`Sensitive`/`Secret`) governs persistence; this file specifies which provider-layer events carry which sensitivity, and the rule that raw credentials, raw request bodies, and resolved secret material never enter durable persistence.
 
@@ -194,8 +194,8 @@ Every `ProviderAdapter` must support the following typed operations. Method name
 - `refresh_models` — re-query the provider's model catalog and update the registry projection
 - `capabilities` — return the `ModelCapabilityDescriptor` for one `(provider_id, model_id)` pair, populated from provider-reported facts, adapter-shipped fallback, and user-supplied overrides per §15
 - `build_request` — transform the assembled `ProviderRequest` (carrying File 13 assembly output, File 16 behavioral intents, and File 17 cache-marker rendering) into the provider-native wire payload
-- `complete` — execute a non-streaming model call, returning `ProviderResponse` or `ProviderError`
-- `stream` — execute a streaming model call, returning a typed stream of `ProviderStreamChunk` values terminated by either a final chunk or a typed `ProviderError`
+- `complete` — execute a non-streaming model call, returning `ProviderCallOutcome::Completed { response }` or `ProviderCallOutcome::Cancelled { usage }`; genuine provider or transport failure returns `ProviderError`
+- `stream` — execute a streaming model call, returning a typed stream of `ProviderStreamChunk` values with exactly one completed, cancelled, or error terminal
 - `classify_error` — return the `ErrorClassification` for a provider-specific error value, including `retryable`, `rate_limited`, `retry_after_ms`, `error_code`, and `recovery_advice`
 - `render_cache_markers` — translate File 13's logical `CacheMarker` candidates into provider-native cache annotations, capping to declared marker limits with typed diagnostics on overflow
 - `count_tokens` — count tokens for a given content fragment, model, and tokenizer identity, using provider-native counting when available and falling back to the local hierarchy in §17
@@ -414,9 +414,16 @@ Rules are inspectable, replayable, and auditable. Hidden conditional logic outsi
 
 Provider-specific behavioral defaults that affect correctness (role-field mapping, surrogate sanitization, unsupported-parameter suppression, identity-header rules, model-id normalization) are part of the adapter's responsibility and must produce typed diagnostic events whenever they alter the user's apparent request.
 
-## 9. Streaming
+## 9. Call Outcomes and Streaming
 
 Anchor: `provider.streaming`
+
+For non-streaming calls, `ProviderCallOutcome` is the closed non-error outcome envelope:
+
+- `Completed { response: ProviderResponse }` — the provider finished and returned a normalized response.
+- `Cancelled { usage: TokenUsageRecord }` — the caller cancelled before provider completion; usage is partial, carries `stop_reason = CancelledByUser`, and carries no `error_class`.
+
+`ProviderError` remains the failure channel. Cancellation is therefore representable without fabricating an empty response or misclassifying caller intent as provider failure.
 
 ### 9.1 `ProviderStreamChunk`
 
@@ -432,6 +439,7 @@ Anchor: `provider.streaming`
 - `PartialUsageObserved { usage_delta }`
 - `StopReasonObserved { stop_reason }`
 - `CompletionReceived { usage, stop_reason, finish_metadata }`
+- `StreamCancelled { usage }` — terminal: the caller cancelled the stream mid-flight (§9.3), carrying the partial usage accumulated before the stop. Cancellation is a deliberate caller action, neither provider completion nor provider failure, so it has its own terminal distinct from both `CompletionReceived` and `StreamError`. It carries no `ProviderError`.
 - `StreamError { error }`
 - `Custom { namespace, name, payload }` for registered extensions
 
@@ -439,14 +447,16 @@ Adapters that consume non-SSE transports (chunked HTTP, WebSocket, NDJSON, subpr
 
 ### 9.2 Streaming Discipline
 
-- Every stream begins with `StreamStarted` and terminates with either `CompletionReceived` or `StreamError`. Adapters must guarantee one and only one terminal chunk per stream.
+- Every stream begins with `StreamStarted` and terminates with exactly one of `CompletionReceived` (the provider finished), `StreamCancelled` (the caller cancelled, §9.3), or `StreamError` (the provider/transport failed). Adapters must guarantee one and only one terminal chunk per stream. Cancellation is never surfaced as `StreamError`; it is recorded through the cancellation channel (§9.3), not as a provider fault.
 - `RateLimitHeadersObserved` chunks fire when the provider returns updated headers mid-stream or as a streaming usage event. Adapters must surface them at parse time and call `reconcile_rate_limits` per §13.
 - `PartialUsageObserved` chunks fire when the provider streams running usage counts (when the provider emits running usage totals or per-chunk usage events). The canonical block-level token-attribution algorithm specified in §17.5 consumes these.
 - Mid-stream errors must be surfaced as `StreamError` with a typed `ProviderError` and must not be silently swallowed. Partial output captured before the error is delivered to File 04 per §17.3 retention rules.
 
 ### 9.3 Cancellation
 
-The `cancellation_signal` carried on every `ProviderRequest` propagates into the stream consumer. On cancellation, the adapter closes the underlying transport (cancels the SSE consumer, sends an explicit cancel frame for protocols that support it, terminates the subprocess for wrapper providers), records the partial usage as a `TokenUsageRecord` with stop reason `CancelledByUser`, and emits a typed `StreamError` chunk so consumers can settle their state.
+The `cancellation_signal` carried on every `ProviderRequest` propagates into the stream consumer. On cancellation, the adapter closes the underlying transport (cancels the SSE consumer, sends an explicit cancel frame for protocols that support it, terminates the subprocess for wrapper providers), records the partial usage as a `TokenUsageRecord` with stop reason `CancelledByUser` (§18.5), and emits a terminal `StreamCancelled { usage }` chunk so consumers can settle their state.
+
+Cancellation is a deliberate caller action, not a provider failure, and is treated as a distinct outcome end-to-end: it is not a `StreamError` (reserved for provider/transport faults, §10) or `CompletionReceived` (the provider did not finish). It carries no `ProviderError`; it never enters transport retry (§11.5) or model fallback (File 16 §9.2); and it does not affect provider health or error trends (§12/§21). Run-level cancellation records the action through File 10's `CancellationRequested`, `StreamCancelled` where partial streaming output is involved, and eventual `CancellationCompleted` entries. The model-call lifecycle records `ModelCallCancelled` — never `ModelCallCompleted` or `ModelCallFailed`. A buffered call cancelled before completion returns `ProviderCallOutcome::Cancelled`; the error channel remains reserved for genuine provider failures.
 
 ### 9.4 Partial Outputs
 
@@ -555,7 +565,7 @@ The `idempotency_key` carried on every `ProviderRequest` lets the adapter coales
 
 ### 11.5 Hard Stops
 
-Retry never converts a `Fatal` `ErrorClassification` into a `Transient` one. Retry never proceeds when the cancellation signal is active. Retry never exceeds the configured cap. Retry never blocks indefinitely; every retry wait is an individually killable execution unit and every backoff has a finite configurable ceiling.
+Retry never converts a `Fatal` `ErrorClassification` into a `Transient` one. Retry never proceeds when the cancellation signal is active. Retry never exceeds the configured cap. Retry never blocks indefinitely; every retry wait is an individually killable execution unit and every backoff has a finite configurable ceiling. A typed cancellation outcome (`ProviderCallOutcome::Cancelled` or the `StreamCancelled` terminal, §9.3) terminates the attempt sequence outright: it is not retried, does not carry a `Transient` classification, and does not escalate to model fallback (File 16 §9.2).
 
 ## 12. `ProviderHealth`
 
@@ -855,7 +865,7 @@ Every model-bound call produces one `TokenUsageRecord` carrying at minimum:
 - `provider_id`, `model_id`, `account_id`, `credential_id` (when relevant)
 - `tokenizer_id` — the `TokenizerId` used for any counts in this record
 - `role` — the workload role tag
-- `started_at`, `completed_at`, and optional `error_at`
+- `started_at`, optional `completed_at`, optional `cancelled_at`, and optional `error_at`; a terminal record carries exactly one terminal timestamp matching its completed, cancelled, or failed outcome
 - `prompt_tokens`, `completion_tokens`
 - `cache_creation_tokens`, `cache_read_tokens`
 - `reasoning_tokens` (optional, populated when the provider reports it)
@@ -868,7 +878,7 @@ Every model-bound call produces one `TokenUsageRecord` carrying at minimum:
 - `parameter_clamps` — list of typed `ParameterClamped` diagnostics applied to this call
 - `idempotency_key`
 
-The record is the canonical durable per-call attribution. File 10 references it from `ModelCallCompleted` and `ModelCallFailed` ledger entries.
+The record is the canonical durable per-call attribution. File 10 references it from `ModelCallCompleted`, `ModelCallFailed`, and `ModelCallCancelled` ledger entries.
 
 ### 18.2 Explicit Non-Fields
 
@@ -889,7 +899,7 @@ A single run may emit many `TokenUsageRecord`s (router, responder, critic, valid
 
 ### 18.5 Streaming Updates
 
-For streaming calls, a partial `TokenUsageRecord` is written on cancellation or mid-stream error. Successful streams write the final record on `CompletionReceived`. Partial records carry `stop_reason = CancelledByUser` or the typed `error_class`.
+For streaming calls, a partial `TokenUsageRecord` is written on cancellation (the `StreamCancelled` terminal, §9.3) or on a mid-stream error (the `StreamError` terminal). Successful streams write the final record on `CompletionReceived`. A cancellation partial carries `stop_reason = CancelledByUser` and no `error_class`; it routes to `ModelCallCancelled` (File 10 §4), never `ModelCallFailed`. An error partial carries the typed `error_class`.
 
 ## 19. Cost as a Derived Projection
 
@@ -985,7 +995,7 @@ Anchor: `provider.events-emitted`
 This layer emits through the unified bus and ledger in File 10. Cross-cutting model-call entries use File 10 canonical kinds. Provider-specific operational events register as `Custom { namespace: "provider", name, payload }` unless File 10 later promotes them to canonical kinds:
 
 - `ProviderRegistered`, `ProviderUnregistered`, `ProviderInstanceCreated`, `ProviderInstanceRemoved`, `ProviderInstanceReconciled`
-- `ModelCallStarted`, `ModelCallStreamingDelta`, `ModelCallCompleted`, `ModelCallFailed`
+- `ModelCallStarted`, `ModelCallStreamingDelta`, `ModelCallCompleted`, `ModelCallFailed`, `ModelCallCancelled`
 - `ProviderHealthChanged` carrying prior and new `ProviderHealth`
 - `RateLimitSnapshotReconciled` carrying the parsed `RateLimitSnapshot`
 - `RateLimitHit` carrying `provider_id`, `model_id`, `scope`, `window`, `retry_after_ms`
@@ -1005,7 +1015,7 @@ Every event carries the canonical envelope from `ledger.event-envelope` (File 10
 
 ### 22.3 Ledger Boundary
 
-Consequential events also commit as typed ledger entries per `ledger.entry-kinds` (File 10 §4). `ModelCallStarted`, `ModelCallCompleted`, `ModelCallFailed`, `ProviderHealthChanged`, `RateLimitSnapshotReconciled`, `CredentialRotated`, and `ProviderModelsRefreshed` are durable. High-frequency events (`ModelCallStreamingDelta`, `TokenCountEstimationTelemetry`) are subject to aggregation per `ledger.subscription-persistence-lifecycle` (File 10 §13.4).
+Consequential events also commit as typed ledger entries per `ledger.entry-kinds` (File 10 §4). `ModelCallStarted`, `ModelCallCompleted`, `ModelCallFailed`, `ModelCallCancelled`, `ProviderHealthChanged`, `RateLimitSnapshotReconciled`, `CredentialRotated`, and `ProviderModelsRefreshed` are durable. High-frequency events (`ModelCallStreamingDelta`, `TokenCountEstimationTelemetry`) are subject to aggregation per `ledger.subscription-persistence-lifecycle` (File 10 §13.4).
 
 ### 22.4 Subscribers
 
@@ -1013,7 +1023,7 @@ Hooks, telemetry, evaluation, billing dashboards, debugging UIs, and the model-s
 
 ### 22.5 Per-Call Cardinality
 
-`ModelCallStarted` and `ModelCallCompleted` fire at most once per call. `ModelCallStreamingDelta` aggregates per the active policy. `ModelCallFailed` may fire after retries are exhausted; intermediate retry attempts emit `ProviderTransportRetryAttempted` rather than `ModelCallFailed`.
+`ModelCallStarted` fires at most once per call. Exactly one terminal event — `ModelCallCompleted`, `ModelCallFailed`, or `ModelCallCancelled` — fires at most once for the same request id. `ModelCallStreamingDelta` aggregates per the active policy. `ModelCallFailed` may fire after retries are exhausted; intermediate retry attempts emit `ProviderTransportRetryAttempted` rather than a terminal model-call event.
 
 ### 22.6 Provider Capability Surface
 
@@ -1144,7 +1154,7 @@ The following shapes are wrong for this layer:
 - gateway incompatibility detection that burns the configured retry budget instead of short-circuiting
 - secret material in events, ledger entries, exports, or sync payloads
 - aggregate cost views that lose per-call source attribution
-- `ModelCallCompleted` entries without per-call `TokenUsageRecord` attribution
+- terminal model-call entries (`ModelCallCompleted`, `ModelCallFailed`, or `ModelCallCancelled`) without per-call `TokenUsageRecord` attribution
 - streaming pipelines that swallow mid-stream errors
 - using stale or uncertain model-catalog facts without visible provenance and freshness diagnostics
 - header-injection patterns hardcoded in canonical text outside the profile or hand-coded adapter
@@ -1164,7 +1174,7 @@ Later specs must follow these rules:
 - File 16 must classify model-level fallback through the typed `ProviderError` variants this layer produces; it must not invent provider classifications
 - File 04 must propagate the cancellation signal through `ProviderRequest` and consume partial `TokenUsageRecord`s on cancellation
 - File 04 must surface `ContextTooLargeForSelectedModel` to the context layer per `run.boundary-rule` (File 04 §20.1) without retrying at the execution boundary
-- File 10 must record `TokenUsageRecord`-attributed `ModelCallStarted`, `ModelCallCompleted`, and `ModelCallFailed` entries with provider/model/account/credential/tokenizer/role keying; it must reject entries whose payload contains `Secret` material per the existing forgery guards
+- File 10 must record `TokenUsageRecord`-attributed terminal model-call entries (`ModelCallCompleted`, `ModelCallFailed`, or `ModelCallCancelled`) with provider/model/account/credential/tokenizer/role keying and correlate them with `ModelCallStarted`; it must reject entries whose payload contains `Secret` material per the existing forgery guards
 - File 13 must consume the `(block_id, tokenizer_id)` cache contract, produce logical `CacheMarker` candidates this layer translates, and source request-size limits from `ModelCapabilityDescriptor` provided here
 - File 15 must register every provider-layer setting through the canonical source stack; it must not invent a parallel cascade
 - The Security, Credentials, and Trust Boundaries spec implements the backend-only vault resolution interface this layer references through `resolve_for_use(SecretRef("provider.<provider_id>.<account_id>.<credential_id>"), purpose, invocation_context)` and emits `CredentialRotated` events consumed here
@@ -1173,7 +1183,7 @@ Later specs must follow these rules:
 - File 36 (MCP and External Integrations) must not subsume the model-provider layer; MCP for tools is a tool-provider concern with its own provider-adapter analogue, not a route through this layer
 - File 23 must support subscription-wrapper subprocess lifecycle in the sandbox primitives declared there (process groups, HOME isolation, shadow homes)
 - File 37 and File 38 must render per-call attribution, derived cost, rate-limit projections, credential states, provider health, and model-catalog freshness from the projections this layer produces; they must not maintain a parallel provider-state store
-- The Telemetry, Logging, and Observability spec (File 41) must consume `ModelCallStarted` / `ModelCallCompleted` / `TokenCountEstimationTelemetry` / `ProviderHealthChanged` / `RateLimitSnapshotReconciled` / `ParameterClamped` / `CacheBreakDetected` events without inventing parallel emission paths
+- The Telemetry, Logging, and Observability spec (File 41) must consume `ModelCallStarted` / `ModelCallCompleted` / `ModelCallFailed` / `ModelCallCancelled` / `TokenCountEstimationTelemetry` / `ProviderHealthChanged` / `RateLimitSnapshotReconciled` / `ParameterClamped` / `CacheBreakDetected` events without inventing parallel emission paths
 - The Evaluation and Benchmarking spec (File 40) should use `TokenUsageRecord` and `PricingSnapshot` references as primary artifacts for cost-correctness, cache-effectiveness, and tokenizer-accuracy measurements
 - Plugin and extension specs that register adapters or profiles must pass through the source-approval flow in `policy.source-approval-flow` (File 06 §9); they must implement the full `ProviderAdapter` contract and produce the same typed projections
 - Domain specs that introduce siblings to model providers (STT, TTS, image, embedding) should adopt the same provider-adapter pattern with sibling traits sharing the credential, rate-limit, usage, and event infrastructure declared here, without forcing those siblings into the LLM-specific surface this file defines
