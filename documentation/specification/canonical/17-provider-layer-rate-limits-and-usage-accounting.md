@@ -517,13 +517,15 @@ Adapters map provider-reported HTTP status codes and error codes to the canonica
 
 ### 10.4 Retry-After Extraction
 
-Adapters extract `retry_after_ms` from typed provider sources in priority order:
+Adapters extract `retry_after_ms` — the wait before the next attempt for the current response — from typed provider sources in priority order:
 
-1. provider-specific reset headers when the provider exposes typed reset hints
-2. the canonical `Retry-After` header
+1. the canonical `Retry-After` header when present (typically on a `429`) — the provider's explicit instruction for this rejection; when both `Retry-After` and reset headers are present, `Retry-After` controls the immediate retry wait
+2. provider-specific reset headers when the provider exposes typed reset hints
 3. provider-reported retry hints in the error body
 4. profile-declared policy for the error class
 5. `None`, when no signal exists
+
+This precedence governs the per-response retry/block wait only. Provider-specific reset headers still feed the proactive `(scope, window)` reset state (§13.4/§13.5): a normal response usually carries no `Retry-After`, so its reset headers are the reset signal; a `429` may carry `Retry-After` for the immediate block deadline (§13.6) and reset headers that reconcile the window state. Every extracted value is range-clamped (§13.7) so a hostile or absurd value cannot park or panic the retry path.
 
 The runtime does not treat retry waits as correctness logic. Provider reset hints are respected unless the user cancels or policy permits explicit override.
 
@@ -589,6 +591,8 @@ Anchor: `provider.provider-health`
 - crossing the configured `degraded_threshold` (per §24) transitions to `Degraded`
 - crossing the configured unhealthy-failure policy transitions to `Unhealthy` with diagnostic retry guidance derived from provider hints and settings
 - `RateLimited`, `ModelUnavailable`, `AuthenticationFailed`, `InvalidRequest`, `ContextTooLargeForSelectedModel`, `CapabilityMismatchDiscovered`, `PolicyOrDataBoundaryConflict`, and `RequestRejectedByProvider` do not contribute to health — they are accounted to rate-limit, model-availability, credential, request-shape, or compatibility concerns respectively
+- a cancellation (a `StreamCancelled` terminal / `ModelCallCancelled` / buffered cancellation outcome, §9.3) is neither a successful call nor a contributing failure: it does not reset health to `Healthy` (a caller-initiated stop is not evidence the provider is healthy), does not increment the contributing counter, and leaves provider health unchanged
+- health transitions are observed only at a genuine call outcome: a buffered call's returned result, or a stream's terminal chunk (`CompletionReceived` / `StreamError`). A streaming call's health is not recorded at stream-open before the terminal is known, so a stream cancelled or interrupted after opening cannot mark an otherwise-unhealthy provider `Healthy`
 - explicit user reset through the `provider.reset_health` capability returns the state to `Healthy`
 
 ### 12.4 No Active Health Pings
@@ -630,19 +634,32 @@ Each scope may hold multiple windows. Windows accumulate independently and are e
 
 ### 13.3 `RateLimitState`
 
-`RateLimitState` carries, per `(scope, window)`:
+`RateLimitState` carries, per `(scope, window)` — and a window's identity includes the quota **dimension** it governs (§13.4), so a scope's independent limits (for example, separate request, input-token, and output-token limits with different reset boundaries) are separate states, accumulated independently and evaluated together at admission (§13.2/§13.6):
 
-- `requests_used` and `requests_limit`
-- `tokens_used` and `tokens_limit` (when token-based limits apply)
-- `window_started_at`
-- `window_resets_at`
-- `status` — `Ok`, `Warning { remaining_pct }` when above the configured warning threshold, `WillResetSoon` when within the configured pre-reset window, `Limited`, or `Unknown`
+- `dimension` — the quota this window governs: `Requests`, `Tokens`, `InputTokens`, `OutputTokens`, or `Named { policy_id }` (an IETF `RateLimit` policy name or a provider window id).
+- `used` and `limit` — the consumed count and the ceiling for that dimension. `limit` may be user-configured downward below the provider's (§13.1); the effective ceiling is the more restrictive.
+- `window_started_at` and `window_resets_at` — the window's absolute wall-clock bounds, used for display (the user-facing reset countdown) and for sizing a one-shot block delay; never for the correctness decision below.
+- `observed_at_monotonic` — a monotonic instant captured when this window was last reconciled (§13.5). The "has the window rolled?" decision uses monotonic elapsed from this baseline, not a wall-clock subtraction, so local clock skew, an NTP step, or a sleep transition cannot mis-decide a roll (§13.7). A monotonic baseline does not survive a process restart, so it is absent until the first post-restart reconcile; admission then treats the window as `Unknown` and admits one call to re-seed it (§13.5).
+- `status` — `Ok`, `Warning { remaining_pct }` when above the configured warning threshold, `WillResetSoon` when within the configured pre-reset window, `Limited`, or `Unknown`.
 
-`status` is a derived projection over `*_used`, `*_limit`, and the current time.
+`status` is a derived projection over `used`, `limit`, and elapsed time — monotonic elapsed for the roll/`Limited` decision, wall-clock only for the `WillResetSoon` display countdown.
 
 ### 13.4 `RateLimitSnapshot`
 
-`RateLimitSnapshot` is the typed envelope parsed from provider response headers. It carries provider-reported `requests_remaining`, `requests_limit`, `requests_reset_at`, `tokens_remaining`, `tokens_limit`, `tokens_reset_at`, and the `RateLimitScope` they apply to. Adapters produce snapshots from their provider's specific header set and emit them through `RateLimitHeadersObserved` chunks during streaming or attached to `CompletionReceived` for non-streaming calls.
+`RateLimitSnapshot` is the typed envelope parsed from provider response headers. It carries the `RateLimitScope` the limits apply to, an optional `retry_after` (the explicit retry advice on a `429`, §10.4), and a set of independent per-limit **observations** — one per limit the provider reports. Providers may expose several independent limits at once (requests, input tokens, output tokens, total tokens, named windows, or policy-labelled windows), so a single `requests` + `tokens` pair cannot faithfully represent them.
+
+Each observation carries:
+
+- `dimension` — the quota the limit governs: `Requests`, `Tokens`, `InputTokens`, `OutputTokens`, or `Named { policy_id }` (the IETF `RateLimit` policy name or a provider window id). This is the limit's identity, taken from the provider's own labelling — never fabricated.
+- `limit` and `remaining` — the provider-reported ceiling and headroom for that dimension.
+- `reset` — typed reset information, never a bare epoch and never dropped:
+  - `AbsoluteEpochMs { at }` — the provider gave an absolute instant (Anthropic's RFC 3339 `*-reset`, or an IETF reset already anchored to the response `Date`). Stored directly as `window_resets_at`.
+  - `RelativeFromReceipt { duration_ms, received_at_epoch_ms, received_at_monotonic }` — the provider gave a relative duration. A relative duration is meaningless without the instant it was measured from, so it is anchored at receipt: `window_started_at := received_at`, `window_resets_at := received_at + duration_ms`, and the monotonic receipt instant seeds `observed_at_monotonic` (§13.3) so the roll decision is skew-immune. A relative reset is mandatory input to reconciliation; dropping it removes the provider's recovery guidance and forces the blind send-then-429 posture (§13.5/§25).
+  - `Unknown` — the provider sent counts but no reset; the limit is tracked, and recovery falls back to a conservative bounded probe (§13.6).
+
+Every honored reset (and `retry_after`) is range-clamped on parse: a non-finite, negative, or absurdly large value beyond the configured `max_reset_horizon` (§24) is rejected to its clamp rather than honored, so a hostile or buggy provider value cannot park the limiter indefinitely or panic the duration arithmetic (§13.7).
+
+Adapters produce snapshots from their provider's specific header set and emit them through `RateLimitHeadersObserved` chunks during streaming or attached to `CompletionReceived` for non-streaming calls.
 
 ### 13.5 Reconciliation Discipline
 
@@ -652,17 +669,28 @@ Header reconciliation runs on both successful responses and on `RateLimited` res
 
 ### 13.6 Admission Control
 
-Before issuing a call, the runtime consults `RateLimitService::check_allowed(scope, estimated_tokens) → AllowanceDecision`. The decision is:
+Before issuing a call, the runtime consults `RateLimitService::check_allowed(scope, estimated_tokens) → AllowanceDecision`. The service evaluates every applicable `(scope, window)` state — user-configured local windows and provider-reported windows of every dimension (§13.2/§13.3) — and returns the most restrictive:
 
 - `Allow`
-- `BlockUntil { reason, retry_after_ms }` when any applicable window would be exceeded
-- `Warn { remaining, next_reset_at }` when admission succeeds but the call crosses a configured warning threshold
+- `BlockUntil { reason, retry_after_ms }` when any applicable window would be exceeded. The block deadline is, in precedence order: an active `429` `Retry-After` (§10.4 — it controls the immediate wait on an error response); else the exhausted window's monotonic-anchored reset; else a finite conservative backoff. It is always finite (clamped, §13.7), never an indefinite park.
+- `Warn { remaining, next_reset_at }` when admission succeeds but the call crosses a configured warning threshold.
+
+Recovery from an exhausted window is a bounded **probe**, not a permanent block. When the deadline elapses (measured by monotonic elapsed, §13.3, plus a configured margin/jitter to avoid a thundering herd), the runtime admits one in-flight probe per exhausted `(scope, window)` and reconciles the response's fresh headers (§13.5); if still limited, the block is updated from the new headers and the wait repeats. A wrong-early probe costs at most one `429` and a fresh reconciliation — but rejected requests are not assumed free, which is why the probe is single-flight with a margin, not an open retry.
+
+Admission lives in the runtime `RateLimitService`, which owns wait/retry/fallback decisions and the clock discipline. Provider adapters normalize provider headers into `RateLimitSnapshot`s and expose reconciled per-`(scope, window)` state through the provider layer; they do not make final admission decisions. A count-only adapter-side block with no window-roll logic would deadlock a scope that once hit `remaining == 0`.
 
 Pre-call estimation is sourced from `context.token-counting` (File 13 §10). Post-call recording uses provider-reported usage (Tier 1 per §17) and records the residual against the same `(scope, window)` rows.
 
 ### 13.7 Burst, Concurrency, and Clock Skew
 
-Burst capacity may be modeled with a token-bucket overlay above the canonical windows when a setting enables it. Concurrent in-flight call counts are tracked through the `Concurrent` window. Windows are keyed by `window_started_at` rather than wall-clock so that local clock skew, NTP adjustments, or sleep transitions cannot double-charge or double-credit a window.
+Burst capacity may be modeled with a token-bucket overlay above the canonical windows when a setting enables it. A provider that replenishes continuously (a token bucket — e.g. Anthropic, whose limits refill rather than resetting at a fixed instant) is modeled as a `ProviderReported` window whose `reset` is the refill horizon of the currently-binding limit; admission treats it as a rolling allowance, not a discrete fixed-window reset. Concurrent in-flight call counts are tracked through the `Concurrent` window.
+
+**Clock discipline (the no-time-based-correctness invariant for rate limits).** A window's identity is keyed by `window_started_at`, derived once at reconciliation — from the provider's absolute reset, or anchored at receipt for a relative reset (§13.4) — and never re-derived from a live wall-clock read. Two distinct clock uses are separated:
+
+- The "has the window rolled?" correctness decision uses monotonic elapsed from `observed_at_monotonic` (§13.3). A monotonic clock is immune to NTP steps, manual clock changes, and sleep transitions, so it cannot double-charge or double-credit a window. This — not "never read a clock" — is the invariant: relative resets are kept and anchored, and the clock that decides correctness is monotonic.
+- The wall clock is read only for non-correctness purposes: the user-facing reset countdown (`WillResetSoon`), and sizing a one-shot block delay from an absolute `window_resets_at` as `max(window_resets_at - now, 0)` — floored at zero so a backward skew degrades to "act now", never a negative or runaway wait.
+
+**Bounds (anti-deadlock + panic-safety).** Every honored reset or `Retry-After` is clamped on parse: non-finite (NaN/Inf) and negative values are rejected; a value beyond `max_reset_horizon` (§24) is treated as that horizon and surfaces a typed limit diagnostic rather than parking the limiter. The duration arithmetic must not overflow or panic. After a process restart no monotonic baseline survives, so a window is `Unknown` until the next reconcile re-seeds it (§13.3/§13.5); `window_resets_at` may be persisted for display only, never used as a post-restart correctness baseline.
 
 ### 13.8 Cross-Device
 
@@ -965,7 +993,7 @@ Anchor: `provider.provider-runtime-snapshot-provider-offering-projection`
 - per-`(scope, window)` `RateLimitState` summary
 - in-flight capacity per provider
 - credential state (`Authenticated`, `ExpiringSoon`, `Expired`, `MissingFromVault`, `Rotating`)
-- provider-reported error trends across the last reset window
+- provider-reported error trends across the last reset window (provider/transport FAILURES only — a cancellation is a caller action, not a provider error, and is excluded from error trends, §9.3/§12.3)
 - known-retryability hints from recent classifications
 
 `ProviderOfferingProjection` is the typed projection consumed by `model.provider-inputs-consumed-by-model-strategy` (File 16 §2) carrying:
@@ -1099,6 +1127,7 @@ Every behavior in this file that is meaningful for users, workspaces, conversati
 - model-catalog event-driven refresh and optional user-enabled maintenance policy
 - per-error-class transport-retry caps, backoff strategies, and jitter parameters
 - per-scope rate-limit budgets and burst overlays
+- rate-limit reset horizon, probe margin, and single-flight probe policy
 - warning and pre-reset notification policies
 - health admission, degradation, unhealthy-state, and retry-hint policies
 - credential-pool enablement and rotation policy per account
