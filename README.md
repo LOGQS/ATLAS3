@@ -9,3 +9,4 @@
 - Canonical specifications first pass finished.
 - Development specifications first pass finished.
 - Current Git-ignored work: mock UI/UX implementation, learning Rust, refreshing TypeScript, and an agent-driven implementation rehearsal used to expose failure modes before production development.
+- Addition to current: Started working on frontend with a more structured approach. 
