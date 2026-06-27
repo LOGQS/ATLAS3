@@ -662,7 +662,15 @@ Adapters produce snapshots from their provider's specific header set and emit th
 
 ### 13.5 Reconciliation Discipline
 
-Provider-reported headers are authoritative. `ProviderAdapter::reconcile_rate_limits` consumes a `RateLimitSnapshot` and replaces the local `RateLimitState` for that `(scope, window)` with the provider's view. Local counters exist only as pre-call admission inputs against the most recent snapshot and are corrected on every response. For providers without rate-limit headers (local model servers, custom endpoints), reconciliation is a no-op and the limiter relies entirely on user-configured local windows.
+Provider-reported headers are authoritative for provider-reported windows. `ProviderAdapter::reconcile_rate_limits` consumes a `RateLimitSnapshot` and replaces the provider-sourced `RateLimitState` for that `(scope, window, dimension)` with the provider's view. Atlas does not fabricate provider usage for failures that carry no provider evidence. For providers without rate-limit headers (local model servers, custom endpoints), reconciliation is a no-op and the limiter relies entirely on user-configured local windows.
+
+User-configured local windows are separate Atlas-owned guardrails unless they are explicitly declared as downward caps on a provider-reported window. Each local window declares a counting policy:
+
+- `DispatchedAttempt` — default for `Requests` safety budgets. Count one logical provider call when dispatch begins, including provider rejection, timeout, transport failure after dispatch, and retry exhaustion. Do not count admission blocks or caller cancellation before dispatch.
+- `ProviderAcceptedAttempt` — count only when provider evidence indicates the request reached or was accepted by the provider. If the provider cannot report this signal, the window follows its configured fallback (`DispatchedAttempt` or unavailable).
+- `SuccessfulCall` — count only completed calls. This is valid for analytics and soft user dashboards, not as a safety limiter for outage or retry loops.
+
+Token windows are reconciled from provider-reported usage or post-call measured usage, not from request-attempt counting. A provider response that shows no provider quota was consumed corrects the provider-sourced rows; it does not automatically refund an Atlas-local `DispatchedAttempt` window unless that window's own counting policy says so.
 
 Header reconciliation runs on both successful responses and on `RateLimited` responses; the latter carry the most up-to-date reset information.
 
@@ -677,6 +685,8 @@ Before issuing a call, the runtime consults `RateLimitService::check_allowed(sco
 Recovery from an exhausted window is a bounded **probe**, not a permanent block. When the deadline elapses (measured by monotonic elapsed, §13.3, plus a configured margin/jitter to avoid a thundering herd), the runtime admits one in-flight probe per exhausted `(scope, window)` and reconciles the response's fresh headers (§13.5); if still limited, the block is updated from the new headers and the wait repeats. A wrong-early probe costs at most one `429` and a fresh reconciliation — but rejected requests are not assumed free, which is why the probe is single-flight with a margin, not an open retry.
 
 Admission lives in the runtime `RateLimitService`, which owns wait/retry/fallback decisions and the clock discipline. Provider adapters normalize provider headers into `RateLimitSnapshot`s and expose reconciled per-`(scope, window)` state through the provider layer; they do not make final admission decisions. A count-only adapter-side block with no window-roll logic would deadlock a scope that once hit `remaining == 0`.
+
+Provider-reported quota and Atlas-local attempt budgets are evaluated independently and surfaced with their source. The same failed model call may consume an Atlas-local `DispatchedAttempt` request budget while provider-reported request quota remains unchanged; hiding that distinction would make both user controls and provider reconciliation misleading.
 
 Pre-call estimation is sourced from `context.token-counting` (File 13 §10). Post-call recording uses provider-reported usage (Tier 1 per §17) and records the residual against the same `(scope, window)` rows.
 
@@ -1126,6 +1136,7 @@ Every behavior in this file that is meaningful for users, workspaces, conversati
 - model-catalog event-driven refresh and optional user-enabled maintenance policy
 - per-error-class transport-retry caps, backoff strategies, and jitter parameters
 - per-scope rate-limit budgets and burst overlays
+- per-local-window counting policy (`DispatchedAttempt`, `ProviderAcceptedAttempt`, or `SuccessfulCall`) and fallback when provider acceptance evidence is unavailable
 - rate-limit reset horizon, probe margin, and single-flight probe policy
 - warning and pre-reset notification policies
 - health admission, degradation, unhealthy-state, and retry-hint policies
@@ -1175,6 +1186,9 @@ The following shapes are wrong for this layer:
 - raw API keys in error messages or stack traces
 - header reconciliation that ignores provider-reported reset times in favor of local backoff calculations
 - rate-limit accounting that conflates the multiple windows of one scope into a single counter
+- presenting provider-reported quota and Atlas-local attempt budgets as one indistinguishable "requests remaining" value
+- silently refunding an Atlas-local `DispatchedAttempt` window because provider evidence showed no provider quota consumption, unless that local window explicitly configured that policy
+- using `SuccessfulCall` counting as a safety limiter for provider outages or retry loops
 - credential rotation through the canonical pool without typed `mark_rate_limited` and `reset_credential` operations
 - transport-level retry that switches `(provider_id, model_id)` without exiting through File 16's `FallbackPolicy`
 - per-provider parameter clamping without a typed `ParameterClamped` diagnostic
