@@ -555,7 +555,7 @@ Every `Claim` block carries at minimum (in addition to the canonical block field
 - `claim_text` — the assertion text (UTF-8); the canonical content stored as `Inline { text }` in the block's `BlockContent`
 - `claim_kind` — typed `ClaimKind` (§9.3)
 - `confidence_class` — typed `ClaimConfidenceClass` (§9.5); declared by the producer
-- `confidence_score` — optional floating-point in [0.0, 1.0]; declared by the producer when meaningful; used for ranking, never for policy
+- `confidence_score` — optional ranking score: a fixed-point integer in [0, 1000] milli-units (the canonical encoding carries no float, `core.canonical-encoding` §6.15); declared by the producer when meaningful; used for ranking, never for policy. When committed on the claim block, it is deterministically encoded and hash-protected like any committed field; changing it later requires a new block or a separate projection fact, never in-place mutation.
 - `scope` — broadest visibility scope (per `block.block-scope`, File 08 §11)
 - `anchor` — optional typed `ClaimAnchor` (§9.6) pointing to a source block plus an optional span
 - `claim_schema_version` — version of the claim-block extension shape
@@ -612,7 +612,7 @@ Status is **derived from the evidence-link set when not explicitly overridden**.
 - `Speculative` — the claim is offered as a hypothesis or guess; surfaces should render with explicit speculative marking
 - `Disputed` — the claim is asserted but with awareness of significant contradicting evidence; explicit acknowledgment of disagreement
 
-`confidence_class` is the primary policy-grade signal: typed-confirmation requirements, automation gating, retrieval ranking weights, and validation pipeline routing read from this enum. The optional `confidence_score` floating-point value supplements for ranking and comparison but is never the sole policy input.
+`confidence_class` is the primary policy-grade signal: typed-confirmation requirements, automation gating, retrieval ranking weights, and validation pipeline routing read from this enum. The optional `confidence_score` fixed-point ranking value (milli-units, §6.15) supplements for ranking and comparison but is never the sole policy input.
 
 ### 9.6 `ClaimAnchor`
 
@@ -703,7 +703,7 @@ An `EvidenceLink` is the typed metadata attached to a directed edge between a `C
 
 - `relation` — typed `EvidenceRelation` (§11.3)
 - `confidence_class` — typed `EvidenceConfidenceClass` (§11.4), independent of the claim's own confidence
-- `confidence_score` — optional floating-point in [0.0, 1.0]
+- `confidence_score` — optional ranking score: a fixed-point integer in [0, 1000] milli-units (the canonical encoding carries no float, `core.canonical-encoding` §6.15); evidence-link metadata, not part of the edge's identity (§5.2 edge identity excludes metadata)
 - `applies_to_span` — optional `SourceSpan` indicating which portion of the source block the evidence specifically supports (when the source block is large and the evidence only addresses a portion)
 - `captured_at` — timestamp the link was committed
 - `captured_by_run_id` — the run under which the link was committed
@@ -796,7 +796,7 @@ A URL-only citation is a durable reference, not durable source content. Evidence
 - `ByteRange { start: usize, end: usize }` — half-open byte range over binary or text content
 - `LineRange { start_line: usize, end_line: usize, start_column: Option<usize>, end_column: Option<usize> }` — line-based range with optional column granularity
 - `PageRange { start_page: usize, end_page: usize }` — for paginated content (PDFs, books)
-- `TimeRange { start_seconds: f64, end_seconds: f64 }` — for audio/video sources
+- `TimeRange { start_micros: u64, end_micros: u64 }` — for audio/video sources (integer microseconds since the source start; the canonical encoding carries no float, `core.canonical-encoding` §6.15; `end_micros >= start_micros`, enforced by the typed constructor)
 - `DomSelector { selector: String, occurrence_index: Option<usize> }` — CSS selector against a referenced HTML source
 - `XPath { xpath: String }` — XPath against a referenced XML or HTML source
 - `Composed { children: Vec<SourceSpan> }` — composed span over multiple non-contiguous regions
@@ -860,8 +860,8 @@ File 09 specifies the content shape and the staleness-fingerprint contract:
 `StalenessFingerprint` is a typed value the capability commits with the observation so future calls can revalidate currency:
 
 - `ContentHash { hash: String }` — SHA-256 (or registered alternative) of the observed content
-- `Mtime { mtime_unix_seconds: f64 }` — POSIX mtime of the observed file
-- `MtimeAndHash { mtime_unix_seconds: f64, hash: String }` — both fields, for robustness
+- `Mtime { mtime_unix_nanos: i64 }` — POSIX mtime of the observed file as integer nanoseconds since the Unix epoch (the canonical encoding carries no float, `core.canonical-encoding` §6.15; integer is also exact for the §13.4 replay-equality check, which `f64` seconds is not at large epochs)
+- `MtimeAndHash { mtime_unix_nanos: i64, hash: String }` — both fields, for robustness
 - `VersionId { version_id: BlockId }` — for observation-of-block scenarios, the block_id whose content the observation captures
 - `AccessibilityTreeHash { tree_hash: String }` — hash of the canonical-form accessibility tree
 - `DomSignature { url: String, signature: String }` — a hash over the DOM structure (typically the tag tree without text content)
@@ -1355,7 +1355,7 @@ The following shapes are wrong for this layer:
 - claims as anonymous text fragments — every `Claim` has stable identity (`claim_id`), explicit confidence class, and status derived or overridden through projection records; free-floating claim-like text in `MessageAssistant` blocks is not a `Claim` entity
 - evidence chains without typed relations — every evidence link carries an `EvidenceRelation` (canonical or registered extension); untyped `cites` edges that purport to support a claim are an Explicit Rejection
 - closing the `EvidenceRelation` set to support/refute only — the closed canonical set includes `Contextualizes`, `Corroborates`, `Summarizes`, `Derives`, `Witnesses`, `IllustratesByExample` because the design space genuinely contains these relations; a too-narrow set forces evidence into misclassification
-- a single numerical confidence score as the only policy signal — `ConfidenceClass` is the policy-grade enum; numerical scores are for ranking only; policy decisions never read the floating-point score in isolation
+- a single numerical confidence score as the only policy signal — `ConfidenceClass` is the policy-grade enum; numerical scores are fixed-point ranking metadata (§6.15); policy decisions never read the numerical score in isolation
 - observations without staleness fingerprints when the observation backs a mutation — capabilities whose mutation depends on a prior observation must consume the observation's `staleness_fingerprint` and revalidate currency per `run.call-pipeline` (File 04 §8.2); observations with no fingerprint are valid as evidence but cannot back mutations
 - silent claim-status changes caused by committed substrate changes — when a committed block, edge, action-log record, or settings change alters visible status, a `ClaimStatusChanged` event emits with the derivation reason; pure read recomputation is not an event source
 - silent evidence-link removal without a recorded event — every link removal emits `EvidenceLinkDetached`; compaction never silently removes evidence-link edges

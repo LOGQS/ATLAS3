@@ -137,7 +137,8 @@ Every block declares its `kind` at creation. The canonical closed catalogue:
 
 - `InstructionSource` — durable instruction-source content such as workspace rules, user rules, instruction fragments, or committed policy notices. It is not the fully assembled model request.
 - `MessageUser` — a user's transcript input. By default, the message text is one primary block; attachments, mentions, quoted prior blocks, and other structured parts are linked as children when structure is needed.
-- `MessageAssistant` — an accepted assistant turn; typically `Composed` over final text plus tool-call, tool-result, reasoning, validation, or failure child blocks
+- `MessageAssistant` — an accepted assistant turn; typically `Composed` over a `MessageText` final-text part plus tool-call, tool-result, reasoning, validation, or failure child blocks
+- `MessageText` — the natural-language prose content of a message turn: an assistant turn's final-text answer, and (when a user message needs explicit structure) a text part of a `MessageUser`. When present, it is a child of a `MessageUser` or `MessageAssistant` composition, never a transcript-anchor block of its own; a simple user message may instead be the `MessageUser` block's own `Inline` payload. `MessageText` is `Inline` and defaults to `Public`. Large user-visible outputs are `Artifact`s, not prose — `MessageText` carries transcript prose, not document payloads.
 
 **Reasoning kinds:**
 
@@ -200,6 +201,7 @@ The catalogue is not free-form. The following composition rules apply:
 - `MessageUser` and `MessageAssistant` are transcript-anchor kinds. The transcript (File 02) renders these as message lines; the message line references a single block of one of these kinds, which itself may be `Composed` over children
 - Message composition rules are defaults, not hard limits on later editing. A user or model may split a block into smaller sibling blocks, merge content into a new `Composed` block, group blocks, tag them through registered metadata, or edit them through the standard sibling-creation model; the original blocks remain immutable.
 - `ToolCallProposal` and `ToolResult` always live as children of a `MessageAssistant` block (the turn that produced the call) or as standalone blocks in a non-conversation context (an automation run, an inspector-initiated capability invocation). They never appear as transcript-anchor blocks directly
+- `MessageText`, when used, lives as a child of a `MessageUser` or `MessageAssistant` composition (the turn's natural-language prose part); it never appears as a transcript-anchor block directly. An accepted assistant turn's final-text answer is committed as a `MessageText` child of its `MessageAssistant` anchor (which holds no inline payload of its own, being `Composed`)
 - `Evidence` blocks must reference one or more `Citation`, `Observation`, or prior content blocks via `cites` edges; an evidence block with no supporting references is an Explicit Rejection (§15)
 - `Artifact` blocks must reference a durable backing storage location through `External` content when their content exceeds the inline-size threshold; an oversized `Artifact` block with `Inline` content is an Explicit Rejection
 - `Composed` blocks must reference at least one child via `children_block_ids`; a `Composed` block with no children is an Explicit Rejection
@@ -513,7 +515,7 @@ Anchor: `block.commit-boundary-set`
 The canonical block-commit boundaries are:
 
 - a user submits a message → `MessageUser` block (and any `Composed` children for attachments, mentions, quoted blocks)
-- an assistant turn reaches accepted final state → `MessageAssistant` block plus its constituent `ToolCallProposal`, `ToolResult`, `ReasoningTrace`, and text children blocks
+- an assistant turn reaches accepted final state → `MessageAssistant` block plus its constituent `ToolCallProposal`, `ToolResult`, `ReasoningTrace`, and `MessageText` children blocks
 - a capability invocation completes (success, typed failure, or policy denial) → `ToolCallProposal` and `ToolResult`, `Failure`, or `ToolDenial` blocks
 - the router emits a route record → durable route/run record; blocks may reference that record when conversation history needs visible route inspection
 - an inspector applies a state-changing operation (e.g., user pins, drops, edits) → version-graph entry with associated block creates or edge updates
@@ -722,7 +724,7 @@ Anchor: `block.cross-surface-composition`
 
 A block may compose blocks from multiple surfaces. A `MessageAssistant` answering a research question may compose:
 
-- text children describing the conclusion
+- `MessageText` children describing the conclusion
 - `Citation` children pointing to web sources (committed by Web)
 - `Artifact` children pointing to generated code (committed by Coder)
 - `Observation` children referencing files inspected (committed by File operations)

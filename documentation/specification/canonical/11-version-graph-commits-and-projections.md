@@ -343,7 +343,7 @@ Every `ContextVersion` declares its `op_summary` at commit. The canonical closed
 **Transcript-anchor boundaries (conversation level):**
 
 - `UserMessage` — user submitted a new message; the diff adds the user's `MessageUser` block and any attached children
-- `AgentTurn` — an assistant turn reached accepted final state (per `run.lifecycle`, File 04 §6 lifecycle step 8); the diff adds the `MessageAssistant` block plus its constituent `ToolCallProposal`, `ToolResult`, `ReasoningTrace`, `Failure`, `ToolDenial`, `Observation`, and text children, plus any context operations the agent performed during the turn
+- `AgentTurn` — an assistant turn reached accepted final state (per `run.lifecycle`, File 04 §6 lifecycle step 8); the diff adds the `MessageAssistant` block plus its constituent `ToolCallProposal`, `ToolResult`, `ReasoningTrace`, `Failure`, `ToolDenial`, `Observation`, and `MessageText` children, plus any context operations the agent performed during the turn
 - `EditMessage` — a user-message edit (per `intent.message`, File 02 §3.1) produced a sibling block; the diff records the swap (the prior `MessageUser` block transitions to `Removed` from the active view; the new sibling becomes `Active`); downstream blocks dependent on the prior message become orphans per `intent.message` (File 02 §3.1) unless retry produces a new branch
 - `Retry` — a user clicked retry on a message; the diff adds the new response block(s) as siblings to the prior, sharing the same `parent_block_id` (per `intent.message`, File 02 §3.1 and `run.retry` (File 04 §19.1))
 

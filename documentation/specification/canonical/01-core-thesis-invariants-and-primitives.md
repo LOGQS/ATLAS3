@@ -628,6 +628,14 @@ Ordering rule:
 - order-insensitive collections must be sorted by a stable key before encoding
 - order-sensitive sequences must preserve their order and must be explicitly declared as order-sensitive
 
+Real-valued quantities:
+A `CanonicalEncoding` has no native floating-point form — IEEE-754 admits multiple bit patterns for one value (`-0.0` vs `+0.0`), `NaN` is not reflexively equal, and operations round differently across platforms, all of which are hostile to the byte-identical guarantee of `core.canonical-hash` (§7.14). A durable record therefore carries a real quantity in one of exactly two canonical forms:
+
+- a declared **fixed-point integer** at a named unit (the default and preferred form — for example micro-units like `Money`, or nanoseconds for a timestamp); or
+- where a finite IEEE-754 double value must be preserved, the **unsigned integer of its normalized bit pattern** (`-0.0` normalized to `+0.0`; `NaN` and infinities are not canonically encodable and are rejected by the field's typed constructor, never silently coerced).
+
+Adding a native float as a third `CanonicalEncoding` scalar is an Explicit Rejection unless a future canonical-spec revision adds new wire tags and a new encoding version. Current encodings never reinterpret an existing integer or byte field as a float.
+
 Boundary:
 Physical storage encoding is a separate concern. Storage may use JSON, CBOR, MessagePack, Protobuf, row tuples, columnar formats, or any other layout. A `CanonicalEncoding` is never defined by, and never inferred from, the physical storage representation.
 

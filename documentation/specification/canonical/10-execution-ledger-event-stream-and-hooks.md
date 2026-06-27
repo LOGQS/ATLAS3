@@ -79,7 +79,7 @@ The three primitives compose:
 - the block layer (per `block.streaming-commit-boundary`, File 08 §7) commits blocks at the canonical commit boundaries; each commit emits `BlockCommitted` to the bus and records `BlockCommitted` (with `block_id`, `kind`, `producer`, `origin_run_id`, `content_hash`, sensitivity, scope) to the ledger.
 - the version graph (per File 11) commits version nodes at the canonical boundaries; each commit emits `VersionCommitted` (with `version_id`, `parent_version_id`, `op_summary`, `diff`) to the bus and ledger.
 - the policy layer (per `policy.approval-policy-templates`, File 06 §12) emits `PolicyDecisionMade`, `LeaseGranted`, `LeaseRevoked`, `LeaseStale`, `PolicyContradictionDetected`, `PolicyFloorViolated`, and records each as a ledger entry.
-- the entity layer (per `artifact.events`, File 09 §20) emits `ArtifactCommitted`, `ArtifactLifecycleChanged`, `ClaimPublished`, `EvidenceLinked`, `ObservationCommitted`, `ValidationCommitted`, `CritiquePosted`, `ProvenanceQueryExecuted`, and records the consequential ones.
+- the entity layer (per `artifact.events`, File 09 §20) emits `ArtifactCreated`, `ArtifactVersionCommitted`, `ArtifactLifecycleChanged`, `ClaimPublished`, `EvidenceLinked`, `ObservationCommitted`, `ValidationCommitted`, `CritiquePosted`, `ProvenanceQueryExecuted`, and records the consequential ones.
 - the surface layer (per `surface.surface-relevant-events`, File 07 §13) emits `ToolSurfaceComposed`, `CapabilityBorrowed`, `CapabilityRegistered`, `CapabilityAvailabilityChanged`, and records the consequential ones.
 - the routing layer (per File 03) emits `RouteAttached`, `RoutingFrameComposed`, `RouterDecisionEmitted`, and records the route record per `routing.route-record` (File 03 §3.5).
 
@@ -415,10 +415,10 @@ Every ledger entry declares its `kind` at commit. The canonical closed catalogue
 - `VersionSwitched` — active version pointer changed; payload includes from-version, to-version, view rebuild outcome
 - `PendingOpApplied` — context operation applied to the materialized view (per `block.block-lifecycle-non-destructive-edits`, File 08 §6); payload includes operation kind, affected block id, pending buffer state
 
-**Artifact and entity events (per `artifact.events`, File 09 §20):**
+**Artifact and entity events (per `artifact.events`, File 09 §20):** File 09 §20.1 owns the exact payload field set of each kind below; the bullets summarize what the event records, not an authoritative payload schema (where a bullet's prose and §20.1 differ, §20.1 governs — these descriptions never widen the §20.1 payload).
 
-- `ArtifactCreated` — first version of an artifact committed; payload includes artifact id, kind, materialization policy, producing context
-- `ArtifactVersionCommitted` — subsequent artifact version committed; payload includes version id, derivation summary, materialized paths
+- `ArtifactCreated` — first version of an artifact committed; the exact payload fields are owned by `artifact.events`, File 09 §20.1 (the producing context and materialization policy ride the entry's standard envelope/cross-references and the version record, not the §20.1 payload)
+- `ArtifactVersionCommitted` — subsequent artifact version committed; the exact payload fields are owned by `artifact.events`, File 09 §20.1 (the derivation summary and materialized paths live on the version record this references, not the §20.1 payload)
 - `ArtifactLifecycleChanged` — derived lifecycle transition recorded (Draft → Active → Validated etc.); payload includes from-state, to-state
 - `ArtifactReviewStateChanged` — explicit review-state update; payload includes choice, actor
 - `ArtifactValidationStateChanged` — validation outcome derived from validated_by edges
