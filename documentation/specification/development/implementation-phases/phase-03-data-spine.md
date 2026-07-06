@@ -61,9 +61,9 @@ guard engine is built now against the contract *type*).
 
 ## 5. Build plan
 
-1. **Ledger + bus**: append-only ledger family over P2; the event bus with envelope + per-scope
-   monotonic sequence + dedup; consequential events commit to the ledger before/atomically-with bus
-   delivery — pure coordination stays bus-only (10 §5.4).
+1. **Ledger + stream**: append-only ledger family over P2; the event stream with envelope + per-scope
+   monotonic sequence + dedup; consequential events commit to the ledger before/atomically-with stream
+   delivery — pure coordination stays stream-only (10 §5.4).
 2. **Forgery guards at the commit boundary** (10 §3.7): deterministic, no model calls;
    `LedgerCommitRejected` + `RunCompletionForgeryAttempted` paths; plus Secret-payload rejection,
    unique `entry_id`, resolvable `supersedes`, existing referenced primitives.

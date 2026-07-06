@@ -313,6 +313,8 @@ It contains:
 
 It is not a single label. A step may be both responder and validator, vision and structured-output, local-only and high-reasoning, or low-cost and native-tool-required.
 
+These fields partition into hard filters and preferences. `hard_requirements` and the typed requirement fields it does not subsume - `input_modalities`, `output_contract`, `request_size_needs`, `native_tool_calling_requirement`, `data_boundary_requirements`, `streaming_requirement` when streaming is required, and `reasoning_posture` or `structured_output_posture` when their value is required - are hard filters: selection must satisfy every one, and fallback must preserve them unless the user or an explicit policy authorizes relaxation. `preferences`, `latency_posture`, `cost_posture`, preferred capabilities, and a non-required reasoning or structured-output posture are preferences that order the surviving candidates. `role_tags` are selection signals, `parser_fallback_allowed` is a policy allowance, and `source_context` is provenance; none of the three is itself a hard filter.
+
 ### 5.2 Roles
 
 Canonical role tags include:
@@ -423,11 +425,11 @@ Selection proceeds in deterministic phases:
 4. Apply hard filters: user-pinned identity, capability requirements, data-boundary requirements, provider/account access, policy constraints, current provider-runtime disqualification, and active budget ceilings.
 5. Resolve profile selectors over the surviving candidates.
 6. Apply preferences: preferred capabilities, role suitability, quality/evaluation signals, provider preference, cost posture, latency posture, cache-continuity preference, and recent successful use where applicable.
-7. Apply configured tie-breakers.
+7. Apply configured tie-breakers, then a fixed total order over `(provider_id, model_id)` if candidates remain equal.
 8. Create a `ModelSelectionRecord`.
 9. Return the selected model, selection plan, or typed no-model result.
 
-Hard filters are never converted into weighted scores. Tie-breakers are inspectable settings, not hidden constants.
+Hard filters are never converted into weighted scores. Tie-breakers are inspectable settings, not hidden constants. When configured tie-breakers still leave candidates equal, selection applies a fixed lexicographic total order over `(provider_id, model_id)` as the final deterministic tiebreak, so the winner is always uniquely determined and never depends on candidate enumeration order.
 
 ### 7.4 Explicit User Choices
 
@@ -515,7 +517,7 @@ Fallback consumes typed provider/model failures from File 17:
 - `ContextTooLargeForSelectedModel`
 - `PolicyOrDataBoundaryConflict`
 
-File 17 may retry the same model before surfacing one of these failures. Once File 16 is asked to act, fallback means selecting a different compatible candidate or surfacing the failure.
+File 17 may retry the same model before surfacing one of these failures. Once File 16 is asked to act, fallback means selecting a different compatible candidate or surfacing the failure. Within a single step's fallback sequence, fallback does not reselect a candidate already tried for that step; when the compatible candidates are exhausted, it stops with a typed `NoModelAvailable` result rather than cycling.
 
 Cancellation is not in this set and is never a fallback input. A user-initiated stop surfaces as File 17's `ProviderCallOutcome::Cancelled` or `StreamCancelled`, followed by File 10's durable `ModelCallCancelled` entry. It carries no `ProviderError` and ends the attempt sequence without candidate selection. Fallback selects an alternative only for a genuine provider/model failure; cancellation is the caller declining the work, not the model failing it.
 
@@ -684,6 +686,7 @@ The following shapes are wrong for this layer:
 - provider retry, retry-after delay, provider backoff, or credential refresh implemented in Model Strategy
 - fallback that silently relaxes hard requirements
 - weighted scores that allow soft preferences to override hard filters
+- nondeterministic selection that leaves the winner underdetermined among tied candidates instead of applying the fixed `(provider_id, model_id)` total order
 - confidence-threshold-driven selection as the canonical external contract
 - silent fallthrough from a concrete user-pinned model
 - silently dropping required reasoning, structured output, native tools, modality, or privacy constraints

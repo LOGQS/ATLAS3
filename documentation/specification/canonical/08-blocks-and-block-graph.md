@@ -159,9 +159,9 @@ Every block declares its `kind` at creation. The canonical closed catalogue:
 
 **Persistence-related kinds:**
 
-- `KnowledgeEntry` - a curated knowledge-base content block. The block carries content, source references, sensitivity, scope, and description; mutable curation state such as tags, featured status, validation status, lifecycle, and last-reference statistics belongs to the knowledge-base entity layer.
+- `KnowledgeEntry` - a curated knowledge-base content block. The block carries content, sensitivity, scope, and description; its provenance is carried by `derives_from`/`references` edges to `Citation` and source blocks (§5.2), not by a parallel field on the block. Mutable curation state such as tags, featured status, validation status, lifecycle, and last-reference statistics belongs to the knowledge-base entity layer.
 
-- `Memory` — a memory entry promoted into durable cross-conversation knowledge; carries the salience and decay metadata (full memory mechanics belong to File 14)
+- `Memory` — a memory entry promoted into durable cross-conversation knowledge. The block carries content, sensitivity, scope, and description; mutable memory state such as salience, decay, recall statistics, and lifecycle belongs to the memory entity layer (full memory mechanics belong to File 14)
 - `Artifact` — a block whose content is a durable user-visible output (a file, a document, a chart, a notebook, a lesson, a code patch). May be `Inline` for small artifacts or `External` referencing artifact storage. Artifact identity, lifecycle, versioning, materialization, and export mechanics belong to File 09; this kind is the block-level handle.
 - `FileAttachment` — a block referring to a file in the workspace; carries the path, mtime, size, content hash, and content-type; resolved against workspace state on read
 - `SourceExcerpt` — a deliberately committed excerpt from a source block, file, document, web page, retrieval result, graph traversal, direct lookup, or manual selection. Retrieval chunks, embedding segments, and graph index nodes remain derived records unless intentionally committed as durable context.
@@ -314,12 +314,12 @@ The closed canonical edge catalogue:
 - `contains` — composition edge. A `Composed` block's `children_block_ids` are the canonical source of truth; graph queries expose them as ordered derived edges. Used by content resolution
 - `supersedes` — non-destructive edit replacement. When a block is edited, the edit creates a new block and a `supersedes` edge from the new block to the prior. The version graph uses this edge to advance the "current" pointer. Closure under `supersedes` produces the version chain
 - `derives_from` — derivation provenance. The new block's content was produced by transforming, summarizing, translating, or extracting from the source block. Used by provenance queries, evidence chains, and compaction
-- `cites` — citation. Source: an `Evidence` or `Claim` block; target: a `Citation`, `Observation`, or external reference block. Closure under `cites` produces the evidence chain
+- `cites` — citation. Source: an `Evidence` or `Claim` block; target: a `Citation`, `Observation`, or prior content block. Closure under `cites` produces the evidence chain
 - `witnesses` — observational provenance. The block's content was committed because the source block was observed (a screenshot triggered a UI action; a file-read triggered an edit). Used by replay and stale-state revalidation
 - `references` — weak content reference. The block mentions, links to, or contextually depends on the target without containing or deriving from it (a `MessageAssistant` referencing a prior message it responded to; a `Plan` block referencing a `Task`). Used by surface presentation and cross-block navigation
 - `follows_in_transcript` — strict transcript ordering. Source: any transcript-anchorable block; target: the prior transcript-anchorable block in the same conversation. Used by transcript reconstruction independent of timestamp ordering. The version graph determines the active transcript chain; this edge encodes the local "previous transcript message" link
 - `consolidates` — compaction provenance. A summary or compaction block consolidates several prior blocks into a single condensed view. Source: the consolidation block; targets: the consolidated blocks. Used by compaction lifecycle and by surface displays that need to show "expand to original" affordances
-- `materialized_by` — composition fallback. When a `Composed` block's children are hard-deleted (§6.6), the runtime may materialize the composed block's resolved content as a new `Inline` or `External` block linked by `materialized_by` to the now-dangling composed parent. Used to preserve resolved-content history when children's storage is destroyed
+- `materialized_by` — composition fallback, reserved for the parked composition-materialization mechanism (§6.6). Its intended use: when a `Composed` block's children are hard-deleted, the runtime materializes the composed block's resolved content as a new `Inline` or `External` block linked by `materialized_by` to the now-dangling composed parent, preserving resolved-content history when children's storage is destroyed. That mechanism is currently unsupported (§6.6); the edge kind is defined now so the future resolution needs no catalogue change
 - `promotes_scope_of` — scope promotion. Source: a broader-scope block or reference record; target: the original narrower-scope block. Used when content is intentionally made addressable in a broader scope without treating the original as obsolete
 - `scope_projection_of` — scope projection. Source: a scoped reference record; target: the original block. Used when the broader-scope object is an addressability projection rather than a content copy
 - `attaches_to` — workspace anchor. Source: a block; target: a workspace path, conversation node, task, or run. Carries an offset or position metadata when applicable. Used by surface rendering and by the world-model state-awareness service (`core.world-model`, File 01 §6.7)
@@ -343,6 +343,7 @@ Subsystems and plugins may register additional edge kinds through the same exten
 The block graph is:
 
 - **acyclic in structural composition and lineage** (`parent`, `contains`, and the structural use of `supersedes`). Cycles among these would violate content resolution, edit history, or the version-graph contract
+- **acyclic by construction** (`follows_in_transcript`, `promotes_scope_of`, `scope_projection_of`): each of these edges points from a block to a strictly earlier one — a transcript predecessor, or the pre-existing narrower-scope original a promotion or projection was derived from. Because the target always predates the source, they cannot form cycles; the acyclicity check relies on this append-only, pre-existing-target invariant rather than a runtime cycle walk
 - **possibly cyclic in reference and provenance edges** (`references`, `cites`, `witnesses`, `attaches_to`, `validated_by`, `responds_to`, `conditioned_on`, `derives_from`, `consolidates`, `materialized_by`) unless an edge declaration explicitly forbids cycles
 - **append-only**: edges, like blocks, are committed at boundaries and never mutated. An edge that becomes stale is left in place; the version graph determines whether the source/target blocks are active
 - **inspectable** through canonical block-graph queries: ancestor walk by edge kind, descendant walk by edge kind, sibling enumeration (siblings = blocks with the same `parent_block_id`), supersession chain (closure under `supersedes`), citation network (closure under `cites`)
@@ -359,7 +360,7 @@ Anchor: `block.block-lifecycle-non-destructive-edits`
 
 `BlockLifecycle` names the runtime view-state of a block within a particular `ContextVersion`. The states are:
 
-- `Raw` — the block exists in the pool but has not been activated in any context view yet; transient state between commit and first inclusion
+- `Raw` — the block exists in the pool but has not been activated in any context view yet; transient state between commit and first inclusion. A `Raw` block that is never activated (a partial orphan, a held-back import) may be masked or dropped directly (§6.7) rather than passing through `Active`
 - `Active` — the block is part of the current view; rendered, included in context assembly, eligible for retrieval
 - `Masked` — the block is hidden from the current view but reachable through explicit "show masked" affordances or through version-graph navigation; not included in context assembly by default
 - `Dropped` — the block is hidden from the current view and not eligible for retrieval; reachable only through explicit recovery; storage is retained
@@ -435,7 +436,7 @@ Hard deletion is the only operation that physically destroys recoverable block p
 - typed-confirmation required when the block is referenced by a `Composed` parent, by a non-superseded `supersedes` chain, by an `Evidence` chain, or by any version other than the current one (`policy.permission-floor-typed-confirmation`, File 06 §7 typed-confirmation flow)
 - recorded in the execution ledger as a `BlockHardDeleted` event with the deleting actor, the block id, and the references that would be orphaned
 - accompanied by a minimal tombstone retaining `block_id`, deletion time, deletion actor/source, `conversation_id`, `scope`, `parent_block_id`, prior kind if safe, and a sensitivity-safe reason or description. Payload bytes, secret fields, embeddings, indexed text, and external blobs are removed. References resolve to a typed deleted-block placeholder, not an unexplained missing row
-- accompanied by composition-materialization: if any `Composed` block depends on the deleted block as a child, the runtime materializes the composed block's resolved content into a new block (linked by `materialized_by`, §5.2) so the composed block's previously-resolvable content survives the deletion. If the materialization fails (content is not reconstructible from descriptions alone), the composed block transitions to a typed `MaterializationOrphaned` state and surface rendering shows the missing-child placeholder
+- constrained by the composition-materialization outage: hard-deleting a block that a live `Composed` block still depends on as a child is currently **unsupported**. Until a safe materialization representation is chosen, the operation fails closed with a typed `Unsupported` result rather than destroying content a composed parent still resolves through, and the child's payload is retained. The parked design direction is recorded here so the feature stays visibly parked: a materialized block is just a block — blocks compose recursively under the safety limits of §3.3 and §8.2 — so the eventual mechanism will materialize the composed parent's resolved content into a new `Inline` or `External` block linked by `materialized_by` (§5.2) and transition the parent to a typed `MaterializationOrphaned` state when reconstruction from descriptions alone is impossible. No `Materialized` block kind is minted now
 - accompanied by reference-edge cleanup: edges originating from or terminating at the deleted block become orphan-marked; closure queries report the dangling state explicitly
 
 Hard delete is the canonical mechanism for honoring user storage-management requests (`core.non-destructive-by-default`, File 01 §7.13's "manage and reclaim storage at every granularity") and for honoring credential or secret expungement. It is never automatic. Tombstone retention is the safe default, but deletion history itself remains user-manageable through explicit policy-governed cleanup.
@@ -447,6 +448,8 @@ Anchor: `block.lifecycle-transition-rules`
 The lifecycle state transitions are explicit and deterministic:
 
 - `Raw → Active` — block is included in the current view for the first time
+- `Raw → Masked` — a committed but never-activated block (a partial orphan, a held-back import) is masked directly, without a prior activation
+- `Raw → Dropped` — a committed but never-activated block is dropped directly (excluded from retrieval and default assembly), without a prior activation
 - `Active → Masked` — explicit mask operation
 - `Active → Dropped` — explicit drop operation
 - `Masked → Active` — explicit unmask
@@ -544,6 +547,8 @@ A `block_id` is:
 - never reused, never reassigned, never mutated
 - the canonical cross-layer reference: events carry `block_id` references; ledger entries record `block_id`; version graph entries name `block_id`; capability invocations attribute output to `block_id`; surface projections render `block_id`
 - format-agnostic at this layer (UUID-v7, ULID, or any equivalent identifier with the required uniqueness and orderability properties is acceptable; the storage spec picks the wire format)
+
+A streaming handle reserved at stream start is burned whether or not the stream ever commits: if the partial is discarded without promotion (§7.3), the reserved id is retired and never reassigned to a different block. "Never reused" therefore governs reserved-but-uncommitted handles exactly as it governs committed block ids.
 
 A block's identity is independent of its content. Two blocks with identical content have different ids. Deduplication uses `content_hash` as a separate dimension (§4.5).
 
@@ -687,7 +692,7 @@ Anchor: `block.scope-promotion`
 
 A block may be promoted to a broader scope through an explicit operation (a user pins a `run`-scoped observation into `conversation` scope; an agent promotes a `task`-scoped plan into `workspace` scope). Promotion creates a new immutable block or reference record at the broader scope, linked to the original by `promotes_scope_of` or `scope_projection_of`. The original remains valid at the original scope. `supersedes` is reserved for content/version replacement, not visibility broadening.
 
-Scope demotion (broadening down to narrower scope) is not permitted as a direct operation; a workspace block whose content is later judged conversation-specific is left at the workspace scope. The retrieval and surface layers may filter it out of broader contexts, but the block's declared scope is fixed at commit.
+Scope demotion (moving to a narrower scope) is not permitted as a direct operation; a workspace block whose content is later judged conversation-specific is left at the workspace scope. The retrieval and surface layers may filter it out of broader contexts, but the block's declared scope is fixed at commit.
 
 ### 11.3 Cross-Scope References
 
@@ -864,7 +869,7 @@ The following shapes are wrong for this layer:
 - treating `Block` and `Artifact` as the same primitive — artifact-kind blocks are the block-level handles for artifacts. Artifact identity, lifecycle, versioning, materialization, export mechanics, and artifact-specific UI are owned by the artifacts/provenance layer. The same boundary applies to Evidence, Memory, and equivalent higher-level primitives: blocks carry their content; later specs define their specialized identity.
 - treating `Block` and `Capability` as the same primitive — capabilities are typed operations the system can perform (File 05); blocks are the durable content those operations may produce
 - treating `Block` and `Ledger Entry` as the same primitive — the ledger is the durable execution-history record; the block is the durable content-bearing record. Both are durable; they record different things. A `ToolResult` block and the ledger entry recording the tool call coexist and link through cross-references, not through a canonical join-table block kind
-- silent compaction without ledger record — every mask, drop, or consolidation emits the corresponding `BlockLifecycleChanged` or `BlockConsolidated` event into the ledger; silent compaction would defeat audit and replay
+- silent compaction without ledger record — every mask or drop emits a `BlockLifecycleChanged` event, and every consolidation commits a `Consolidation` block through the normal commit boundary (§7.6) together with its `consolidates` edges and the consolidated blocks' `BlockLifecycleChanged` transitions; silent compaction would defeat audit and replay
 - forcing block storage layout into the canonical model — the canonical model defines the durable contract; storage chooses its physical layout. This file makes no claim about row vs document vs columnar storage
 - claiming "the block kind catalogue must remain unchanged forever" — the canonical catalogue evolves through canonical-spec updates; new kinds are added when the design space warrants. The `Custom` extension covers runtime extension; canonical evolution covers structural growth
 - using block ordering as sequence truth — sequence within a view is owned by the version graph; blocks are not ordered by `created_at` alone
@@ -885,5 +890,3 @@ Later specs must follow these rules:
 - Storage, sync, import, export, and portability specs must preserve block identity, schema version, content, structural fields, edges, tombstones, and sensitivity. Physical layout choices remain implementation details subordinate to this contract.
 - Security and credential specs must treat `Secret` sensitivity and per-field sensitivity maps as hard policy inputs; raw secrets are redacted or kept transient according to the security spec, never leaked through descriptions, indexes, exports, or telemetry.
 - Workspaces, materialization, and surface specs must project the shared block pool. No surface, workspace, plugin, MCP integration, automation, workflow, quality-control system, telemetry system, runtime service, or packaging layer may introduce a parallel block model, private block pool, parallel capability metadata, or capability-like primitive that bypasses the contracts defined in Files 05-08.
-
-Specific integration contracts will be stated in those files when they are written.

@@ -502,6 +502,14 @@ CI posture:
 - CI does not block on flaky timing, optional provider availability, external network availability,
   or non-authoritative sampled diagnostics.
 - CI preserves useful failure artifacts where they materially improve diagnosis.
+- Incremental-build success is not authoritative for lint or documentation checks. An incremental
+  compile can reuse a cached crate without re-emitting its warnings, so a locally green `-D warnings`
+  or docs pass over an incremental or dirty tree does not prove a clean result; the authoritative
+  lint and doc verdict comes from a clean build or from CI over a clean tree.
+- A gate runner reports the real command's exit status, never a pipeline's or a background job's.
+  Piping a gate through `tee`/`tail` reports the pipeline's exit, not the gate's, so capture the true
+  status (`pipefail`/`PIPESTATUS`) or read the pass/fail verdict from the log content — never from a
+  piped or backgrounded exit code.
 
 Do not wait for the product to be large before adding CI. Hidden drift is cheaper to prevent than to
 remove.
@@ -553,6 +561,10 @@ Time discipline:
   armed deadlines.
 - A timer may be a scheduler fire instant, deadline guard, cooldown safety bound, UI affordance, or
   fallback for a source with no change event.
+- A monotonic-clock deadline or window roll anchored once and re-armed — for example the rate-limit
+  reset that File 17 §13.7 anchors as `window_started_at` and never re-derives from a live wall-clock
+  read — is a flagged deadline guard, not elapsed-time-as-correctness. The forbidden shape is a
+  wall-clock read driving a correctness decision, not a monotonic anchor rolling a bounded window.
 - Timers affecting behavior are configurable.
 - Polling is allowed only when no event source or armed-deadline design can satisfy the requirement;
   the exception is flagged and bounded.
@@ -827,7 +839,12 @@ Rules:
 - Agents implement behind agreed interfaces; they do not decide product architecture by accident.
 - Multi-step tasks track steps and end with fresh evidence.
 - Failing tests, skipped checks, and unverified claims are reported honestly.
-- Substantial diffs get cross-model or independent review where practical.
+- Substantial diffs get independent review: no instance grades its own work, and findings are
+  adjudicated against the owning authority (the canonical specs and this file), never accepted or
+  dismissed at face value. Changes in the durable-state, canonical-encoding, identity, parsing, or
+  security-boundary class get a different-system review pass wherever a second capable system exists;
+  where none does, its absence is flagged and tracked. The discipline is category-level and names no
+  specific tool.
 - Parallel agents use isolated worktrees or branches; one writer owns a file path at a time.
 - Agents stage specific files, not broad `git add -A` sweeps.
 - Agents do not push, publish, install/update dependencies, modify CI workflows, modify git config,
@@ -911,7 +928,10 @@ A mergeable change is done only when all applicable items are true:
 - The diff avoids unrelated rewrites, stale terms, obsolete references, and process noise in product
   specs.
 - Fresh verification evidence is recorded.
-- Substantial diffs received independent or cross-model review where practical.
+- Substantial diffs received independent review, with no instance grading its own work and findings
+  adjudicated against the owning authority; a change in the durable-state, canonical-encoding,
+  identity, parsing, or security-boundary class received a different-system review pass where a
+  second capable system exists, its absence flagged and tracked otherwise.
 
 ## 26. Recurring Cadence
 
@@ -979,6 +999,9 @@ The exact grep/linter implementation belongs in tooling, but the checked familie
 - single-user product code accidentally reintroducing multi-user database assumptions
 - inline secrets or non-vault credentials in config, fixtures, logs, commands, or prompts
 - generated files modified by hand
+- a gate or check whose pass/fail verdict is read from a piped or backgrounded exit code that masks
+  the real command's status — the verdict must come from the true exit (`pipefail`/`PIPESTATUS`) or
+  the log content
 - a guard that does not cover every path it claims to: the no-panic / no-print scan covers the shipped
   binary and every production crate, not only the libraries. Legitimate exceptions are explicit,
   reason-carrying allow-markers on the line; a deliberately excluded directory (e.g. dev-only tooling)
@@ -1006,7 +1029,10 @@ The following development shapes are wrong:
 - relying on manual checks that could be scripted
 - adding CI only after the codebase becomes large
 - hiding product variation behind constants or feature branches instead of settings
-- using elapsed time, sleeps, or polling as correctness in code or tests
+- using elapsed time, sleeps, or polling as correctness in code or tests — but a monotonic-clock
+  deadline or window roll anchored once and re-armed (the canon's flagged timer exceptions, e.g. the
+  rate-limit reset anchoring of File 17 §13.7) is a deadline guard, not elapsed-time correctness, and
+  is not what this rejects (§14)
 - introducing migration/adaptation code for nonexistent production state
 - adding a private database, cache of record, config cascade, event bus, telemetry store, approval
   path, scheduler, execution queue, or tool registry

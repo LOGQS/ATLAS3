@@ -53,8 +53,9 @@ prerequisites).
 
 1. **RendererRegistry**: kind→component dispatch (BlockKind/ArtifactKind/ObservationKind/PanelKind/
    AppEvent/media); registration through the proposal-first path; renderer trust ≠ content trust;
-   the typed placeholder fallback; renderer choices are per-kind implementations behind the registry,
-   not canonical library commitments.
+   the typed placeholder fallback; **a contributed renderer never shadows a canonical baseline
+   renderer** — a contribution registered for a kind that has a baseline cannot override it (37 §3.3);
+   renderer choices are per-kind implementations behind the registry, not canonical library commitments.
 2. **Shell + layout**: regions (command rail, focus surface, inspector dock, execution console,
    conversation view, status, notifications); the default conversation-first preset; progressive
    disclosure as the staging axis; per-region auto-reveal configurable with badge-only selectable.
@@ -83,11 +84,12 @@ prerequisites).
 - **Presentation conformance** (§24): no business logic or private durable store in the renderer
   (no policy/route/model-selection/availability computed in a view); every view a projection with
   loss-is-a-rebuild; verified by grep + validator + a projection-rebuild test of presentation state.
-- **a11y verified, not assumed** (§14.4): automated checks on every surface/dialog/state including
+- **a11y verified, not assumed** (§14.2): automated checks on every surface/dialog/state including
   loading/empty/error; keyboard-only and screen-reader E2E paths; focus restoration; drag/drop
   alternatives.
-- Placeholder fallback (§3.3); token-discipline lint (§16.5); i18n key-coverage + hardcoded-literal
-  lint, missing keys visible in dev (§15).
+- Placeholder fallback + **baseline-renderer anti-shadowing** — a contributed renderer cannot
+  override a canonical baseline renderer for its kind (§3.3); token-discipline lint (§16.5); i18n
+  key-coverage + hardcoded-literal lint, missing keys visible in dev (§15).
 - Streaming: partial→committed without remount/flicker; **a streamed partial is never persisted as
   truth**; reconnection rebuilds views from substrate + ledger and marks unreconstructable gaps
   (§10.2); auto-follow distinguishes user-initiated scroll (§10.3).

@@ -154,6 +154,6 @@ assessment → mastery/SRS → classroom.
   is a future Memory-scope extension, never a parallel user table (30 §12.4); **SRS state in
   `Mastery` validity** (no schedule table); classroom = run structure + version-tree projection; the
   submitted-attempt block shape.
-- Produced-kind registrations + the `data`/`teacher` event namespaces;
+- Produced-kind registrations + the `data_processor`/`teacher` event namespaces;
   `surface.data_processor.*`/`surface.teacher.*` settings; selection kinds; the concept graph as the
   shared entity-relationship projection (coupling Teacher to File 12's schema).

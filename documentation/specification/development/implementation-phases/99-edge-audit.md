@@ -39,7 +39,7 @@ blocking P0.
 | P18 | P8, P14, P17, P5, P12 | full contribution-point coverage |
 | P19 | P12, P18, P10, P14 | built-in slice needs only P12 (Finding 4) |
 | P20 | P9, P8, P3, P2 | (+P14/P18 sync-eligibility declarations, by reference) |
-| P21 | P13, P14, P15–P17 (corpus), P12, P20 | |
+| P21 | P13, P14, P15–P17 (corpus), P12 | P20 by reference only (sink-credential patterns) — soft, may overlap (§4) |
 | P22 | P21, P18, P19, P17, P0/P4 | |
 | P23 | all | |
 
@@ -99,6 +99,7 @@ phase realizes the implementation behind the unchanged seam.
 | P9 workspace export/import | P20 | ✓ P20 §2 (24 §16) |
 | P9 entity Validation/Critique orchestration | P13 | ✓ P13 §2 |
 | P10 sensor set (FS/Env/Repo/Process) | P15 (BrowserPage), P17 (desktop/system/audio) | ✓ P15 §2, P17 §2 |
+| P10 implicit learning/consolidation (14 §8.2) | P14 (§5 consolidation cadence) | ✓ P14 §5.6 |
 | P11 Trigger-rail / external-protocol framing | P14 scheduler; P18 transports | ✓ P14 §2, P18 §2 |
 | P11 Voice rail gated off | P17 | ✓ P17 §5.10 |
 | P13 eval families seeded per producer | P21 full set + gates | ✓ P21 §2 |

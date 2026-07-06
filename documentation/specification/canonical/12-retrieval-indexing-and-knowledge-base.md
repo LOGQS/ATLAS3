@@ -99,9 +99,10 @@ Index entries must have deterministic identities. The identity is derived from:
 - source identity
 - source version or source fingerprint
 - index kind
-- chunking or extraction strategy identity
+- chunking or extraction strategy identity, including its parameters
 - entry ordinal or structural address
-- embedding model identity when vectorized
+- tokenizer identity when lexically tokenized
+- embedding model and input-preprocessing identity when vectorized
 
 Rebuilds over unchanged inputs must preserve entry identity. This is required for replay, debugging, cache reuse, and stable citations.
 
@@ -158,6 +159,8 @@ The envelope term is `conversation_id`. Legacy conversation-identifier terminolo
 Namespaces are access boundaries. A query may target multiple namespaces, but every namespace applies its own scope and sensitivity predicates before hits are returned.
 
 Sensitive entries can be indexed only in namespaces whose scope matches the source scope. Secret payloads are never indexed.
+
+Namespace scope is not the only visibility gate: source lifecycle constrains retrieval as well. A tombstoned source produces no hit under default retrieval; an archived source is returned only when the query opts its scope in; an unbound source remains retrievable. This predicate governs whether a live index entry surfaces at query time and is distinct from index maintenance in the indexing pipeline (§12).
 
 ## 4. Source Records
 
@@ -400,6 +403,7 @@ Every `RetrievalHit` must carry:
 - `provenance`
 - `freshness`
 - `access_state`
+- `kind_payload` when the hit kind carries typed payload
 
 Canonical hit kinds:
 
@@ -418,9 +422,15 @@ Canonical hit kinds:
 - `RedactedHit`
 - `Custom { namespace, name }`
 
+`kind_payload` is discriminated by `hit_kind`. A `ClaimHit` carries `{ confidence_class, status }` and an `EvidenceHit` carries `{ relation }`, reproducing the typed `ClaimConfidenceClass`, `ClaimStatus`, and `EvidenceRelation` values from File 09 so a consumer ranking or gating on claim confidence, claim status, or evidence relation does not re-resolve them against the source. Hit kinds without typed payload omit the field. A `SourceExcerpt` block (§5.2) surfaces as a `BlockHit`; retrieval defines no separate excerpt hit kind.
+
+A `RedactedHit` is the exception to the required-field rule above: it omits `source_ref`, `provenance`, and `freshness`, and its `hit_id` is a result-local ordinal rather than a value derived from source identity.
+
 ### 9.3 Redacted Hits
 
 A redacted hit may reveal that a relevant source exists only when policy permits safe disclosure. It must not include secret payload, credential material, or restricted snippets.
+
+A redacted hit also withholds source identity: it carries no `source_ref` and no source-stable `hit_id`, and nothing in the hit may let a consumer derive, correlate, or re-request the underlying source. It conveys that a relevant source exists and, when policy permits, a safe reason for the redaction, and nothing more.
 
 ## 10. Knowledge Base
 
@@ -436,13 +446,14 @@ The knowledge base is a curated entity layer over `KnowledgeEntry` blocks.
 
 A `KnowledgeEntry` block carries:
 
-- title or display name
 - description
 - content or external content reference
-- source references
 - scope
 - sensitivity
-- provenance links
+
+Source references and provenance are not block fields. They are carried in the block graph per File 08: `derives_from` and `references` edges to source blocks, and `cites` edges to `Citation` blocks for external provenance, with citation and provenance semantics owned by File 09. The block content stays a pure body.
+
+The display title is owned by the knowledge entity (§10.3): it is seeded from the block at creation time and thereafter maintained as an entity projection, not stored as a mutable block field.
 
 The block does not own mutable curation fields such as tags, featured state, validation status, lifecycle state, proposal state, or last-reference statistics.
 
@@ -462,8 +473,11 @@ A knowledge entity must carry:
 - `governance_policy`
 - `created_at`
 - `updated_at`
+- `revision`
 
 `last_referenced_at`, usage counts, ranking feedback, and similar values are computed projections. They are not identity fields and are not required to be durable curation metadata.
+
+Curation state mutates only through a precondition-checked path: a write carries the expected `revision` and fails typed when that revision is stale, so a silent last-writer-wins overwrite is invalid (§21).
 
 ### 10.4 Scope
 
@@ -478,6 +492,8 @@ Knowledge scopes:
 - `Custom { namespace, id }`
 
 Scope controls visibility, retrieval namespace, approval requirements, and fork/import behavior.
+
+`Global` is installation-wide; `User` is the single local user's scope. Atlas is local-first single-user software, so `User` is not `user_id`-based and coincides with the single active profile; the two separate only when a future profile/sync spec introduces multi-profile identity.
 
 ### 10.5 Sources
 
@@ -551,7 +567,7 @@ Incremental updates are based on source fingerprints, version anchors, and expli
 
 ### 12.3 Rebuild
 
-Rebuild must be deterministic over the same canonical source state, settings profile, strategy identities, and model identities. Rebuild may change physical storage but must preserve logical entry identity when source inputs did not change.
+Rebuild must be deterministic over the same canonical source state, settings profile, strategy identities, and model identities. Rebuild may change physical storage but must preserve logical entry identity when all identity-determining inputs (§2.3) did not change.
 
 ### 12.4 Corruption Handling
 
@@ -762,6 +778,7 @@ The following are rejected:
 - hardcoding ranking weights, snippet limits, rerank thresholds, cache TTLs, or retry counts into the canonical spec
 - using legacy conversation identifiers as canonical terminology
 - placing mutable knowledge curation fields directly on `KnowledgeEntry` blocks
+- silently overwriting mutable knowledge curation state under last-writer-wins instead of failing a stale revision-checked write
 - letting web search, web fetch, MCP retrieval, or plugin retrieval bypass capability policy
 - duplicating graph stores per subsystem or surface
 - silently returning stale or partial retrieval results without typed warning

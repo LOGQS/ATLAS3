@@ -175,4 +175,4 @@ enablement is a thin closing lane over (a)'s audio sensor.
 - The operating-mode → isolation-tier mapping + the cloaking-is-not-security rule; the adapter
   declaration shape; coordinate/action record schemas; the denied-operation reusable-rule set
   (settings-extensible, never hardcoded); audit-overlay membership for world-affecting ops; the
-  `gui`/`system_agent` event namespaces.
+  `gui_control`/`system_agent` event namespaces.

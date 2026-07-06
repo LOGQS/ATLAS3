@@ -21,7 +21,7 @@ phase file names what to build and how to prove it, not what the primitive means
    Every phase carries a "Locked in this phase" list.
 2. **Walking skeleton early, alive forever.** P4 produces a booting, installable app with one durable
    round trip (**M0**); P6 closes the full governed loop against a mock model (**M1** — the design
-   de-risking milestone). From P4 onward, **every phase exits with the app booting and CI green** — no
+   de-risking milestone). From P4 onward, **every phase exits with the app booting and the 3-OS CI matrix green** — no
    phase leaves the system non-functional.
 3. **Spec-stated stub points, honored contracts.** The canon documents exactly where stubs are legal
    (policy returning recorded permissive decisions, all-Primary tool surface, in-memory leases, large
@@ -89,7 +89,8 @@ sandbox-core lane may start in parallel with P7 (its hard prerequisites are P5/P
 trust/egress lane waits on P7's vault); P13 may run in parallel with P11/P12 (its prerequisites are
 P6/P9); P18 needs P14 (webhook trigger target) + P8; P19's built-in slice needs only P12 (plugin
 placement waits for P18); P20 needs P9 (+P8 egress); P21 needs P13 + P14 (+ surface corpus for
-breadth). P22 needs P18 + P19 + P21 outputs. P23 closes everything.
+breadth) and consumes P20's sink-credential patterns by reference — a soft edge, not a hard
+prerequisite, so P20 and P21 may overlap. P22 needs P18 + P19 + P21 outputs. P23 closes everything.
 
 ## 4. Coverage matrix (every canonical file → phase(s))
 
@@ -98,7 +99,7 @@ breadth). P22 needs P18 + P19 + P21 outputs. P23 closes everything.
 | 01 | P1 | 16 | P7 | 31 | P17 |
 | 02 | P5 | 17 | P7 | 32 | P17 |
 | 03 | P6 | 18 | P10 | 33 | P14 |
-| 04 | P6 (+P8 §15/§16) | 19 | P10 (+P15/P17 sensors) | 34 | P14 |
+| 04 | P6 (+P8 §15) (+P9 §16) | 19 | P10 (+P15/P17 sensors) | 34 | P14 |
 | 05 | P5 | 20 | P2 | 35 | P18 |
 | 06 | P5 (+P18 source-approval full) | 21 | P20 | 36 | P18 |
 | 07 | P6 | 22 | P2 (boundary) / P7 (vault) / P8 (trust+egress) | 37 | P4 (thin IPC) / P12 (full) |
@@ -108,7 +109,7 @@ breadth). P22 needs P18 + P19 + P21 outputs. P23 closes everything.
 | 11 | P3 | 26 | P11 | 41 | P21 (baseline logging in P4 via 42) |
 | 12 | P10 | 27 | P15 | 42 | P4 (core) / P14 (workers) / P21 (§16) / P22 (§18) |
 | 13 | P6 (read) / P7 (full) | 28 | P15 | 43 | P0 (first-commit set) / P22 (full) |
-| 14 | P10 | 29 | P16 | | |
+| 14 | P10 (+P14 implicit learning) | 29 | P16 | | |
 | 15 | P4 | 30 | P16 | | |
 
 No file is orphaned. Where a file is split, each phase file states which sections land there and where
@@ -178,11 +179,18 @@ closing phase; nothing is reported complete prematurely.
    later phases add registrations, never new substrates.
 7. **Every phase exits with:** all prior exit criteria still green (no regression), the app booting on
    3 OSes, the conformance matrix updated with the phase's anchors (stubs marked partial with their
-   closing phase), and docs current per the invariants doc's same-commit rule.
+   closing phase), and docs current per the invariants doc's same-commit rule. Phase exit is 3-OS
+   mandatory: the phase does not close until the full CI matrix is green on Windows, macOS, and Linux.
+   A slice inside a phase exits on local-parity green; the 3-OS dispatch is batched at phase,
+   dependency, and filesystem/keyring/crypto boundaries and is mandatory on any platform-behavioral
+   change (`devproc.ci-local-parity`, invariants §12). A phase may exit with a named partial-completion tail
+   only when every tail names the phase or task that closes it, is not a prerequisite of any lane
+   proceeding from this phase, and is enumerated as an explicit exception in the phase's exit
+   criteria; otherwise the phase's work is complete at exit.
 8. **No time-based correctness anywhere, including tests** — drain/receipt synchronization and
    injected clocks per the invariants doc; flagged-timer exceptions only where the canon itself flags
    them (wall-clock safety guard 23 §9.3, missed-heartbeat watchdog 42 §6.4, resource-gauge sampling
-   41 §8.5, metric-sampling watches 32 §12.2).
+   41 §8.5, metric-sampling watches 32 §12.2, rate-limit reset anchoring 17 §13.7).
 9. **Frontend discipline from the first component.** Semantic tokens only (no raw colors/radii/fonts),
    i18n keys only (no hardcoded user-facing strings), no durable/consequential state in browser
    storage — the banned-pattern greps for all three are active from P0 even while vacuous.

@@ -105,11 +105,11 @@ Every `SettingDefinition` must carry:
 - `source` - `Core`, `Plugin { plugin_id }`, `UserExtension { extension_id }`, or `ImportedBundle { bundle_id }`.
 - `definition_version` - version of this definition contract.
 - `value_type` - one canonical primitive type from section 4.1.
-- `value_semantics` - optional semantic meaning consumed by validation, UI, policy, sync, or agent rendering.
+- `value_semantics` - semantic meaning consumed by validation, UI, policy, sync, or agent rendering; the field is always present and defaults to `Plain` (section 4.2) when no distinct semantics apply.
 - `default_policy` - how the setting resolves when no stronger source provides a value.
 - `category_key` - stable namespaced grouping key for search and UI organization.
 - `label_key` and `description_key` - i18n keys.
-- `constraint` - optional declarative constraint set.
+- `constraint` - a declarative constraint set; the field is always present and may be empty when no constraints apply.
 - `allowed_scopes` - durable scopes where explicit values may be stored.
 - `mutability` - user/system mutability contract.
 - `agent_exposure` - agent visibility class.
@@ -126,6 +126,7 @@ Definitions may also carry:
 - `tags` - typed tags for search and filtering.
 - `display_hints` - non-semantic hints for the UI layer (File 37 and File 38).
 - `extension_fields` - typed owner-registered metadata that cannot alter canonical field meaning.
+- `profile_composition` - `Ordered` or `SingleActive`, governing how multiple active profile layers for this key combine during resolution (section 6.1); defaults to `Ordered`. `SingleActive` surfaces a typed conflict when more than one active profile layer provides a value, as described in section 7.3.
 
 There is no canonical field for progressive disclosure level. UI specs may choose how much to show by default using categories, tags, search, dependencies, risk, complexity, profile context, and surface-specific presentation rules.
 
@@ -262,6 +263,8 @@ For a key and scope context, the settings service walks a deterministic source s
 7. Definition default policy.
 
 Every candidate source is validated against the active definition before it can win. Invalid values are skipped with typed diagnostics unless the invalidity itself must stop execution.
+
+At step 6, the definition's `profile_composition` (section 3.3) governs how multiple active profile layers combine: the default `Ordered` takes the first profile layer that provides a valid value in resolved composition order, while `SingleActive` treats more than one active profile layer providing a value as a conflict surfaced through the resolution diagnostics rather than silently resolved by order, per the composition rule in section 7.3.
 
 An explicit global row shadows the TOML overlay for that key. To restore TOML authority, the user removes the explicit row through `settings.reset(key, Global)` or the settings UI. This is deliberate: the TOML overlay provides portable defaults; explicit rows provide intentional overrides regardless of source.
 
@@ -516,6 +519,7 @@ Anchor: `settings.logical-persistence`
 The settings substrate must durably preserve:
 
 - explicit scoped values
+- settings reset tombstones, each modeled as a causally-descendant unset/inherit revision of the value it clears rather than a physical row deletion (File 21 §6.3)
 - active profile contexts and profile-layer order
 - user-defined profiles
 - imported profile metadata

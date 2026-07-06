@@ -25,7 +25,7 @@ This file defines:
 - `Observation` — the observation block-kind contract from File 08, extended with the `ObservationKind` enum and the staleness-fingerprint contract
 - `Validation` and `Critique` — the block-kind contracts from File 08, with `ValidationState` derivation rules from `validated_by` edges and integration with the `run.termination` (File 04 §22) completion-verification hook surface
 - `Provenance` — a derived view (not a stored primitive) over the block graph, the version graph, and the execution ledger, with a closed canonical query surface
-- the closed canonical capability surface for entity-level operations (`artifact.create`, `artifact.commit_version`, `artifact.preview_export`, `artifact.export`, `artifact.set_review_state`, `artifact.archive`, `artifact.discard`, `artifact.hard_delete_version`, `claim.publish`, `claim.update_status`, `claim.withdraw`, `claim.attach_evidence`, `evidence.link`, `citation.capture`, `observation.commit`, `validation.run`, `validation.attach`, `provenance.query_lineage`, `provenance.query_evidence_set`, `provenance.query_replay_trace`, `provenance.contradiction_check`)
+- the closed canonical capability surface for entity-level operations, enumerated in full in §16.1 (the principal operations include `artifact.create`, `artifact.commit_version`, `artifact.preview_export`, `artifact.export`, `artifact.set_review_state`, `artifact.archive`, `artifact.discard`, `artifact.hard_delete_version`, `claim.publish`, `claim.update_status`, `claim.withdraw`, `claim.attach_evidence`, `evidence.link`, `citation.capture`, `observation.commit`, `validation.run`, `validation.attach`, `provenance.query_lineage`, `provenance.query_evidence_set`, `provenance.query_replay_trace`, `provenance.contradiction_check`)
 - cross-surface interoperability (one entity pool projected through surface-specific lenses)
 - the persistence contract — what is durable, what is computed, what is reconstructable
 - settings dimensions that govern artifact, claim, evidence, and provenance behavior
@@ -190,7 +190,7 @@ Every `Artifact` entity record carries at minimum:
 - `last_version_committed_at` — denormalized timestamp of the latest version's commit; updated atomically with each version commit
 - `entity_schema_version` — version of the entity record shape, so File 20 can normalize supported earlier shapes during registration
 
-The entity record's `current_version_block_id` is a default/latest projection pointer updated through `artifact.commit_version` for non-branch-specific reads. Branch-specific currentness lives in the version graph projection. Every pointer update is recorded as a typed event (§20) and ledgered per `run.execution-ledger` (File 04 §23.1). All other fields above are either immutable or carry their own specific mutation capability.
+The entity record's `current_version_block_id` is a default/latest projection pointer updated through `artifact.commit_version` for non-branch-specific reads. Branch-specific currentness lives in the version graph projection. The denormalized entity-row fields — `current_version_block_id`, `last_version_committed_at`, and the denormalized `title` — are creation-time seed values thereafter refreshed at each commit; their live authoritative value is always the projection over the version chain and the version graph, which the entity row denormalizes for O(1) non-branch-specific reads, never the reverse. Every pointer update is recorded as a typed event (§20) and ledgered per `run.execution-ledger` (File 04 §23.1). All other fields above are either immutable or carry their own specific mutation capability.
 
 ### 3.3 Boundary
 
@@ -221,7 +221,7 @@ Every artifact declares its `artifact_kind` at creation. The canonical closed ca
 **Code and patches:**
 
 - `CodePatch` — a structured patch over one or more files; carries diff content and target paths
-- `Macro` — a recorded GUI or web action sequence replayable via the appropriate surface's macro executor
+- `Macro` — a recorded action sequence (GUI, web, or system-operation) replayable via the owning surface's macro executor; the owning surface's format defines the step vocabulary (File 34 §6 owns the reusable-unit contract)
 
 **Data and tables:**
 
@@ -271,7 +271,7 @@ The catalogue is not free-form. The following composition rules apply:
 - `Dataset` artifacts whose row count or byte size exceeds the inline-size threshold (per `block.inline-size-threshold`, File 08 §4.2) must use `External` content; small datasets may use `Inline`
 - `Image`, `Audio`, `Video`, `ScreenshotSeries` artifacts must use `External` content (per the file-management spec's image/audio/video size considerations); inline payloads for these kinds are an Explicit Rejection (§21)
 - `CodePatch` artifacts may use `Inline` for small patches; large patches default to `External` and carry the diff format hint in metadata
-- `Macro` artifacts use `Inline` content for the macro DSL (per the GUI Control or Web surface macro format) regardless of size, because macros are inspected and edited as structured records
+- `Macro` artifacts use `Inline` content for the macro DSL (per the owning surface's macro format — GUI Control, Web, or System Agent) regardless of size, because macros are inspected and edited as structured records
 - `WorkflowTemplate`, `Adapter`, `Validator`, `InstructionFragment` artifacts are typically `Inline` for inspectability; they may use `External` only when the payload genuinely exceeds practical inline storage
 - `Custom` artifacts inherit their composition rules from the kind's registration declaration
 
@@ -303,7 +303,7 @@ Anchor: `artifact.artifact-lifecycle-states`
 
 Anchor: `artifact.artifact-lifecycle`
 
-`ArtifactLifecycle` names the runtime view-state of an artifact version within a particular `ContextVersion`. The artifact's effective lifecycle is the projection of the version selected by that context. The closed canonical states:
+`ArtifactLifecycle` names the runtime view-state of an artifact version within a particular `ContextVersion`. The artifact's effective lifecycle is the projection of the version selected by that context; entity-axis `Archived` and `Discarded` states mask this version-axis projection (§5.4). The closed canonical states:
 
 - `Draft` — the artifact has at least one committed version but has not been accepted by the user or the agent as ready; surface displays mark it as in-progress; retrieval may deprioritize draft artifacts
 - `Active` — the artifact's current version is the accepted, current output; default state for artifacts whose review process does not gate them or whose first version was committed with `auto_accept_first_version: true`
@@ -329,8 +329,8 @@ Anchor: `artifact.review-state`
 `ValidationState` names the artifact version's validation outcome:
 
 - `NotValidated` — no validation has been run for this version
-- `PendingValidation` — a validation run has been requested and is in progress; the corresponding `Validation` block has not yet committed
-- `Passed` — at least one `Validation` block linked via `validated_by` carries `ValidationOutcome: Passed`, and no required validation is `Failed`
+- `PendingValidation` — one or more required validations have not yet committed a `Validation` block (a run may have been requested and be in progress, or a required validation is simply missing); the meaning is the §14.2 derivation's missing-required case
+- `Passed` — all required `Validation` blocks linked via `validated_by` carry `ValidationOutcome: Passed` and none is `Failed` (per the §14.2 derivation)
 - `Failed` — at least one required `Validation` block carries `ValidationOutcome: Failed`
 - `NeedsReview` — the most recent `Validation` block carries `ValidationOutcome: Inconclusive` or a model-mediated validator declined to validate
 
@@ -338,7 +338,7 @@ Anchor: `artifact.review-state`
 
 Anchor: `artifact.per-version-vs-per-entity-derivation`
 
-`ArtifactLifecycle`, `ReviewState`, and `ValidationState` are **derived per-`ContextVersion` from the version-graph action log and from the `validated_by` edges on each version**, never stored on the entity record. The same artifact may be `Active` in one version and `Superseded` in another without any entity-record mutation.
+`ArtifactLifecycle`, `ReviewState`, and `ValidationState` are **derived per-`ContextVersion` from the version-graph action log, from the `validated_by` edges on each version, and from the entity transition log** (the entity record's own review, lifecycle, and materialization transition records, §5.5), never stored on the entity record. The same artifact may be `Active` in one version and `Superseded` in another without any entity-record mutation. Entity-axis state takes precedence over the version-axis projection: when the entity is `Archived` or `Discarded` (§5.1), that state masks the version-selected `ArtifactLifecycle` in the effective projection — the version chain and its per-version states remain intact and inspectable, but the effective lifecycle a surface renders is `Archived` or `Discarded`.
 
 Storage may cache derived state in a materialized view (per `block.what-is-computed`, File 08 §13.2's pattern) for O(1) reads, but the materialized view is rebuildable from the source action log. The entity record's denormalized `current_version_block_id` is only the default/latest pointer; branch-aware surfaces read the active version from the version graph projection.
 
@@ -347,7 +347,7 @@ Storage may cache derived state in a materialized view (per `block.what-is-compu
 The lifecycle state transitions are explicit and deterministic:
 
 - new artifact, first version committed → `Draft` (or `Active` if creation-time setting `auto_accept_first_version: true`)
-- user/agent calls `artifact.set_review_state(AcceptedByUser)` → entity's per-version review state transitions; if no validation is required, lifecycle becomes `Active`; if validation is required and passes, becomes `Validated`
+- user/agent calls `artifact.set_review_state(AcceptedByUser)` → entity's per-version review state transitions; if no validation is required, lifecycle becomes `Active`; if validation is required and passes, becomes `Validated`; if validation is required but has not yet passed, lifecycle remains `Draft` while `ValidationState` is `PendingValidation` (§14.2), until a `Passed` validation commits
 - a `Validation` block with `Passed` outcome commits and links via `validated_by` → if review state is `AcceptedByUser` or `AcceptedByAgent`, lifecycle becomes `Validated`
 - the entity's `current_version_block_id` updates to a new sibling block (via `artifact.commit_version`) → the prior version's lifecycle becomes `Superseded`
 - user/agent calls `artifact.archive` → lifecycle becomes `Archived`
@@ -399,7 +399,7 @@ Anchor: `artifact.version-creation`
 A new `ArtifactVersion` is created when one of the following capability invocations commits a new `Artifact`-kind block:
 
 - `artifact.create` — first version of a new artifact; assigns `artifact_id`, `version_number = 1`, `parent_version_id = null`
-- `artifact.commit_version` — subsequent versions; takes the new content (Inline / External / Composed), the artifact_id, an optional derivation summary, and an optional new title; commits the new `Artifact`-kind block, sets `parent_version_id` to the prior current version, advances `version_number`, updates the entity's `current_version_block_id`
+- `artifact.commit_version` — subsequent versions; takes the new content (Inline / External / Composed), the artifact_id, an optional derivation summary, and optional title, description, and tags updates; commits the new `Artifact`-kind block, sets `parent_version_id` to the version current in the committing `ContextVersion` (the branch-active current per `version.artifact-version-chains` (File 11 §13.3), which for non-branch-specific commits is the entity's `current_version_block_id`), advances `version_number`, updates the entity's `current_version_block_id`
 - `file.edit` or `file.create` on a path that maps to an existing `Artifact: InWorkspace` materialization — the file-management subsystem (per File 08's file-block contract and the Coder surface's code-editing contract, File 27 §6) commits a sibling `Artifact`-kind block as the new version; the entity record updates to point at the new version
 - `artifact.merge` — produces a new version composed over two or more existing versions (typically for best-of-N selection or for explicit version merges); the new version's `parent_version_id` is set to one parent (the merge's principal parent), and additional parents are linked through `derives_from` edges per `block.canonical-edge-kinds` (File 08 §5.2)
 
@@ -421,7 +421,7 @@ Anchor: `artifact.artifact-materialization`
 
 `MaterializationPolicy` is declared per artifact at creation and is a closed canonical enum:
 
-- `InWorkspace` — the artifact version's content is written to a workspace path. The path is computed from `(workspace_id, artifact_id, artifact_kind, version_id)` per File 24 (which defines the path-resolution algorithm; the canonical default places artifacts under `<workspace>/.atlas/artifacts/<artifact_id>/<version_id>/` with a kind-typed leaf filename). Default for `Document`, `CodePatch`, `Notebook`, `Image`, `Audio`, `Video`, `Chart` artifact kinds whose containing scope is workspace or narrower.
+- `InWorkspace` — the artifact version's content is written to a workspace path resolved by File 24's two-target model (`workspace.materialized-path-resolution`, File 24 §11.2): an artifact whose materialization is a principal user-facing file resolves to its **natural workspace-relative path** and is rewritten in place across versions; an artifact with no natural user-facing location resolves to the **Atlas-internal** path computed from `(workspace_id, artifact_id, artifact_kind, version_id)` (the canonical default places it under `<workspace>/.atlas/artifacts/<artifact_id>/<version_id>/` with a kind-typed leaf filename). Default for `Document`, `CodePatch`, `Notebook`, `Image`, `Audio`, `Video`, `Chart` artifact kinds whose containing scope is workspace or narrower.
 - `ExternalRef` — the artifact version's content lives in external storage (cloud bucket, content-addressed external store, MCP-server-hosted resource). The version-block uses `BlockContent::External` with the appropriate storage_ref. Materialization is the act of binding the external reference; no local file is written by default. The user may opt to cache an external artifact locally; cache state is per-installation and does not change the artifact's identity.
 - `None` — the artifact has no materialization beyond the version-block itself. Used for `Note`, `InstructionFragment`, `Validator`, `Adapter` artifacts whose content is fully consumed inline. The version-block's `BlockContent::Inline` payload is the artifact.
 
@@ -431,10 +431,10 @@ The `MaterializationPolicy` is part of the entity record. Changing it requires t
 
 For `InWorkspace`:
 
-- materialization happens at the same boundary the version-block commits — atomically with the block commit
+- materialization happens at the same boundary the version-block commits — atomically with the block commit; each `InWorkspace` materialization emits an `ArtifactMaterialized` event (§20) carrying the version and the resolved `materialized_paths`
 - live-partial-write capabilities (per `run.streaming-partial-execution`, File 04 §12) stage the file under a temp path during streaming and atomic-rename at the version-commit boundary; if the streaming run is cancelled, the staged file is deleted before the artifact version commits, and no `ArtifactVersion` is created
 - the `materialized_paths` list on the version metadata records the resolved paths; for multi-file artifacts (e.g., a `Notebook` with auxiliary assets), the list carries every path materialized by this version
-- subsequent version commits to the same artifact materialize to new paths (computed from the new `version_id`); the prior version's materialized paths remain on disk by default (subject to retention policy); the entity record points at the new paths
+- subsequent version commits differ by target: an **Atlas-internal** artifact materializes to a new version-keyed path (computed from the new `version_id`) and the prior version's materialized paths remain on disk by default (subject to retention policy); a **natural user-facing** artifact is rewritten in place at its natural path, so version-keyed on-disk retention applies only to the Atlas-internal target (the prior on-disk content of a natural path is superseded, while every version's block remains in the pool). In both cases the entity record points at the new version's `materialized_paths`.
 
 For `ExternalRef`:
 
@@ -459,7 +459,8 @@ A `materialized_paths` entry carries:
 - `is_principal` — true for the single primary file of the artifact (the user's default-open target); false for auxiliary files
 - `content_role` — typed enum: `Primary`, `Asset`, `Sidecar`, `Companion`; used by surfaces to render the artifact with structure rather than as a flat file list
 - `materialized_at` — full-granularity timestamp at materialization
-- `content_hash` — SHA-256 of the file content at materialization time (allows freshness checking against the version-block's `content_hash` per `block.content-hash` (File 08 §4.5); mismatch indicates external modification — handled per `block.streaming-commit-boundary` (File 08 §7)'s disk→block sync loop)
+- `content_hash` — the content hash of the file content at materialization time, computed under the version-block's declared canonical encoding (per `block.content-hash` (File 08 §4.5); the hash algorithm is a declared property, SHA-256 by canonical default per §7.6, not fixed at this field); allows freshness checking against the version-block's `content_hash`, and a mismatch indicates external modification — handled per the disk→block sync loop (`workspace.disk-sync-loop`, File 24 §12)
+- `collision_policy` — the closed collision-policy value resolution recorded for the path (per `workspace.materialized-path-resolution` (File 24 §11.3)): `ExplicitPathRequiresDecision`, `GeneratedPathDeterministicSuffix`, `OverwriteAllowedByPolicy`, or `VersionedPathTemplate`
 
 Workspace-root relinking is explicit: if a workspace directory is moved, updating the workspace root re-resolves all relative materialized paths. If individual files are moved or deleted outside ATLAS, the system reports unresolved materializations and offers relink or re-materialize actions; it does not pretend to track arbitrary filesystem moves.
 
@@ -467,7 +468,7 @@ Workspace-root relinking is explicit: if a workspace directory is moved, updatin
 
 Anchor: `artifact.disk-entity-sync`
 
-External modifications to materialized files are detected by the filesystem watcher per `block.streaming-commit-boundary` (File 08 §7) / file-management contract. When an external edit is detected:
+External modifications to materialized files are detected by the filesystem watcher per the disk→substrate sync loop (`workspace.disk-sync-loop`, File 24 §12). When an external edit is detected:
 
 - a new sibling `Artifact`-kind block is committed as the new version (per `block.block`, File 08 §2.2 producer typed `UserMessage` when the edit was user-driven, or `Subsystem { subsystem_id: filesystem_watcher, reason: "external_edit" }` when the source is not directly attributable)
 - the entity record's `current_version_block_id` updates atomically
@@ -612,6 +613,8 @@ Status is **derived from the evidence-link set when not explicitly overridden**.
 - `Speculative` — the claim is offered as a hypothesis or guess; surfaces should render with explicit speculative marking
 - `Disputed` — the claim is asserted but with awareness of significant contradicting evidence; explicit acknowledgment of disagreement
 
+The classes form a total order for aggregation and comparison: `DirectlyObserved` > `VerifiedExternal` > `Inferred` > `Plausible` > `Speculative`. `Disputed` is excluded from ordinal comparison — it marks awareness of contradicting evidence rather than a strength rung. Two links (or two claims) are **comparable** only when they share the same class; within a class, the optional `confidence_score` is a display and ranking tiebreak, never an ordinal promotion across classes. This is the single ordering both the §9.4 claim-status derivation and the §11.4 evidence aggregation consult.
+
 `confidence_class` is the primary policy-grade signal: typed-confirmation requirements, automation gating, retrieval ranking weights, and validation pipeline routing read from this enum. The optional `confidence_score` fixed-point ranking value (milli-units, §6.15) supplements for ranking and comparison but is never the sole policy input.
 
 ### 9.6 `ClaimAnchor`
@@ -659,10 +662,10 @@ Publication commits a new `Claim`-kind block per `block.commit-boundary-set` (Fi
 
 Automatic claim extraction is opt-in per scope (default off) and task-specific. It is strongest for web research, source-dependent reports, knowledge-base work, validation output, and other flows where cited assertions are valuable; it is not a default requirement for ordinary task execution. When enabled:
 
-- a designated extractor model runs post-commit on accepted `MessageAssistant` blocks within the configured scope
+- a designated extractor model runs post-commit on accepted `MessageAssistant` blocks within the configured scope; the extractor's input is File-22-redacted content (per `security.secret-detection-redaction`, File 22 §7), never raw secret-bearing text
 - candidate claims are identified by the extractor against a configured extraction model-request template (registry-managed per `policy.agent-exposure-policy-settings` (File 06 §16.4)'s pattern); each candidate is a tuple `(claim_text, claim_kind, confidence_class, source_span)`
 - each candidate is committed as a `Claim` block via the same `claim.publish` capability, with derived status initially resolving to `Candidate` and the extracted source-span as anchor
-- extracted claims default to `Sensitive` until user review (regardless of the source block's sensitivity); the `claim.review` UI surfaces them for explicit acceptance or rejection
+- extracted claims take `max(Sensitive, source_block.effective_sensitivity)` until user review; extraction refuses outright on `Secret`-sensitivity source blocks (a claim is never extracted from secret-bearing content); the `claim.review` UI surfaces them for explicit acceptance or rejection
 
 The settings governing extraction (per §19):
 
@@ -697,7 +700,7 @@ An `Evidence` block must reference at least one supporting block via `cites`, `w
 
 ### 11.2 `EvidenceLink`
 
-An `EvidenceLink` is the typed metadata attached to a directed edge between a `Claim` (or other supported target) and a supporting block (`Evidence`, `SourceExcerpt`, `Citation`, `Observation`, `Validation`, or any prior block the producer captures as evidence). The edge itself is one of `block.canonical-edge-kinds` (File 08 §5.2)'s canonical edges (`cites`, `witnesses`, `validated_by`) or a registered extension edge per §11.3.
+An `EvidenceLink` is the typed metadata attached to a directed edge between a `Claim` (or other supported target) and a supporting block (`Evidence`, `SourceExcerpt`, `Citation`, `Observation`, `Validation`, or any prior block the producer captures as evidence). The edge itself is one of `block.canonical-edge-kinds` (File 08 §5.2)'s canonical edges (`cites`, `witnesses`, `validated_by`) or a registered extension edge per §11.3. The edge is directed from the supported target to the supporting block: `supported_target_id` names the edge's `from_block` and `supporting_block_id` names the edge's `to_block` (per `block.canonical-edge-kinds`, File 08 §5.2) — a `Claim` that `cites` an `Evidence` block, for instance, is the `from_block` and the evidence is the `to_block`.
 
 `EvidenceLink` carries on the edge metadata (per `block.block-edge-block-graph`, File 08 §5.1's edge `metadata` field):
 
@@ -739,13 +742,15 @@ Registered extension relations use the `Custom { namespace, name }` form, regist
 
 The optional `confidence_score` provides numerical ranking within the class.
 
+**Support/refute aggregation** is the canonical rule the §9.4 claim-status derivation and the `provenance.contradiction_check` (§15.3) both consult. The **supporting set** of a target is exactly its active `Supports` and `Corroborates` links; a `WeakSupports` link contributes suggestive, sub-threshold support that surfaces alongside the target but never on its own raises it to `Supported`. Aggregation compares classes by the §9.5 total order: a `Refutes` link overrides support when its class is strictly greater than the greatest supporting class (absent support ranks below every class → `Contradicted`); support holds when the greatest supporting class is at or above the `claim.evidence_threshold` setting and no refuting link is of comparable class → `Supported`; a supporting and a refuting link of comparable class → `Unresolved`. `confidence_score` breaks ties only within one class for display and ranking; it is never a cross-class promotion or a policy input.
+
 ### 11.5 Evidence Set Closure
 
 The `EvidenceSet` of a claim or artifact is the set of blocks reachable from the target by following `cites`, `witnesses`, `validated_by`, and registered evidence-relation edges. Closure rules:
 
 - direct closure: every block linked by an `EvidenceLink` from the target is in the set
 - transitive closure: every block linked from any block in the set is in the set only when that edge's relation declares `transitive: true`. Canonical defaults: `Supports`, `Corroborates`, `Derives`, and `Witnesses` are transitive; `Refutes`, `Contextualizes`, `WeakSupports`, `Summarizes`, and `IllustratesByExample` are not. Extension relations declare their own.
-- closure is bounded by a configurable maximum depth (default 4) and a configurable maximum cardinality (default 100); when bounds are exceeded, the set is reported with a `truncated: true` flag and the user may request expansion
+- closure traversal is breadth-first from the target and is ordered by a stable composite key — edge-relation rank, then `captured_at`, then the supporting `block_id`; closure is bounded by a configurable maximum depth (default 4) and a configurable maximum cardinality (default 100), and when a bound is exceeded truncation is applied only after this ordering, so the retained prefix is deterministic and replay-stable. The truncated set is reported with a `truncated: true` flag and the user may request expansion
 
 Compaction policies must preserve evidence-set closure for any claim or artifact at `Supported` or `Validated` state by default; File 13 implements this. Removing an evidence link is an explicit capability operation; compaction never silently severs evidence chains.
 
@@ -783,7 +788,8 @@ A URL-only citation is a durable reference, not durable source content. Evidence
 - `FileRange` — a reference to a range within a workspace file; `reference_value` is `(file_path, range_kind, range_value)` where `range_kind` is one of `LineRange`, `ByteRange`, `CharacterRange`
 - `PriorBlock` — a reference to any block in the pool by `block_id`
 - `McpResource` — a reference to an MCP server resource by `(server_id, resource_uri)`
-- `KnowledgeEntry` — a reference to a `Memory`-kind block or to a File 12 knowledge-base entry by its stable id
+- `MemoryRecord` — a reference to a memory record (a `MemoryEntry` per File 14) by `(memory_id, recalled_block_id)`, where `memory_id` is the stable entity id and `recalled_block_id` pins the specific `Memory`-kind block recalled (the entry's active block may advance across revisions, so the citation records the block actually recalled)
+- `KnowledgeEntry` — a reference to a File 12 knowledge-base entry by its stable id
 - `Repository` — a reference to a code repository commit or path (`repo_url`, `commit_hash`, optional `path`)
 - `ExternalDoiUrn` — a reference to a DOI, URN, ISBN, or other stable scholarly identifier
 - `ProvenanceRecord` — a reference to a ledger entry by `(run_id, ledger_entry_id)` for self-referential provenance
@@ -809,7 +815,7 @@ Citations commit at the boundary their producing capability declares. The canoni
 
 - `web.fetch`, `web.search`, `web.extract_document`, `data.extract_*` capabilities — produce `Url` and `DocumentBlockSpan` citations
 - `file.read`, `file.search`, `file.grep` — produce `FileRange` citations
-- `memory.recall`, `knowledge.search`, `knowledge.read` — produce `KnowledgeEntry` citations
+- `memory.recall` — produces `MemoryRecord` citations; `knowledge.search`, `knowledge.read` — produce `KnowledgeEntry` citations
 - `mcp.<server>.<tool>` capabilities that fetch resources — produce `McpResource` citations
 - `citation.capture` — the explicit user-or-agent citation-capture capability for any reference kind
 
@@ -872,6 +878,8 @@ File 09 specifies the content shape and the staleness-fingerprint contract:
 
 The runtime checks the fingerprint against current state when a capability declares this observation as a precondition (per `run.call-pipeline`, File 04 §8.2 `stale_state_revalidation`); a mismatch produces a typed `StateChangedSinceObservation` error in-band.
 
+A fingerprint that backs a mutation precondition must be **content-derived**: `ContentHash`, `MtimeAndHash`, `AccessibilityTreeHash`, `DomSignature`, `GitCommit`, `VersionId`, `EtagAndLastModified` with the `etag` present, or a `Composite` containing at least one content-derived member. A bare `Mtime` (or an `EtagAndLastModified` carrying only `last_modified`) remains valid as evidence or as a freshness hint but cannot by itself back a mutation precondition, because wall-clock modification time is not a content signal. `observation.staleness_check_strictness` (§19.1) keys its `Permissive` mode on this same content-derived set, and File 19 §9.3 mirrors the rule for perception-side fingerprints.
+
 ### 13.4 Replay Use
 
 Observations participate in replay (per `run.ledger-events-commits`, File 04 §23 and File 10): a `snapshot_replayable` capability whose original execution depended on an observation requires the same observation (or a re-captured equivalent) at replay time. The observation's `staleness_fingerprint` and `content_hash` (per `block.content-hash`, File 08 §4.5) enable replay-time equality checks.
@@ -903,6 +911,10 @@ A `Validation` block's content carries:
 - `inconclusive_reason` — when `outcome` is `Inconclusive`, structured reason
 - `latency_ms` — runtime spent validating
 - `evidence_links` — optional list of `EvidenceLink` references pointing to supporting blocks (e.g., the test output block that the validation depended on)
+- `reasoning` — the validator's natural-language justification for the `outcome`; **required when `validator_kind` is `ModelMediated`** and decode-rejected when absent for that kind (the same required-iff-present constructor discipline `failure_details` carries for `Failed`); optional for `Deterministic` and `UserManual` validators
+- `confidence` — optional validator-reported confidence in the outcome, a fixed-point integer in [0, 1000] milli-units (the canonical encoding carries no float, `core.canonical-encoding` §6.15); a ranking and display signal only — the `outcome` enum is the verdict, and `confidence` never substitutes for it
+- `evaluator_class` — optional typed evaluator class recording the grade of evaluator that produced the verdict; a typed class, never a numeric score, and it does not stand in for `outcome` (it stays inside the no-numeric-verdict rule)
+- `replay_key` — for `ModelMediated` validators, the reference set that makes the verdict replayable: `model_selection_record_id` (the recorded model-selection decision), the model-request template version, the validator-declaration version, and the model-request assembly reference; null for `Deterministic` and `UserManual` validators
 
 A `Critique` block's content carries:
 
@@ -921,7 +933,7 @@ Anchor: `artifact.validation-state-derivation`
 The `ValidationState` of an artifact version (per §5.3), a claim, or any other target with a `validated_by` edge is derived from the linked `Validation` blocks:
 
 1. Collect all `Validation` blocks linked from the target by `validated_by` edges
-2. Filter to validations whose `validator_kind`, when combined with applicable settings, are considered required for the target's kind (e.g., a `Validator`-kind artifact may require both `SchemaValidation` and `TypeCheck` validations)
+2. Filter to validations whose `validation_kind`, when combined with applicable settings, are considered required for the target's kind (e.g., a `Validator`-kind artifact may require both `SchemaValidation` and `TypeCheck` validations)
 3. Compute outcome aggregation:
    - any required validation with `outcome: Failed` → `ValidationState::Failed`
    - all required validations with `outcome: Passed` → `ValidationState::Passed`
@@ -992,7 +1004,7 @@ The canonical provenance-query capability set:
 - `provenance.query_contributing_capabilities(target_id, distinct_versions?)` — returns the set of `(capability_id, capability_version)` invoked across the target's lineage; with `distinct_versions: true`, distinguishes between versions; without, collapses to capability ids.
 - `provenance.query_replay_trace(target_id)` — returns the ordered set of execution-ledger entries that produced and modified the target, suitable for replay or forensic reconstruction.
 - `provenance.query_derivation_chain(artifact_id_or_version_id)` — for artifacts, returns the version chain (`parent_version_id` closure) plus the `derives_from` graph closure; the result is a typed DAG of `(version_id, derivation_summary, produced_by_run_id, produced_by_capability_id)` nodes.
-- `provenance.contradiction_check(claim_id)` — runs over the claim's `EvidenceLink` set, returns any `Refutes`-relation supporting blocks whose confidence exceeds the strongest `Supports` link, and separately reports equal-confidence conflicts as unresolved. Used by the QC subsystem and by the `claim.update_status` automatic derivation per §9.4.
+- `provenance.contradiction_check(claim_id)` — runs over the claim's `EvidenceLink` set, returns any `Refutes`-relation supporting blocks whose confidence class exceeds the strongest `Supports` or `Corroborates` link (the canonical supporting set per §11.4), and separately reports comparable-class conflicts as unresolved. Used by the QC subsystem and by the `claim.update_status` automatic derivation per §9.4.
 - `provenance.query_artifact_versions(artifact_id, include_tombstones?)` — returns the ordered version chain, including tombstones when requested.
 
 Each query capability declares `permission_tier: ReadOnly`, `concurrency: ConcurrencySafe`, `replay_class: deterministic_replayable` (the target's state at query time determines the result; replay records the snapshot id).
@@ -1022,7 +1034,7 @@ File 09 declares the following canonical entity-level capabilities. Each is a bu
 **Artifact capabilities:**
 
 - `artifact.create(artifact_kind, content, title, description?, materialization_policy?, scope?, tags?)` — first-version artifact creation; `WorkspaceWrite` tier; produces an `Artifact`-kind block (the first version) plus the entity record; for high-impact kinds (`WorkflowTemplate`, `Adapter`, `Validator`) at `global` scope the tier escalates to `UserApproval`
-- `artifact.commit_version(artifact_id, content, derivation_summary?, title_update?)` — subsequent version commit; `WorkspaceWrite` tier; produces a new `Artifact`-kind block linked by `supersedes` and updates the entity's `current_version_block_id`
+- `artifact.commit_version(artifact_id, content, derivation_summary?, title_update?, description_update?, tags_update?)` — subsequent version commit; `WorkspaceWrite` tier; produces a new `Artifact`-kind block linked by `supersedes` and updates the entity's `current_version_block_id`
 - `artifact.set_review_state(artifact_id, version_id, new_state)` — explicit review state mutation; `WorkspaceWrite` tier; emits `ArtifactReviewStateChanged` event
 - `artifact.update_materialization_policy(artifact_id, new_policy)` — `WorkspaceWrite` tier when narrowing materialization; `UserApproval` when broadening (e.g., `None` → `InWorkspace` materializes file content to disk)
 - `artifact.promote_scope(artifact_id, new_scope)` — explicit scope promotion; tier scales with target scope per `block.scope-promotion` (File 08 §11.2) (workspace and below: `WorkspaceWrite`; `global` and `reusable_policy_rule`: `UserApproval`)
@@ -1048,7 +1060,7 @@ File 09 declares the following canonical entity-level capabilities. Each is a bu
 
 **Evidence and citation capabilities:**
 
-- `evidence.link(source_block_id, target_id, evidence_relation, confidence_class?, confidence_score?, applies_to_span?, notes?)` — generic evidence-link capability covering claims, artifacts, and any other target; tier is dynamic: run-local evidence results may be `ReadOnly`, while persistent catalogue/entity links are `WorkspaceWrite` or stronger by scope
+- `evidence.link(supporting_block_id, supported_target_id, evidence_relation, confidence_class?, confidence_score?, applies_to_span?, notes?)` — generic evidence-link capability covering claims, artifacts, and any other target; tier is dynamic: run-local evidence results may be `ReadOnly`, while persistent catalogue/entity links are `WorkspaceWrite` or stronger by scope
 - `citation.capture(reference_kind, reference_value, source_span?, retrieval_strategy?, display_metadata?, capture_excerpt?)` — explicit citation commit; tier is dynamic: run-local citations may be `ReadOnly`, persistent reusable citations are `WorkspaceWrite`, and sensitive/external publication escalates by policy; may commit a `Citation` and optional `SourceExcerpt`
 
 **Observation capabilities:**
@@ -1155,7 +1167,7 @@ The following are computed, not stored:
 - `ClaimStatus` when not explicitly overridden — derived from the evidence-link set per §9.4
 - `EvidenceSet` closure — computed on demand from the block-graph edges per §11.5
 - Provenance query results — computed on demand from the underlying substrates per §15
-- Materialized paths' current freshness — computed by comparing the version-block's content hash to the file's current SHA-256
+- Materialized paths' current freshness — computed by comparing the version-block's content hash to the file's current content hash under the same declared canonical encoding (per §7.4)
 
 ### 18.3 Reconstruction Across Restart
 
@@ -1230,14 +1242,14 @@ Every entity mechanism in this file is configurable through settings (per `core.
 
 **Observation dimensions:**
 
-- `observation.staleness_check_strictness` — `Strict` (any fingerprint mismatch produces `StateChangedSinceObservation` error), `Permissive` (only content-hash mismatch produces error; mtime drift is warning), `Off` (no staleness checks; off by default for any mutating capability)
+- `observation.staleness_check_strictness` — `Strict` (any fingerprint mismatch produces `StateChangedSinceObservation` error), `Permissive` (only a content-derived fingerprint mismatch — per the content-derived set in §13.3 — produces error; bare-mtime drift is a warning), `Off` (no staleness checks; off by default for any mutating capability)
 - `observation.payload_external_threshold_bytes` — when observation payload exceeds this size, use `External` content (default 64 KB)
 - `observation.screenshot_resolution_default` — per `ObservationKind: Screenshot` default capture resolution
 
 **Validation dimensions:**
 
 - `validation.run_on_commit.<kind>` — per artifact kind, whether validation runs automatically on commit (default false; user must invoke `validation.run`)
-- `validation.required_validators.<kind>` — per artifact kind, list of validator kinds required for `Validated` state
+- `validation.required_validators.<kind>` — per artifact kind, list of validation kinds required for `Validated` state
 - `validation.model_mediated_enabled` — whether model-mediated validators are enabled (per `run.termination`, File 04 §22 and `policy.settings-resolution-for-policy` (File 06 §16); off by default; opt-in per scope)
 - `validation.failure_action.<kind>` — on validation failure, action to take (typed enum: `BlockCommit` — commit fails; `MarkFailed` — version committed but state is Failed; `WarnOnly`)
 
@@ -1249,7 +1261,7 @@ Every entity mechanism in this file is configurable through settings (per `core.
 **Provenance dimensions:**
 
 - `provenance.query.max_depth` — global default closure depth for provenance queries (default 8)
-- `provenance.query.max_cardinality` — global default closure cardinality
+- `provenance.query.max_cardinality` — global default closure cardinality (default 4096)
 - `provenance.cache_enabled` — whether provenance query results cache
 - `provenance.query.include_tombstones_default` — default for `include_tombstones?` parameter
 - `provenance.cross_installation_link_enabled` — whether import operations preserve cross-installation provenance hooks (default true)
@@ -1293,6 +1305,7 @@ Every committed entity-relevant input change, mutation, or query emits a typed e
 - `ArtifactVersionHardDeleted { artifact_id, version_id, reason }`
 - `ArtifactHardDeleted { artifact_id, reason }`
 - `ArtifactExported { artifact_id, bundle_block_id, includes_provenance }`
+- `ArtifactMaterialized { artifact_id, version_id, materialized_paths }`
 - `ArtifactMaterializedLocally { artifact_id, version_id, local_paths }`
 
 **Claim events:**
@@ -1307,8 +1320,8 @@ Every committed entity-relevant input change, mutation, or query emits a typed e
 
 **Evidence events:**
 
-- `EvidenceLinkAttached { source_block_id, target_id, relation, confidence_class }`
-- `EvidenceLinkDetached { source_block_id, target_id, relation }`
+- `EvidenceLinkAttached { supporting_block_id, supported_target_id, relation, confidence_class }`
+- `EvidenceLinkDetached { supporting_block_id, supported_target_id, relation }`
 - `ContradictionDetected { claim_id, refuting_block_id, supporting_block_id, confidence_comparison }`
 
 **Citation events:**
@@ -1412,5 +1425,3 @@ Later specs must follow these rules:
 - The telemetry, logging, and observability spec must consume entity-relevant events for monitoring; analytics over artifact-creation rates, claim-status distributions, evidence-link-confidence distributions, and provenance-query latency are first-class observability concerns.
 - The runtime infrastructure and lifecycle spec must orchestrate startup-time registration of canonical artifact kinds, the `Claim` block-kind extension, canonical evidence relations, canonical citation reference kinds, canonical observation kinds, and the canonical entity capabilities.
 - The packaging, platform, and distribution spec must ship built-in declarations for every canonical entity capability, the canonical artifact kinds, the canonical observation kinds, the canonical evidence relations, and the canonical citation reference kinds; these declarations ship in every ATLAS3 install as the `Builtin` source.
-
-Specific integration contracts will be stated in those files when they are written.

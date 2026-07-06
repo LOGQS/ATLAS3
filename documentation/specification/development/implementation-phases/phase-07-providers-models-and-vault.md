@@ -28,7 +28,8 @@ durable, attributed, replayable conversation.
   the closed `ProviderError` taxonomy + `ErrorClassification` (§10); transport retry inside the
   layer — never switching `(provider, model)`, that exits to 16's fallback (§11); event-driven
   `ProviderHealth`, no scheduled pings (§12); `RateLimitState` + header-authoritative reconciliation
-  + `window_started_at` keying, per-device storage (§13); accounts/credentials via vault refs +
+  + `(scope, window, dimension)` keying with `window_started_at` as the anchored start value,
+  per-device storage (§13); accounts/credentials via vault refs +
   `CredentialPool` rotation (§14); model-catalog → descriptor population, `Unknown` allowed, never
   invented (§15); cache-marker translation (§16); tokenizer dispatch + the `TokenSource` hierarchy +
   the shared `(block_id, tokenizer_id)` count cache (§17); `TokenUsageRecord` per call (§18);
@@ -100,8 +101,8 @@ Cross-phase overlap: P8's sandbox-core lane may start in parallel (its prerequis
   Fatal-beats-transient — auth failures never retried (§10.2); retry hard-stops — never converts
   Fatal→Transient, never exceeds cap, never blocks indefinitely, never switches `(provider, model)`
   (§11.5); stream-terminal invariant + mid-stream errors surfaced never swallowed (§9.2);
-  header-reconciliation authoritative, windows keyed by `window_started_at` (clock-skew-immune)
-  (§13.5/§13.7); **replay never re-queries a count endpoint** (§17.8); `TokenUsageRecord` carries no
+  header-reconciliation authoritative, windows keyed by `(scope, window, dimension)` with
+  `window_started_at` the anchored start value (clock-skew-immune) (§13.5/§13.7); **replay never re-queries a count endpoint** (§17.8); `TokenUsageRecord` carries no
   `cost_cents`/combined-total/resolved-credentials (§18.2); cost `Unknown` never coerced to 0
   (§19.4); adapter scrub validated at registration (§23.4); credentials resolve at point of use and
   never appear in any adapter struct/ledger/event/log/error trace; **no provider constants above the

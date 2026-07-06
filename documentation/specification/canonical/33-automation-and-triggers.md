@@ -2,7 +2,7 @@
 
 ## Status
 
-Canonical. This file defines the `Automation` and `Trigger` primitives, the one `Scheduler`, and the contracts by which non-interactive work is defined, fired, gated, executed, and observed. It realizes the Trigger rail kind that `controlrail.trigger-rail` (File 26 §11) frames and delegates, the automation-reuse path that `run.automation-reuse` (File 04 §26) declares, the intent-thread attachment that `intent.intent-thread` (File 02 §5.4) and `intent.consequences-for-later-specs` (File 02 §10) require for non-user-originated runs, the `AutomationTrigger` tool-surface lens that `surface.presentation-in-user-facing-surfaces` (File 07 §12) pins, and the scheduling, watch, eligibility, enablement, missed-trigger, and non-interactive-execution-safety mechanics that every per-surface spec (Files 28 §12, 29 §17.4, 30 §17.4, 31 §2.8/§23, 32 §12/§23) defers here. It introduces the net-new primitives those files reference without owning: the `Trigger`, the closed `TriggerKind` taxonomy, the `Automation` object, the `Scheduler`, the `WatchPolicy`, and the non-interactive-execution posture. It is the first post-surface spec: horizontal and surface-neutral, the way `worksurface.work-surface` (File 25) and `controlrail.chosen-model` (File 26) are. Later canonical files may refine it, but may not contradict it.
+Canonical. This file defines the `Automation` and `Trigger` primitives, the one `Scheduler`, and the contracts by which non-interactive work is defined, fired, gated, executed, and observed. It realizes the Trigger rail kind that `controlrail.trigger-rail` (File 26 §11) frames and delegates, the automation-reuse path that `run.automation-reuse` (File 04 §26) declares, the intent-thread attachment that `intent.intent-thread` (File 02 §5.4) and `intent.consequences-for-later-specs` (File 02 §10) require for non-user-originated runs, the `AutomationTrigger` tool-surface lens that `surface.presentation-in-user-facing-surfaces` (File 07 §12) pins, and the scheduling, watch, eligibility, enablement, missed-trigger, and non-interactive-execution-safety mechanics that every per-surface spec (Files 27 §23, 28 §12, 29 §17.4, 30 §17.4, 31 §2.8/§23, 32 §12/§23) defers here. It introduces the net-new primitives those files reference without owning: the `Trigger`, the closed `TriggerKind` taxonomy, the `Automation` object, the `Scheduler`, the `WatchPolicy`, and the non-interactive-execution posture. It is the first post-surface spec: horizontal and surface-neutral, the way `worksurface.work-surface` (File 25) and `controlrail.chosen-model` (File 26) are. Later canonical files may refine it, but may not contradict it.
 
 ## Scope
 
@@ -17,7 +17,7 @@ This file defines:
 - the **automation run model**: a fired trigger resolves to a `RouteRequest` (`controlrail.input-resolution`, File 26 §4), routes through `routing.dispatch-pipeline` (File 03 §3), and executes as an ordinary `Run` (`run.run`, File 04 §2.3) — background execution is not a separate architecture; the intent-thread attachment for non-user-originated runs; the automation target conversation
 - eligibility and enablement: the deterministic gate chain, the world selector as the availability evaluator (`world.state-aware-capability-availability`, File 18 §9) evaluated at fire time, rate limiting, cooldown, cold-start guarding, and the recursive-trigger cycle guard
 - **non-interactive execution safety**: the stronger-not-weaker posture — a fire that needs a human decision parks and notifies rather than auto-approving; typed-confirmation and `Denied`-floor capabilities never execute unattended (`policy.permission-floor-typed-confirmation`, File 06 §7)
-- overlap and concurrency (`OverlapPolicy`), failure handling and retry (declared over `provider.transport-level-retry-backoff`, File 17 §11 and `run.error-handling`, File 04 §15), validation policy and output contract (declared over `artifact.validation-critique`, File 09 §14 and `run.termination`, File 04 §22)
+- overlap and concurrency (`OverlapPolicy`), failure handling and retry (declared over `provider.transport-level-retry-backoff`, File 17 §11 and `run.error-handling`, File 04 §20), validation policy and output contract (declared over `artifact.validation-critique`, File 09 §14 and `run.termination`, File 04 §22)
 - the creation paths — graduation from a successful run (primary), natural-language creation, manual construction, and promotion from a macro or workflow template — and the no-silent-creation rule
 - run history and the observability/consumption contract the dashboard and widgets read; the surface-aliasing rule that makes `sys.schedule.*`/`sys.monitor.*`, web page monitors, teacher review-due/scheduled-study monitors, GUI scheduled tasks, and data-source monitors `Automation`s over the one scheduler
 - the `automation.*` capability surface, the automation event vocabulary, the persistence/locality/portability contract, the settings dimensions, the explicit rejections, and the consequences for later specs
@@ -155,8 +155,8 @@ A `Schedule` trigger fires at a computed instant. It carries a `RecurrenceRule`:
 
 The machine may be off or the application closed when a `Schedule` trigger was due. There is no guaranteed delivery while powered down. Each trigger declares a `missed_fire_policy`:
 
-- `RunOnce` — on the next startup, fire once for the missed window, coalescing multiple missed recurring occurrences into a single catch-up fire. The default for `Once` triggers and for recurring triggers whose work is idempotent or summarizing.
-- `Skip` — do not fire for the missed window; compute and arm the next future instant. The default for recurring triggers whose repeated catch-up firing would be redundant or harmful.
+- `RunOnce` — on the next startup, fire once for the missed window, coalescing multiple missed recurring occurrences into a single catch-up fire. The default for `Once` triggers and the default for recurring triggers.
+- `Skip` — do not fire for the missed window; compute and arm the next future instant. An override for a recurring trigger whose repeated catch-up firing would be redundant or harmful, where `RunOnce`'s single coalesced catch-up is unwanted.
 - `RunAll` — fire once per missed occurrence. Gated behind a setting and a per-automation opt-in, because it can produce a burst; subject to the rate limit and overlap policy (§12, §8.4).
 
 On startup, the `Scheduler` reconciles: it computes which triggers were due during the downtime, applies each trigger's `missed_fire_policy`, and records each reconciled or skipped fire with its original due instant for audit. A cold-start guard (§8.4) bounds the startup burst.
@@ -169,7 +169,7 @@ On startup, the `Scheduler` reconciles: it computes which triggers were due duri
 
 ### 3.6 Boundary
 
-This section owns the recurrence contract, the timer-arming rule, and missed-fire reconciliation. The wall-clock and timezone facts are world-model grounding (File 18 §6); the timer primitive and background-worker placement are the `Scheduler`'s (§9) over `infrastructure/lifecycle.md`'s task model realized by Files 10 and 42.
+This section owns the recurrence contract, the timer-arming rule, and missed-fire reconciliation. The wall-clock and timezone facts are world-model grounding (File 18 §6); the timer primitive and background-worker placement are the `Scheduler`'s (§9) over the background-worker task model realized by Files 10 and 42.
 
 ## 4. `WorldCondition` Triggers and Watch Evaluation
 
@@ -182,7 +182,7 @@ A `WorldCondition` trigger — a watch or monitor — fires when a `WorldPredica
 ### 4.2 Event-First Watch Evaluation
 
 - A watch subscribes to the change events of the facts its predicate references, through `world.watch(scope, filter)` (File 18 §13.1) and the perception change signals (`perception.triggers`, File 19 §8). It re-evaluates its predicate when a referenced fact changes; it does not poll. This consumes the world model's reactivity contract (`world.state-change-events-reactivity`, File 18 §12) and introduces no parallel watcher layer (`perception.consequences-for-later-specs`, File 19).
-- A watch whose source emits no change events may declare a flagged, configurable poll interval, consistent with perception's capture-on-interval fallback (File 19 §8). The interval is a setting, never a hardcoded constant (`atlas3-core/CONSTRAINTS.md` §7b), and never a correctness condition.
+- A watch whose source emits no change events may declare a flagged, configurable poll interval, consistent with perception's capture-on-interval fallback (File 19 §8). The interval is a setting, never a hardcoded constant (`settings.explicit-rejections`, File 15 §20), and never a correctness condition.
 
 ### 4.3 The `WatchPolicy`
 
@@ -194,7 +194,7 @@ A `WorldCondition` trigger carries a `WatchPolicy` governing how predicate satis
 - `dedupe_key` and dedupe window — a key derived from the firing context; fires with the same key within the window are suppressed as duplicates.
 - `debounce` window — a coalescing delay; change events arriving within the window collapse into a single fire, so a burst of underlying changes (a build touching many files, a rapid sequence of storage writes) produces one run rather than many.
 
-All thresholds, intervals, windows, and cooldowns are settings (`atlas3-core/CONSTRAINTS.md` §7b), resolvable per automation, per surface, and globally through `settings.source-stack-resolution` (File 15 §5).
+All thresholds, intervals, windows, and cooldowns are settings (`settings.explicit-rejections`, File 15 §20), resolvable per automation, per surface, and globally through `settings.source-stack-resolution` (File 15 §6).
 
 ### 4.4 Rule
 
@@ -215,11 +215,11 @@ Anchor: `automation.event-and-webhook-triggers`
 
 - An `Event` trigger declares an event filter over the `AppEvent` catalogue and registered `Custom` events (`ledger.app-event-catalogue`, File 10 §5.3 and §4.3) and optionally over perception change signals. When a matching event is observed, the trigger fires with the event payload as the routing-frame trigger context (`routing.routing-frame`, File 03 §3.1).
 - An `Event` trigger subscribes through the canonical event bus as a non-blocking subscriber (`ledger.event-stream`, File 10); it never blocks the emitter and never becomes a hook that gates other work. The distinction from a hook is firm: a hook participates in an in-flight decision; an `Event` trigger launches new work in response to an observed event.
-- File-change triggers are `Event` triggers over the filesystem-watcher events (`workspace.disk-sync-loop`, File 24 §13 and `block.streaming-commit-boundary`, File 08 §7), carrying the path-glob and the change-kind filter, and inheriting that loop's debounce-as-coalescing; this file declares no parallel file watcher.
+- File-change triggers are `Event` triggers over the filesystem-watcher events (`workspace.disk-sync-loop`, File 24 §12 and `block.streaming-commit-boundary`, File 08 §7), carrying the path-glob and the change-kind filter, and inheriting that loop's debounce-as-coalescing; this file declares no parallel file watcher.
 
 ### 5.2 `Webhook` Triggers
 
-- A `Webhook` trigger registers an inbound endpoint. The binding is local-only by default; remote binding is opt-in and requires authentication. The supported authentication shapes (a signature scheme, a bearer token, basic credentials) verify the request before the trigger fires; the verifying secret is a vault reference (`security.secret-vault`, File 22 §3), never an inline value.
+- A `Webhook` trigger registers an inbound endpoint. The binding is local-only by default; remote binding is opt-in and requires authentication. The supported authentication shapes (a signature scheme, a bearer token, basic credentials) verify the request before the trigger fires; the verifying secret is a vault reference (`security.secret-vault`, File 22 §5), never an inline value.
 - An inbound payload becomes the routing-frame trigger context with routing `trigger_kind` `external_event`. The payload is untrusted content and carries no authority (`security.untrusted-content`, File 22 §12): it may parameterize the run, but it can never escalate the automation's capability scope or auto-approve a gated capability.
 - A `Webhook` trigger declares how source deliveries produce a `source_event_id` and freshness or idempotency signal: provider event id, signed timestamp plus nonce, delivery id, or deterministic content key. Duplicate source deliveries map to the same `fire_id` and are recorded as duplicates, not re-run. Remote bindings require freshness validation appropriate to their authentication scheme. File 36 (MCP and External Integrations) owns concrete signature protocols; this file owns the no-duplicate-fire behavior.
 - The endpoint binding and its verifying secret are device-local (§18). The transport mechanics — the listener, the protocol surface, the connector lifecycle — are File 36 (MCP and External Integrations)'s; this file owns the trigger's existence, its authentication requirement, and its trust posture.
@@ -264,7 +264,7 @@ An `Automation` carries:
 
 ### 6.3 Pin-at-Save-Time
 
-- An `Automation`'s `task_template` is a saved execution template (`run.execution-structure`, File 04 §5.3's "automation run using a saved execution template") captured at save time. It pins the fields that routing would otherwise compute at fire time, so a later run is reproducible and not subject to drift: the primary surface and the recorded `surface_contract_version` (`worksurface.consequences-for-later-specs`, File 25), the `tool_surface_strategy` (`surface.presentation-in-user-facing-surfaces`, File 07 §12), the model route or profile (`model.model-selection-algorithm`, File 16 §4), the context and compaction policy (`context.context-policies`, File 13 §4), the sandbox profile (`sandbox.contract`, File 23 §3), and the budget (`run.budgets-limits`, File 04 §21).
+- An `Automation`'s `task_template` is a saved execution template (`run.execution-structure`, File 04 §5.3's "automation run using a saved execution template") captured at save time. It pins the fields that routing would otherwise compute at fire time, so a later run is reproducible and not subject to drift: the primary surface and the recorded `surface_contract_version` (`worksurface.consequences-for-later-specs`, File 25), the `tool_surface_strategy` (`surface.presentation-in-user-facing-surfaces`, File 07 §12), the model route or profile (`model.model-selection-algorithm`, File 16 §7), the context and compaction policy (`context.context-policies`, File 13 §4), the sandbox profile (`sandbox.contract`, File 23 §3), and the budget (`run.budgets-limits`, File 04 §21).
 - At fire time, the trigger produces a `RouteRequest` carrying the pinned template; routing respects the pinned fields and fills only the unpinned ones (`routing.trigger-kinds-routing`, File 03 §2.1). This is the single realization, for all surfaces, of the "pin the surface and its policies at save time the way routing does" rule that each per-surface spec defers here.
 - Pinning is a snapshot for reproducibility, not an authority freeze. At fire time, the current capability registry, source trust, policy templates, leases, sandbox availability, model/provider availability, settings overlays, and security rules revalidate the pinned template. Later stricter policy wins. A pinned value may prevent silent rebinding, but it cannot preserve authority the user or policy revoked. Editing the automation re-pins; enabling after material policy drift may require review.
 - A floating workflow reference (`CurrentActive`/`LatestCompatible`) is additionally revalidated at fire time for effect-envelope drift (File 34 §5.2): the runtime records the resolved workflow version and a drift notice when it differs from the save-time resolution, and recomputes the resolved workflow's declared effect envelope. When the resolved envelope exceeds the scope this automation was pre-authorized under (§11.2), the fire records the `EffectEnvelopeDrift` fact and parks for user review (§11.3), never running under stale authorization.
@@ -298,7 +298,7 @@ An `Automation` whose only trigger is `Manual` is a saved, named, parameterized,
 
 ### 7.3 Boundary with the Slash-Command and Menu Rails
 
-A `Manual`-only `Automation` is distinct from a prompt-template slash command (`controlrail.slash-command-rail`, File 26 §10). A slash command is a prompt expansion or a direct capability binding with no governing policy of its own; an `Automation` carries a pinned scope, policy, validation policy, and output contract, and produces a managed run. A slash command or menu entry may invoke an `Automation` (the rail resolves to `automation.run_now`); the rail is the entry, the automation is the governed operation.
+A `Manual`-only `Automation` is distinct from a prompt-template slash command (`controlrail.slash-command-rail`, File 26 §8). A slash command is a prompt expansion or a direct capability binding with no governing policy of its own; an `Automation` carries a pinned scope, policy, validation policy, and output contract, and produces a managed run. A slash command or menu entry may invoke an `Automation` (the rail resolves to `automation.run_now`); the rail is the entry, the automation is the governed operation.
 
 ## 8. Eligibility, Enablement, and the World Selector
 
@@ -325,7 +325,7 @@ For every fire, the recorded firing context includes trigger-satisfaction eviden
 
 ### 8.2 The World Selector
 
-- The `world_selector` is the automation's eligibility predicate over world state, expressed in the `requires`/`blocked_by` grammar of the availability evaluator (`world.state-aware-capability-availability`, File 18 §9). It is evaluated at fire time against the resolved `WorldSnapshot`, and the snapshot identity is recorded for replay (`version.snapshots`, File 11 §14).
+- The `world_selector` is the automation's eligibility predicate over world state, expressed in the `requires`/`blocked_by` grammar of the availability evaluator (`world.state-aware-capability-availability`, File 18 §9). It is evaluated when the run is built: at fire time for an immediately dispatched fire, and re-evaluated against a fresh `WorldSnapshot` whenever the build is deferred — a fire dequeued from `Queue` after an in-flight run completes (§12.1), or a missed fire reconciled at startup (§3.4) — so a deferred build never runs against stale world state. The snapshot identity used for the deciding evaluation is recorded for replay (`version.snapshots`, File 11 §14).
 - The world selector is how an automation declares the conditions under which it should run at all — on a particular workspace, on battery or AC power, when a connection is live, when a foreground application matches, when a device is idle. It is distinct from a `WorldCondition` trigger: the trigger fires on a condition crossing; the world selector gates whether any fire (from any trigger) proceeds. An automation may have both.
 
 ### 8.3 Enablement
@@ -335,7 +335,7 @@ For every fire, the recorded firing context includes trigger-satisfaction eviden
 
 ### 8.4 Rate Limiting, Cooldown, and Cold-Start
 
-- Each `Automation` declares a `rate_limit`: a minimum interval between fires and an optional per-window fire cap. A system-wide automation budget bounds the total concurrent automation runs and the total fire rate across all automations; both are settings (`atlas3-core/CONSTRAINTS.md` §7b). These guard against runaway firing, consistent with the "rate limiting to guard against loops" posture (`domains/system-agent/overview.md`).
+- Each `Automation` declares a `rate_limit`: a minimum interval between fires and an optional per-window fire cap. Rate-limit and cooldown accounting counts only fires admitted past the full gate chain (§8.1) — a fire that proceeds to build a run; a fire any gate blocks is recorded as a skipped fire (§8.1) and consumes neither the minimum interval nor the per-window cap. A system-wide automation budget bounds the total concurrent automation runs and the total fire rate across all automations; both are settings (`settings.explicit-rejections`, File 15 §20). These guard against runaway firing, consistent with the "rate limiting to guard against loops" posture (`domains/system-agent/overview.md`).
 - A cold-start guard bounds the burst of fires at startup (from missed-fire reconciliation and re-armed schedules), so a long downtime or a clock jump does not produce a stampede.
 
 ### 8.5 The Recursive-Trigger Cycle Guard
@@ -404,7 +404,7 @@ Payload-derived values from `Webhook` and external events carry `untrusted_sourc
 ### 10.3 Intent-Thread Attachment and Target
 
 - Every trigger-originated `RunIntent` attaches to exactly one primary intent thread that outlives its trigger (`intent.creation`, File 02 §5.3 and `intent.intent-thread`, File 02 §5.4), discharging `intent.consequences-for-later-specs` (File 02 §10)'s obligation for non-user-originated runs.
-- Because an intent thread is intra-conversation by definition (`intent.intent-thread`, File 02 §5.2), an `Automation` declares a `target` conversation that owns its runs. The default `target` is a dedicated, auto-created automation conversation bound to the automation's identity; the user may instead bind the automation to an existing conversation or to a workspace whose default conversation receives the runs. Each fire attaches to an intent thread within the target: either a fresh intent thread per fire (the default, keeping fires independent) or a persistent automation intent thread that accumulates fires (configurable, for an automation whose runs form a continuing work line). This realizes the persistent-versus-transient distinction (a run that creates a durable owned conversation versus a fire-and-forget run) over the canonical intent-thread model.
+- Because an intent thread is intra-conversation by definition (`intent.intent-thread`, File 02 §5.2), an `Automation` declares a `target` conversation that owns its runs. The default `target` is a dedicated, auto-created automation conversation bound to the automation's identity; the user may instead bind the automation to an existing conversation or to a workspace, whose fired runs attach to a dedicated automation conversation bound to that workspace (the workspace's `default_conversation_id`, File 24 §3.3). Each fire attaches to an intent thread within the target: either a fresh intent thread per fire (the default, keeping fires independent) or a persistent automation intent thread that accumulates fires (configurable, for an automation whose runs form a continuing work line). This realizes the persistent-versus-transient distinction (a run that creates a durable owned conversation versus a fire-and-forget run) over the canonical intent-thread model.
 - The target gate (§8.1) runs before routing. A fired signal never routes into a nonexistent or tombstoned conversation.
 
 ### 10.4 Rule
@@ -439,7 +439,7 @@ Non-interactive execution safety is the posture under which a trigger-originated
 
 ### 11.4 Mid-Run Intervention
 
-A parked or running automation accepts mid-run intervention through the steering rail (`controlrail.steering-rail`, File 26 §9) and the run intervention contract (`run.user-intervention`, File 04 §17): the user can answer the elicitation, redirect, take over, or cancel. Messages that arrive while a run is in flight are delivered into the run without blocking it, consistent with the intervention model.
+A parked or running automation accepts mid-run intervention through the steering rail (`controlrail.steering-rail`, File 26 §10) and the run intervention contract (`run.user-intervention`, File 04 §17): the user can answer the elicitation, redirect, take over, or cancel. Messages that arrive while a run is in flight are delivered into the run without blocking it, consistent with the intervention model.
 
 ### 11.5 Rule
 
@@ -468,7 +468,7 @@ Each `Automation` declares an `OverlapPolicy` governing a fire that arrives whil
 
 - The in-flight check is enforced by the `Scheduler`'s atomic claim (§9.2), so the overlap policy is honored deterministically and a single trigger never spawns a duplicate run unintentionally.
 - Concurrency is always bounded: `Queue` has a maximum depth, `Parallel` a maximum count; an unbounded run pile-up is rejected. The global automation budget (§8.4) bounds total concurrency across automations independently of any single automation's policy.
-- The full-parallelism posture of the run model (`run.explicit-rejections`, File 04 §28's rejection of single-instance locking) applies: an automation's overlap policy is a per-automation choice, not a system-imposed serialization; the substrate supports concurrent automation runs with full demultiplexing identity on every event (`ledger.event-envelope`, File 10 §3).
+- The full-parallelism posture of the run model (`run.explicit-rejections`, File 04 §28's rejection of single-instance locking) applies: an automation's overlap policy is a per-automation choice, not a system-imposed serialization; the substrate supports concurrent automation runs with full demultiplexing identity on every event (`ledger.event-envelope`, File 10 §5.2).
 - Before an automation run mutates resources, the standard capability touched-resource and policy conflict machinery applies. If two automation runs would concurrently mutate the same resource and no capability-owned merge protocol exists, execution serializes, isolates, parks for user direction, or fails before mutation, per `run.mutation-rule` (File 04 §15.4). `OverlapPolicy` handles same-automation overlap; touched-resource conflict detection handles cross-automation conflict.
 - A fire accepted into `Queue`, parked for approval, or converted into a `Run` is represented by durable ledger/run state keyed by `fire_id`. On restart, the scheduler rebuilds transient arming state and the execution layer resumes or surfaces accepted queued/parked fires from the ledger/run state. If recovery cannot resume one, it records a typed skipped or cancelled outcome rather than silently dropping it.
 
@@ -484,7 +484,7 @@ Anchor: `automation.failure-handling`
 
 Each `Automation` declares how a failed run is handled, as a policy over the canonical retry and error machinery, not a reimplementation of it:
 
-- **Retry policy** — the maximum attempts and the backoff, declared over the canonical typed retry strategies (`provider.transport-level-retry-backoff`, File 17 §11) and the per-error `retryable` classification (`run.error-handling`, File 04 §15). The automation declares the policy; the run model and provider layer execute the backoff. No time-based busy-retry loop is introduced.
+- **Retry policy** — the maximum attempts and the backoff, declared over the canonical typed retry strategies (`provider.transport-level-retry-backoff`, File 17 §11) and the per-error `retryable` classification (`run.error-handling`, File 04 §20). The automation declares the policy; the run model and provider layer execute the backoff. No time-based busy-retry loop is introduced.
 - **Retryable classification** — which failures retry: transient and infrastructure failures (a provider being briefly unavailable, a transient network error, a runtime not yet ready) retry; policy-denied, validation-failed, and otherwise terminal failures do not. The `retryable` flag on the error is authoritative; the automation never second-guesses it.
 - **Circuit breaker** — after a configurable number of consecutive failed runs, the automation auto-disables itself and notifies the user, rather than re-firing into a failing condition indefinitely. Recovery is driven by explicit user reset, relevant source-recovery events, capability/provider health recovery, or a declared validation probe. A configurable minimum cooldown may bound retry frequency and prevent flapping, but elapsed time alone does not prove recovery. A half-open probe, if allowed, is bounded, policy-gated, recorded, and no broader than the automation's pre-authorized scope.
 - **Failure notification** — how a failed run (after retries are exhausted) is surfaced: a notification, an entry in the dashboard, or an event other automations may watch.
@@ -534,7 +534,7 @@ Anchor: `automation.creation-and-graduation`
 
 An `Automation` is created through one of four paths, all producing the same object:
 
-- **Graduation from a successful run** — the primary path. After a successful run, the runtime may propose crystallizing it into an `Automation` (`run.automation-reuse`, File 04 §26), derived from the run's structure — its `RunIntent`, the capabilities it used, the artifacts it produced, the validation that passed — capturing the seven preservation fields. The proposal is generated from successful structure, not from text heuristics (`codex_recommendations.md` §12).
+- **Graduation from a successful run** — the primary path. After a successful run, the runtime may propose crystallizing it into an `Automation` (`run.automation-reuse`, File 04 §26), derived from the run's structure — its `RunIntent`, the capabilities it used, the artifacts it produced, the validation that passed — capturing the seven preservation fields. The proposal is generated from successful structure, not from text heuristics (`codex_recommendations.md` §12). Graduation is grounded in the run's committed ledger evidence (`ledger.forgery-guards`, File 10 §3.7): a proposal derives only from recorded run structure and a recorded successful, validation-satisfying outcome, never from a producer's self-report, so a run with an empty trace or no committed successful outcome cannot be crystallized into an `Automation`.
 - **Natural-language creation** — the `automation.create` capability parses an informal description ("every weekday at 9am, summarize my unread mail") into a trigger and a task template through a model-mediated or deterministic parser selected by the model strategy and settings layers, presents the parsed structure for the user to confirm, and creates the automation on confirmation (`unit14-systems.md` D14.SP.3, `unit11-cross-tool-learning.md` CT.9). This file defines the parse-confirm-create contract; the parser is an implementation behind it.
 - **Manual construction** — the user builds the automation directly in the automation editor or the workflow studio (`codex_recommendations.md` §8.11): defining triggers, selecting or building the task template, attaching policies and capability scope, defining the world selector, and simulating runs before enabling.
 - **Promotion** — a recorded macro (`web.artifacts`, File 28 §11; `gui.macros`, File 31 §10) or a workflow template (File 34) is promoted into an `Automation` by binding a trigger and the governing fields.
@@ -618,13 +618,13 @@ Anchor: `automation.persistence`
 
 ### 18.2 Locality and Sync
 
-- An `Automation` definition is a logical object and syncs across a user's devices (`storage.physical-layout-locality`, File 20 §8; `portability.what-replicates`, File 21 §3), so the user's automations follow them. Arming state is device-local and never syncs (`portability.what-replicates`, File 21 §3).
+- An `Automation` definition is a logical object and syncs across a user's devices (`storage.physical-layout-locality`, File 20 §8; `portability.what-replicates`, File 21 §5), so the user's automations follow them. Arming state is device-local and never syncs (`portability.what-replicates`, File 21 §5).
 - An enabled automation's `run_locality` must resolve to one firing authority before the scheduler arms it: `DevicePinned { device_id }`, `CurrentDeviceOnly { device_id }` resolved at enable time, or `CrossDeviceClaimed` only when the sync/transport layer provides an atomic cross-device claim contract. If no claim contract is available, `any-device` is a placement preference, not an executable firing mode; the automation remains unarmed and surfaces a typed locality-unresolved state until the user picks a device or a future claim mechanism is available.
 
 ### 18.3 Portability and Security
 
-- An `Automation` definition is part of the portable bundle (`portability.export-bundle`, File 21 §9): exporting carries the definition; importing re-resolves firing authority and device-local arming state per the importing device. The definition references its capability scope and pinned surface symbolically, so it re-resolves on import.
-- No raw secret is part of an automation definition: a `Webhook` trigger's verifying secret and any credential the task template uses are vault references (`security.secret-vault`, File 22 §3), never inline; raw secrets never sync, export, or materialize (`portability.sensitivity-egress`, File 21 §12). Security-sensitive automation runs (system mutation, credential use) record into the device-local hash-chained audit overlay (`ledger.hash-chained-audit-log`, File 10 §16.4), which never syncs.
+- An `Automation` definition is part of the portable bundle (`portability.export-bundle`, File 21 §10): exporting carries the definition; importing re-resolves firing authority and device-local arming state per the importing device. The definition references its capability scope and pinned surface symbolically, so it re-resolves on import.
+- No raw secret is part of an automation definition: a `Webhook` trigger's verifying secret and any credential the task template uses are vault references (`security.secret-vault`, File 22 §5), never inline; raw secrets never sync, export, or materialize (`portability.sensitivity-egress`, File 21 §12). Security-sensitive automation runs (system mutation, credential use) record into the device-local hash-chained audit overlay (`ledger.hash-chained-audit-log`, File 10 §16.4), which never syncs.
 
 ### 18.4 Rule
 
@@ -648,7 +648,7 @@ The automation layer exposes its operations as built-in capabilities declared pe
 - `automation.create_from_description(description)` — the natural-language creation path (§15.1), parsing and presenting for confirmation; `UserApproval`.
 - `automation.create_from_run(run_ref)` — graduate a successful run into a proposed automation (§15.1); `UserApproval`.
 - `automation.update(automation_id, patch)` — edit a definition, producing a new version and re-pinning (§6.3); `UserApproval`.
-- `automation.enable(automation_id)` / `automation.disable(automation_id)` — toggle enablement; `automation.enable_trigger`/`automation.disable_trigger` for per-trigger enablement.
+- `automation.enable(automation_id)` / `automation.disable(automation_id)` — toggle enablement; `automation.enable_trigger`/`automation.disable_trigger` for per-trigger enablement; at minimum `UserApproval`.
 - `automation.delete(automation_id)` — tombstone an automation definition and preserve history; default tier `UserApproval`. Typed confirmation or a `Denied` floor applies only when deletion itself has high-risk consequences: active queued/parked/in-flight runs, externally depended-on webhook bindings, policy-critical safety automations, or hard-deleting payload/history beyond tombstoning. The task template's destructive scope does not by itself make deletion destructive.
 - `automation.run_now(automation_id, parameters)` — fire an automation manually (§7.1); the tier reflects the automation's task template, not a blanket low tier.
 - `automation.list(filter)` / `automation.get(automation_id)` / `automation.get_runs(automation_id)` — read the definitions, derived state, and run history (§17); `ReadOnly`, `ConcurrencySafe`.
@@ -674,14 +674,16 @@ The automation layer emits through the one event bus (`ledger.event-stream`, Fil
 - `AutomationTriggerFired` (reserved, `ledger.entry-kind-catalogue`, File 10 §4) — a trigger fired and emitted a run; payload carries `automation_id`, `trigger_id`, `fire_id`, optional `source_event_id`, trigger kind, routing `trigger_kind`, and firing context.
 - `WebhookReceived` and `OsEventReceived` (reserved, File 10 §4) — inbound external triggers.
 - `AutomationCreated` / `AutomationUpdated` / `AutomationEnabled` / `AutomationDisabled` / `AutomationDeleted` — definition lifecycle.
-- `AutomationRunStarted` / `AutomationRunCompleted` / `AutomationRunFailed` / `AutomationRunSkipped` / `AutomationRunParked` — run lifecycle, with the skipped and parked variants carrying the gate or approval reason.
+- `AutomationRunSkipped` / `AutomationRunParked` — fire-level facts, carrying the gate or approval reason for a fire a gate blocked or a fire that parked for a human decision.
 - `WatchArmed` / `WatchFired` / `WatchReset` and `ScheduleArmed` / `ScheduleFired` / `ScheduleMissed` — trigger-level firing-state events for the dashboard.
 - `AutomationCircuitOpened` — an automation tripped its failure circuit breaker and auto-disabled (§13.1).
 
+A fired run's start, completion, and failure are not separate automation events: the trigger firing is the reserved `AutomationTriggerFired`, and the run itself is carried by `RunCreated` and `RunStatusChanged` in the execution ledger (`ledger.execution-ledger`, File 10 §4). This section declares automation lifecycle events; it does not duplicate run lifecycle events.
+
 ### 20.2 Rule
 
-- Automation events carry the canonical envelope (`ledger.event-envelope`, File 10 §3) with full demultiplexing identity, so concurrent automation runs are distinguishable. Their sensitivity is derived from trigger context and produced payloads. `Webhook` and external-event payloads default to untrusted and at least the sensitivity declared by trigger registration; secret-bearing fields are redacted or referenced through vault/transient handles per File 22. Dashboard projections may show structural facts, safe descriptions, ids, status, and redacted summaries, but not raw secret payloads.
-- Transient arming-state events flow on the live bus; consequential events (fires, run outcomes, definition lifecycle, accepted queued/parked fires) commit to the ledger per the durability rules (`ledger.event-stream`, File 10).
+- Automation events carry the canonical envelope (`ledger.event-envelope`, File 10 §5.2) with full demultiplexing identity, so concurrent automation runs are distinguishable. Their sensitivity is derived from trigger context and produced payloads. `Webhook` and external-event payloads default to untrusted and at least the sensitivity declared by trigger registration; secret-bearing fields are redacted or referenced through vault/transient handles per File 22. Dashboard projections may show structural facts, safe descriptions, ids, status, and redacted summaries, but not raw secret payloads.
+- Transient arming-state events flow on the live bus; consequential events (fires, definition lifecycle, accepted queued/parked fires) commit to the ledger per the durability rules (`ledger.event-stream`, File 10). A fired run's outcome is carried by its own ledger run records (`ledger.execution-ledger`, File 10), not a duplicate automation run-outcome event.
 - Domain-specific automation events (a system watch crossing, a page-change monitor firing) are the owning surface's `Custom` events; this file reserves the cross-cutting automation vocabulary.
 
 ### 20.3 Boundary
@@ -695,7 +697,7 @@ Anchor: `automation.settings`
 Automation behavior is configurable through `settings.setting-definition` (File 15), with agent-exposure governed by `policy.agent-exposure-policy-settings` (File 06 §16.4). At minimum, settings must support:
 
 - per-automation and global enablement defaults, and the default `target` conversation policy;
-- the default `missed_fire_policy` per trigger kind, and the `RunAll` opt-in gate;
+- the default `missed_fire_policy` keyed on `Once` versus recurring schedules, and the `RunAll` opt-in gate;
 - the schedule timer-versus-scan mode and the periodic-scan fallback interval (flagged), recurring-schedule jitter window, and calendar-local DST policy defaults;
 - the default `OverlapPolicy` and its bounds (queue max-depth, parallel max-concurrent);
 - the watch defaults: `firing_mode`, `reset_condition`, `dedupe` window, `debounce` window, hysteresis margins, and the no-event poll-interval fallback (flagged), per automation, per surface, and globally;
@@ -748,4 +750,4 @@ Anchor: `automation.consequences-for-later-specs`
 - The **Quality Control and Validation** and **Evaluation** specs own the validators an automation's validation policy selects; they must integrate through the validation and completion-verification substrates an automation references, not a parallel automation-validation pipeline.
 - The **Telemetry, Logging, and Observability** spec consumes the automation event vocabulary and the run-history projection; it must not introduce a parallel automation-run store.
 - The **Runtime Infrastructure and Lifecycle** spec owns the background-worker scheduling primitives the `Scheduler` and watch poller run on, the startup ordering that re-arms triggers and reconciles missed fires, and the graceful shutdown that stops the workers and cancels in-flight evaluations; it must place the one `Scheduler` in the startup graph and must reconstruct firing state from durable definitions, never persist it.
-- The **per-surface specs** that defer scheduling, monitoring, and reactive automation here (Files 28–32) realize their monitors and scheduled tasks as `Automation`s over the one `Scheduler`, contributing their task templates, capability scopes, and default policies, confined to their narrowest sandbox profiles, pinning their surface and policies at save time, and introducing no parallel scheduler, watcher, or non-interactive execution path.
+- The **per-surface specs** that defer scheduling, monitoring, and reactive automation here (Files 27–32) realize their monitors and scheduled tasks as `Automation`s over the one `Scheduler`, contributing their task templates, capability scopes, and default policies, confined to their narrowest sandbox profiles, pinning their surface and policies at save time, and introducing no parallel scheduler, watcher, or non-interactive execution path.

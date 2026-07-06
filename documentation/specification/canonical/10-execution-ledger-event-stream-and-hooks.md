@@ -13,7 +13,7 @@ This file defines:
 - `EventStream` — the typed live coordination channel that carries every transient and consequential signal between subsystems, hooks, the UI shell, and external integrations
 - `EventEnvelope` — the canonical envelope every event carries, with the demultiplexing identifiers, the per-stream monotonic sequence, the full-granularity timestamp, and the closed sensitivity classification
 - `AppEvent` — the closed canonical event-kind catalogue plus the `Custom { namespace, name, payload }` extension mechanism
-- `Hook` — the canonical extensibility primitive over the event bus, including the typed decision vocabulary, the priority convention, the authority-class semantics, the per-error-class retry behavior, and the hook-action contract
+- `Hook` — the canonical extensibility primitive over the event stream, including the typed decision vocabulary, the priority convention, the authority-class semantics, the per-error-class retry behavior, and the hook-action contract
 - the relationship between live `EventStream` and durable `ExecutionLedger`: which events also become ledger entries, which remain transient
 - per-call model-call attribution as a load-bearing ledger requirement, with `TokenUsageRecord` schema, `TokenSource` accuracy hierarchy, and cost computation keyed by model identifier (per `core.explicit-rejections`, File 01 §8)
 - replay semantics over the ledger: how the ledger plus durable snapshots reconstruct a past execution state deterministically
@@ -25,7 +25,7 @@ This file defines:
 - streaming and live partial events, the boundary between a streamed partial and a committed block, and the aggregation policies that govern high-frequency event categories
 - lifecycle integration: startup ordering, shutdown flushing, restart resumption, and orphaned in-flight reconciliation
 - the settings dimensions every mechanism in this file exposes, with the agent-exposure rules per `policy.agent-exposure-policy-settings` (File 06 §16.4)
-- the closed set of explicit rejections covering ledger-bypass, secret leakage, parallel event buses, time-based hook firing, mutable ledger entries, and forgery
+- the closed set of explicit rejections covering ledger-bypass, secret leakage, parallel event streams, time-based hook firing, mutable ledger entries, and forgery
 - the canonical contract every later spec consumes when it produces or consumes execution facts, emits or subscribes to events, registers a hook, or queries the ledger for replay, audit, telemetry, or evaluation
 
 This file does not define:
@@ -68,7 +68,7 @@ ATLAS3 has three primitives in this layer: `ExecutionLedger`, `EventStream`, and
 
 `ExecutionLedger` is the durable, append-only, queryable record of consequential execution facts. Every status transition, every routing decision, every capability invocation, every approval verdict, every model call with per-call attribution keyed by model identity, every block commit, every version commit, every artifact-version commit, every claim publication, every evidence link, every observation capture, every validation outcome, every error, every recovery decision, every child-run relationship, every cancellation, every intervention — every fact later specs depend on for replay, audit, evaluation, telemetry, or learning — is recorded as a `LedgerEntry` in the canonical pool.
 
-`EventStream` is the live coordination channel that carries typed `AppEvent` values through one event bus. Every subsystem that needs to react to system state (streaming UI, hooks, inspectors, progress views, approval routers, validators, structured loggers, telemetry, replay machinery, cross-tab coordination, frontend reactivity, automation triggers) subscribes to the bus. Events carry the canonical envelope, the closed sensitivity classification, and the per-stream monotonic sequence. Consequential events flow through both the live bus and the durable ledger; transient coordination events (token deltas, cursor updates, scroll positions, UI focus changes) flow through the bus only.
+`EventStream` is the live coordination channel that carries typed `AppEvent` values through one bus. Every subsystem that needs to react to system state (streaming UI, hooks, inspectors, progress views, approval routers, validators, structured loggers, telemetry, replay machinery, cross-tab coordination, frontend reactivity, automation triggers) subscribes to the bus. Events carry the canonical envelope, the closed sensitivity classification, and the per-stream monotonic sequence. Consequential events flow through both the live bus and the durable ledger; transient coordination events (token deltas, cursor updates, scroll positions, UI focus changes) flow through the bus only.
 
 `Hook` is the canonical extensibility primitive. Hooks share one registration model, but dispatch has two paths: blocking hooks run at interceptable boundaries before the proposed action continues, while non-blocking hooks observe emitted events through the live bus. A hook declares its `event_kinds`, `mode`, `priority`, `timeout_ms`, category, authority class, handler reference, and source. A blocking hook returns one of four typed `HookDecision` outcomes: `Continue`, `Substitute { new_payload, reason }`, `Block { reason }`, or `RedirectSuggestion { target_capability_id, suggested_args, reason }`. The executor (per `run.call-pipeline`, File 04 §8.2) and the policy layer (per `policy.approval-router`, File 06 §3) consume hook decisions through the same hook mechanism. There is no parallel hook system: the approval router, quality-control validators, completion-verification hooks, user-authored guardrails, plugin hooks, and MCP hooks register through the same mechanism with source-approval gating.
 
@@ -79,9 +79,9 @@ The three primitives compose:
 - the block layer (per `block.streaming-commit-boundary`, File 08 §7) commits blocks at the canonical commit boundaries; each commit emits `BlockCommitted` to the bus and records `BlockCommitted` (with `block_id`, `kind`, `producer`, `origin_run_id`, `content_hash`, sensitivity, scope) to the ledger.
 - the version graph (per File 11) commits version nodes at the canonical boundaries; each commit emits `VersionCommitted` (with `version_id`, `parent_version_id`, `op_summary`, `diff`) to the bus and ledger.
 - the policy layer (per `policy.approval-policy-templates`, File 06 §12) emits `PolicyDecisionMade`, `LeaseGranted`, `LeaseRevoked`, `LeaseStale`, `PolicyContradictionDetected`, `PolicyFloorViolated`, and records each as a ledger entry.
-- the entity layer (per `artifact.events`, File 09 §20) emits `ArtifactCreated`, `ArtifactVersionCommitted`, `ArtifactLifecycleChanged`, `ClaimPublished`, `EvidenceLinked`, `ObservationCommitted`, `ValidationCommitted`, `CritiquePosted`, `ProvenanceQueryExecuted`, and records the consequential ones.
+- the entity layer (per `artifact.events`, File 09 §20) emits `ArtifactCreated`, `ArtifactVersionCommitted`, `ArtifactLifecycleChanged`, `ClaimPublished`, `EvidenceLinkAttached`, `ObservationCommitted`, `ValidationCompleted`, `CritiquePublished`, `ProvenanceQueryExecuted`, and records the consequential ones.
 - the surface layer (per `surface.surface-relevant-events`, File 07 §13) emits `ToolSurfaceComposed`, `CapabilityBorrowed`, `CapabilityRegistered`, `CapabilityAvailabilityChanged`, and records the consequential ones.
-- the routing layer (per File 03) emits `RouteAttached`, `RoutingFrameComposed`, `RouterDecisionEmitted`, and records the route record per `routing.route-record` (File 03 §3.5).
+- the routing layer (per File 03) emits `RoutingFrameComposed`, `RouterDecisionEmitted`, and records the route record per `routing.route-record` (File 03 §3.5).
 
 There is one envelope, one vocabulary, one bus, one ledger. Other specs declare new event kinds and ledger-entry kinds through `Custom { namespace, name, payload }` extensions, registered through the canonical capability-registration mechanism (per `capability.runtime-mutation`, File 05 §16.2 proposal-first) and gated by source-approval (per `policy.source-approval-flow`, File 06 §9). New extensions never produce parallel buses, parallel ledgers, or parallel hook systems.
 
@@ -107,7 +107,7 @@ Anchor: `ledger.boundaries-with-adjacent-layers`
 
 `run.cancellation` (File 04 §17.3) defines cancellation primitives; this file specifies the cancellation ledger entries and events (`CancellationRequested`, `CancellationProgressing`, `CancellationCompleted`) with the requester, the affected scope, the cooperative-vs-forceful classification, and the partial-output retention outcome.
 
-`run.retry-reroute-branch` (File 04 §19) defines retry, reroute, and branch; this file specifies the ledger entries that record each (`RunRetryStarted`, `RerouteRequested`, `BranchCreated`) and the cross-references that link the new run to the prior run.
+`run.retry-reroute-branch` (File 04 §19) defines retry, reroute, and branch; this file specifies the ledger entries that record each (`RetryAttempted`, `RerouteResolved`, `BranchCreated`, matching the §4.1 catalogue names) and the cross-references that link the new run to the prior run.
 
 `run.error-handling` (File 04 §20) defines error handling and recovery; this file specifies the typed error classification recorded in ledger entries and the recovery-attempt ledger entries (`RecoveryStrategyApplied`, `ContextPressureObserved`, `StuckDetected`, `StuckEscalated`, `BudgetWarning`).
 
@@ -143,15 +143,15 @@ File 05 owns the `CapabilityDeclaration`, the `RegisteredCapability`, and the `C
 
 ### 2.6 With File 09 (Artifacts, Claims, Evidence, and Provenance)
 
-`artifact.events` (File 09 §20) owns the entity-relevant event vocabulary (`ArtifactCreated`, `ArtifactVersionCommitted`, `ArtifactLifecycleChanged`, `ArtifactReviewStateChanged`, `ArtifactValidationStateChanged`, `ArtifactMaterialized`, `ArtifactExternallyEdited`, `ArtifactArchived`, `ArtifactDiscarded`, `ArtifactRestored`, `ArtifactHardDeleted`, `ClaimPublished`, `ClaimStatusOverridden`, `ClaimWithdrawn`, `EvidenceLinked`, `EvidenceLinkRemoved`, `CitationCaptured`, `ObservationCommitted`, `ValidationCommitted`, `CritiquePosted`, `ProvenanceQueryExecuted`); this file specifies that those events flow through the canonical bus, the consequential subset commits to the ledger, and `Secret`-tagged payloads do not persist.
+`artifact.events` (File 09 §20) owns the entity-relevant event vocabulary (`ArtifactCreated`, `ArtifactVersionCommitted`, `ArtifactLifecycleChanged`, `ArtifactReviewStateChanged`, `ArtifactValidationStateChanged`, `ArtifactMaterialized`, `ArtifactExternallyEdited`, `ArtifactArchived`, `ArtifactDiscarded`, `ArtifactRestored`, `ArtifactHardDeleted`, `ClaimPublished`, `ClaimStatusOverridden`, `ClaimWithdrawn`, `EvidenceLinkAttached`, `EvidenceLinkDetached`, `CitationCaptured`, `ObservationCommitted`, `ValidationCompleted`, `CritiquePublished`, `ProvenanceQueryExecuted`); this file specifies that those events flow through the canonical bus, the consequential subset commits to the ledger, and `Secret`-tagged payloads do not persist. File 09 §20.1 is authoritative for the entity-event names; this file's §4.1 subsets that catalogue and conforms to those names.
 
 ### 2.7 With Cross-Cutting Substrate
 
-The structured logging substrate (cross-cutting/logging.md) uses the `tracing` crate with `#[tracing::instrument]` for span instrumentation; this file specifies that every ledger-event boundary carries the span context (`span_id`, `parent_span_id`, `operation`, `service`) that links structured logs to ledger entries.
+The structured logging substrate (per the Telemetry, Logging, and Observability spec, File 41) uses the `tracing` crate with `#[tracing::instrument]` for span instrumentation; this file specifies that every ledger-event boundary carries the span context (`span_id`, `parent_span_id`, `operation`, `service`) that links structured logs to ledger entries.
 
 The typed error substrate (`core.typed-errors`, File 01 §6.9) defines `AppError` with discriminant variants; this file specifies that ledger entries recording errors carry the typed `AppError` plus an optional `TraceContext` field linking the error to the originating span.
 
-The settings substrate (cross-cutting/settings.md, `core.settings-system` (File 01 §6.8)) defines the typed settings system; this file specifies the settings keys this layer reads (hook timeouts, fail-direction overrides, retention granularity, sensitivity classification overrides, aggregation policies, etc.).
+The settings substrate (per the Settings, Profiles, and Scope Resolution spec, File 15, and `core.settings-system` (File 01 §6.8)) defines the typed settings system; this file specifies the settings keys this layer reads (hook timeouts, fail-direction overrides, retention granularity, sensitivity classification overrides, aggregation policies, etc.).
 
 The service-layer substrate (cross-cutting/service-layer.md) defines services as Rust traits returning `Result<T, AppError>`; this file specifies `LedgerService`, `EventBusService`, and `HookService` as canonical service traits following the same pattern, with frontend access through Tauri commands or equivalent transport.
 
@@ -323,7 +323,7 @@ Anchor: `ledger.forgery-guards`
 
 The ledger enforces three non-negotiable forgery guards at commit time:
 
-**Status-transition forgery guard** (per `run.termination`, File 04 §22): a status transition from `running` to `completed` is verified against the run's latest authorized `RunCompletionContract` (`run.completion-contract`, File 04 §2.7). On a `Run` whose contract required action, the transition is rejected if no `ToolCallExecuted` or `ToolCallCompleted` entry exists in the run's scope, no `ArtifactVersionCommitted` entry exists in the run's scope, and no `ModelCallCompleted` entry beyond pure-text response exists in the run's scope. The forgery guard fires at the ledger boundary, not only in the executor: a hook subscriber attempting to record `RunStatusChanged { status: Completed }` against a no-evidence run produces a `LedgerCommitRejected` error and a `RunCompletionForgeryAttempted` audit-log entry; the run remains in `running` until evidence is recorded or another terminal status (`failed`, `cancelled`, `superseded`) is committed.
+**Status-transition forgery guard** (per `run.termination`, File 04 §22): a run's termination as `completed` is verified against the run's latest authorized `RunCompletionContract` (`run.completion-contract`, File 04 §2.7). On a `Run` whose contract required action, termination as `completed` is rejected if no `ToolCallExecuted` or `ToolCallCompleted` entry exists in the run's scope, no `ArtifactVersionCommitted` entry exists in the run's scope, and no `ModelCallCompleted` entry beyond pure-text response exists in the run's scope. The forgery guard fires at the ledger boundary, not only in the executor: a hook subscriber attempting to record `RunStatusChanged { to: Completed }` against a no-evidence run produces a `LedgerCommitRejected` error and a `RunCompletionForgeryAttempted` audit-log entry; the run remains in `running` until evidence is recorded or another terminal status (`failed`, `cancelled`, `superseded`) is committed.
 
 **Contract-revision forgery guard** (per `run.completion-contract`, File 04 §2.7): a `RunCompletionContractRevised` entry whose `revision_kind` is `Weakening` or `Removal` is rejected unless its `authority_source` is at least as strong as the authority that introduced each affected requirement, and the removal/weakening discharge for that authority is recorded (explicit user action for user-introduced requirements, policy approval for policy-introduced requirements, reroute or route override for router-introduced requirements). A weakening or removal authored by the run's own executing agent is rejected. A rejected revision produces `LedgerCommitRejected` and a `RunCompletionForgeryAttempted` audit-log entry. This closes the relocate-the-forgery hole: a run cannot weaken its contract to reach trivial completion, because the weakening fails the same guard the forged completion would.
 
@@ -338,7 +338,7 @@ Additional integrity rules:
 
 ### 3.8 Boundary
 
-The ledger defines durable execution truth. The event bus delivers live coordination. The version graph records the version-tree state machine. The storage layer realizes durability. None of those layers invents new entry semantics; they consume what this file defines. File 20 realizes the durability contract; File 21 realizes cross-device propagation; the Telemetry, Logging, and Observability spec (File 41) consumes ledger entries to drive projections; the Evaluation and Benchmarking spec (File 40) reads the ledger for replay.
+The ledger defines durable execution truth. The event stream delivers live coordination. The version graph records the version-tree state machine. The storage layer realizes durability. None of those layers invents new entry semantics; they consume what this file defines. File 20 realizes the durability contract; File 21 realizes cross-device propagation; the Telemetry, Logging, and Observability spec (File 41) consumes ledger entries to drive projections; the Evaluation and Benchmarking spec (File 40) reads the ledger for replay.
 
 ## 4. Canonical `LedgerEntryKind` Catalogue
 
@@ -359,6 +359,7 @@ Every ledger entry declares its `kind` at commit. The canonical closed catalogue
 - `RunCompletionContractRevised` — the run's `RunCompletionContract` was revised (per `run.completion-contract`, File 04 §2.7); payload includes `run_id`, `old_contract_hash`, `new_contract_hash`, `revision_kind` (`Additive`, `Narrowing`, `Weakening`, or `Removal`), `authority_source`, `reason`, and `evidence_refs`. `Weakening` and `Removal` revisions require qualifying authority and are subject to the contract-revision forgery guard (§3.7)
 - `RunCompletionForgeryAttempted` — forgery guard fired; payload includes attempt details, the forging actor's identity (rare, audited)
 - `ControlTransferred` — run `control` field changed (per `run.minimum-durable-reconstruction`, File 04 §2.6); payload includes from-actor, to-actor, reason
+- `AgentTurnCompleted` — an agent turn reached its completion boundary; payload includes the run reference, the turn's terminal state, and produced-output references
 
 **Routing:**
 
@@ -378,6 +379,7 @@ Every ledger entry declares its `kind` at commit. The canonical closed catalogue
 - `ApprovalRequested` — ask-user, typed-confirmation, batched, or contradiction-resolution flow opened (per `policy.approval-ui-surface-contract`, File 06 §13); payload includes the `ApprovalRequest` reference
 - `ApprovalGranted` / `ApprovalDenied` — user resolved the approval; payload includes choice, customized constraints, typed-confirmation string if applicable (redacted per sensitivity rules)
 - `LeaseGranted` / `LeaseRevoked` / `LeaseStale` / `LeaseNarrowed` — lease lifecycle events (per `policy.persistence`, File 06 §11.6); payload includes lease id and the lease projection over its source events
+- `LeaseHardDeleted` — a lease record was physically destroyed (per `policy.persistence`, File 06 §11.6); audit-tier per §16.4
 - `PolicyContradictionDetected` / `PolicyContradictionResolved` — cross-scope conflict (per `policy.contradiction-checking-across-scope-levels`, File 06 §14)
 - `PolicyFloorViolated` — attempt to lower below `permission_floor` (per `policy.permission-floor-typed-confirmation`, File 06 §7); payload includes the violating actor and the override choice
 - `ClassifierMediatedDecision` — `auto-decide` classifier ran (per `policy.auto-decide-mode`, File 06 §8); payload includes classifier result, confidence, fallback choice
@@ -390,14 +392,14 @@ Every ledger entry declares its `kind` at commit. The canonical closed catalogue
 - `ToolCallFailed` — capability returned a typed error; payload includes the typed `AppError`, recovery action taken or proposed
 - `ExecutionRetryDecided` — execution evaluated `run.execution-retry-policy` (File 04 §20.2.1); payload includes failed attempt reference, retry kind, retryability source, outcome-safety basis, normalized-argument reference, policy snapshot reference, and action (`retried`, `branched`, `surfaced`, `stopped`)
 - `ObservationCommitted` — observation block committed (per `artifact.observation`, File 09 §13); payload includes observation kind, staleness fingerprint, block id
-- `ValidationCommitted` — validation block committed (per `artifact.validation-critique`, File 09 §14); payload includes validation outcome
-- `CritiquePosted` — critique block committed (per `artifact.validation-critique`, File 09 §14)
+- `ValidationCompleted` — validation block committed (per `artifact.validation-critique`, File 09 §14); payload includes the validation outcome and the committed validation block id (per `artifact.events`, File 09 §20.1). A model-mediated verdict's reasoning carriage rides that referenced Validation block per `artifact.validation-critique` (File 09 §14.1), not the event payload
+- `CritiquePublished` — critique block committed (per `artifact.validation-critique`, File 09 §14)
 
 **Model calls (per `run.execution-ledger`, File 04 §23.1):**
 
 - `ModelCallStarted` — provider call initiated; payload includes provider id, model id, tokenizer id, role, request fingerprint, and cache markers used
-- `ModelCallCompleted` — provider returned; payload includes the full `TokenUsageRecord` (§6.2), the cost computed from per-model pricing, the stop reason, the parsed `ParsedResponse` reference
-- `ModelCallStreamingDelta` — provider streamed a chunk; payload includes delta size, accumulated counts, partial-block handle (aggregated per §13.4)
+- `ModelCallCompleted` — provider returned; payload includes the full `TokenUsageRecord` (§6.2), the stop reason, the parsed `ParsedResponse` reference. Cost is a projection over the `TokenUsageRecord` (§6.4), not a stored payload field
+- `ModelCallStreamingDelta` — provider streamed a chunk; payload includes delta size, accumulated counts, partial-block handle (aggregated per §12.3)
 - `ModelCallFailed` — provider returned an error; payload includes the typed `ProviderError` (File 17 §10), retry classification (`retryable`, `rate_limited`, `fatal`), and `retry_after_ms` if provider-supplied
 - `ModelCallCancelled` — the caller cancelled an in-flight provider call at a safe point (per `run.cancellation`, File 04 §17.3); payload includes the partial `TokenUsageRecord` (§6.2) accumulated before the stop, the stop reason `CancelledByUser`, and the prior `CancellationRequested` entry or stable cancellation-operation id this call belongs to. `CancellationCompleted` later correlates through that same identity rather than requiring a forward reference. This is the model-call terminal for both buffered and streamed cancellation: it is not `ModelCallCompleted` because the provider did not finish, and not `ModelCallFailed` because no provider error occurred. It carries no provider error and is excluded from provider health, transport retry, and model fallback (File 17 §9.3/§11.5/§12). A cancelled provider stream also emits File 17's `StreamCancelled` terminal; File 10's separate `StreamCancelled` entry records the partial-output or orphan-block outcome where applicable.
 - `ProviderHealthChanged` — provider transitioned `Healthy / Degraded / Unhealthy`; payload includes prior state, new state, and contributing failure count
@@ -415,7 +417,7 @@ Every ledger entry declares its `kind` at commit. The canonical closed catalogue
 - `VersionSwitched` — active version pointer changed; payload includes from-version, to-version, view rebuild outcome
 - `PendingOpApplied` — context operation applied to the materialized view (per `block.block-lifecycle-non-destructive-edits`, File 08 §6); payload includes operation kind, affected block id, pending buffer state
 
-**Artifact and entity events (per `artifact.events`, File 09 §20):** File 09 §20.1 owns the exact payload field set of each kind below; the bullets summarize what the event records, not an authoritative payload schema (where a bullet's prose and §20.1 differ, §20.1 governs — these descriptions never widen the §20.1 payload).
+**Artifact and entity events (per `artifact.events`, File 09 §20):** File 09 §20.1 owns the exact names and payload field set of each kind below; the bullets summarize what the event records and subset the §20.1 names, not an authoritative name or payload schema (where a bullet's name or prose differs from §20.1, §20.1 governs — these descriptions never rename or widen the §20.1 payload).
 
 - `ArtifactCreated` — first version of an artifact committed; the exact payload fields are owned by `artifact.events`, File 09 §20.1 (the producing context and materialization policy ride the entry's standard envelope/cross-references and the version record, not the §20.1 payload)
 - `ArtifactVersionCommitted` — subsequent artifact version committed; the exact payload fields are owned by `artifact.events`, File 09 §20.1 (the derivation summary and materialized paths live on the version record this references, not the §20.1 payload)
@@ -425,11 +427,13 @@ Every ledger entry declares its `kind` at commit. The canonical closed catalogue
 - `ArtifactMaterialized` — artifact written to workspace path; payload includes materialized paths and content hashes
 - `ArtifactExternallyEdited` — filesystem watcher committed a sibling version for an externally-modified materialized file
 - `ArtifactArchived` / `ArtifactDiscarded` / `ArtifactRestored` — explicit lifecycle operations
+- `ArtifactVersionHardDeleted` — a single artifact version was physically destroyed (per `artifact.artifact-tombstones`, File 09 §8); payload includes the artifact id, the version id, and the deletion reason
 - `ArtifactHardDeleted` — tombstone created (per `artifact.artifact-tombstones`, File 09 §8); payload includes the tombstone reference
 - `ClaimPublished` — claim block committed via `claim.publish` (per `artifact.claim-extraction`, File 09 §10)
+- `ClaimStatusChanged` — derived claim status transition recorded (per `artifact.claim`, File 09 §9); payload includes old status, new status, derivation reason
 - `ClaimStatusOverridden` / `ClaimWithdrawn` — explicit claim-state changes
-- `EvidenceLinked` — typed evidence-link edge created (per `artifact.evidence`, File 09 §11)
-- `EvidenceLinkRemoved` — explicit evidence-link removal
+- `EvidenceLinkAttached` — typed evidence-link edge created (per `artifact.evidence`, File 09 §11)
+- `EvidenceLinkDetached` — explicit evidence-link removal
 - `CitationCaptured` — citation block committed
 - `ProvenanceQueryExecuted` — canonical provenance query ran (per `artifact.provenance`, File 09 §15); payload includes query kind, target, result summary
 
@@ -447,9 +451,11 @@ Every ledger entry declares its `kind` at commit. The canonical closed catalogue
 - `CapabilityEnabledChanged` — enable flag toggled at any scope
 - `CapabilityAvailabilityChanged` — `availability_status` transition (per `capability.registered-capability`, File 05 §10)
 - `CapabilityRegistryStateChanged` — binding rebound, trust override applied, collision resolved
+- `CapabilityHardDeleted` — a capability registration record was physically destroyed; audit-tier per §16.4
 - `SubsystemSurfaceSpecUpdated` — subsystem updated its declared default surface (per `surface.subsystem-surface-spec`, File 07 §5)
 - `PrimarySurfaceChanged` — active `SubsystemSurfaceSpec` changed mid-run (per `surface.primary-surface-changes`, File 07 §5.4)
 - `LensFilterChanged` — per-lens visibility setting changed
+- `SurfaceSettingsChanged` — a surface-scoped setting changed (per `surface.surface-relevant-events`, File 07 §13)
 - `SourceConnected` / `SourceDisconnected` — plugin or MCP server source lifecycle
 - `SourceRegistrationApproved` / `SourceRegistrationDenied` / `SourceRegistrationDeferred` — source-approval flow outcome (per `policy.source-approval-flow`, File 06 §9)
 - `ShortcutConflict` — keyboard-shortcut collision detected
@@ -466,9 +472,10 @@ Every ledger entry declares its `kind` at commit. The canonical closed catalogue
 **Streaming and live partials:**
 
 - `StreamStarted` — typed stream opened (model text, reasoning, tool input, tool output, partial block, file partial write); payload includes stream kind, partial-block handle
-- `StreamProgressBatch` — aggregated batch summary (per §13.4); payload includes batched delta counts, byte counts, aggregation policy
+- `StreamProgressBatch` — aggregated batch summary (per §12.3); payload includes batched delta counts, byte counts, aggregation policy
 - `StreamCompleted` — stream reached its declared commit boundary; payload includes committed block id, total bytes, total chunks
 - `StreamCancelled` — stream cancelled mid-flight; payload includes the orphan-block outcome per `run.cancellation` (File 04 §17.3)
+- `StreamGapDetected` — a reconnecting subscriber's requested resume range fell outside the bus's bounded buffer (per §12.5); payload includes the missing sequence range and the durable-projection reload hint
 - `FilePartialWriteStaged` — live-partial-write capability wrote into a temp file (per `run.streaming-partial-execution`, File 04 §12)
 - `FilePartialWriteAborted` — staged temp file deleted on cancellation
 - `FilePartialWriteCommitted` — atomic rename moved the staged temp file to the destination
@@ -478,6 +485,7 @@ Every ledger entry declares its `kind` at commit. The canonical closed catalogue
 - `HookSubscriptionRegistered` — hook subscription added; payload includes subscription id, event kinds, mode, priority, timeout, fail-direction, authority class, source
 - `HookSubscriptionUnregistered` — subscription removed
 - `HookSubscriptionEnabledChanged` — subscription toggled at any scope
+- `HookSubscriptionRegistrationFailed` — a hook subscription failed to register (handler unresolved, source unavailable, or declaration invalid, per §13.2); payload includes the failure reason and the subscription marked `unavailable`
 - `HookFired` — hook handler invoked at a matching event; payload includes hook id, event id, run-context references
 - `HookDecisionRecorded` — blocking hook returned a decision; payload includes the typed `HookDecision`
 - `HookTimedOut` — handler did not return within `timeout_ms`; payload includes the synthesized default decision and the configured fail-direction
@@ -503,6 +511,8 @@ Every ledger entry declares its `kind` at commit. The canonical closed catalogue
 - `CancellationRequested` — user or policy requested cancellation; payload includes the cancel target (run / run+children / specific child / specific tool call / specific sandbox), the requester, the cooperative-stop deadline
 - `CancellationProgressing` — cooperative stop in progress; payload includes the listeners that have acknowledged, the deadline countdown
 - `CancellationEscalated` — escalation to forceful termination after the deadline expired
+- `KillRequested` / `KillSucceeded` / `KillFailed` — forceful stop outcome for an individual process-like target (per `run.cancellation`, File 04 §17.3)
+- `CleanupCompleted` — cleanup outcome for staged files, sandboxes, subprocesses, browser sessions, and orphanable resources
 - `CancellationCompleted` — final cancellation outcome; payload includes the affected run / child-run / tool-call ids, cleanup performed, cooperative-vs-escalated-vs-forceful classification, partial outputs retained or discarded, final status
 - `OrphanOutputDetected` — listener reported completion after the run was already cancelled; payload includes the orphan reference
 - `InterventionRecorded` — explicit user intervention during execution (per `run.user-intervention`, File 04 §17.1); payload includes the intervention kind (`continuation_with_new_instruction`, `pause`, `cancel`, `branch`, `reroute`, `approval_grant`, `approval_denial`, `scope_narrowing`, `explicit_takeover`), the actor
@@ -546,15 +556,26 @@ Domain-specific workspace, source-control, browser, perception, system-watch, me
 **System / app lifecycle:**
 
 - `AppStarted` — application initialized; payload includes versions, settings snapshot id, registry snapshot id
-- `AppShuttingDown` — graceful shutdown initiated with grace period (per cross-cutting infrastructure/lifecycle.md)
+- `AppShuttingDown` — graceful shutdown initiated with grace period (per the Runtime Infrastructure and Lifecycle spec, File 42)
 - `AppStopped` — application terminated
 - `BackgroundWorkerSpawned` / `BackgroundWorkerStopped` — background worker (memory consolidator, scheduler, audit writer, lineage tracker, watch poller)
 - `BackgroundWorkerHeartbeat` — periodic worker health signal
+- `BackgroundWorkerFailed` — a background worker failed (per §17.2); payload includes the worker identity, the typed failure, and the triggered recovery action
 - `LedgerCommitRejected` — a commit-time forgery guard or validation rule rejected an entry; payload includes the proposed entry's fields (with sensitivity redaction) and the rejection reason
+
+**System change, settings, audit integrity, and replay:**
+
+- `SystemChangeApplied` / `SystemChangeRolledBack` — a system-state mutation was applied or rolled back (declared by System Agent, runtime infrastructure, or security specs; audit-tier per §16.4)
+- `SettingChanged` — a setting changed (per `run.event-stream`, File 04 §23.2 and File 15); affected subscriptions recompose and affected ledger queries re-evaluate
+- `SensitivityReclassified` — an entry's sensitivity was reclassified after commit; a sibling entry per §18 that leaves the original entry unmodified
+- `AuditChainTamperDetected` — audit-chain verification found a hash mismatch (per §16.5); payload includes the offending entry's `ledger_entry_id`
+- `ReplayRun` — a replay executed over the ledger (per §11.4); payload includes mode, source run id, comparison outcome
 
 **Custom extension:**
 
 - `Custom { namespace, name, payload }` — subsystem-, surface-, plugin-, MCP-, API-, or user-defined kind registered through proposal-first registration. Registration follows `capability.runtime-mutation` (File 05 §16.2). The registration declares the namespace, schema id/version, payload shape, allowed cross-reference keys, default sensitivity, retention class, owner, and canonical event vocabulary the kind participates in.
+
+Every `LedgerEntryKind` and `AppEvent` name cited normatively anywhere in the canon must appear in this closed catalogue or be a registered `Custom { namespace, name }` kind. A kind referenced by another section or spec but absent here is a catalogue defect to be corrected by a canonical-spec change, not a signal to fall back to `Custom`.
 
 ### 4.2 Kind Composition Rules
 
@@ -605,7 +626,7 @@ The bus is not:
 - the durable execution history — that is the `ExecutionLedger`; the bus is live coordination
 - a parallel message queue per subsystem — there is one bus; subsystems subscribe with filters
 - a place where consequential events disappear — every consequential event is also recorded as a ledger entry
-- a substitute for typed errors — error propagation through services uses `Result<T, AppError>` (per cross-cutting/errors.md); the bus carries `TypedErrorRaised` events as observations of errors, not as the error-propagation channel itself
+- a substitute for typed errors — error propagation through services uses `Result<T, AppError>` (per `core.typed-errors`, File 01 §6.9); the bus carries `TypedErrorRaised` events as observations of errors, not as the error-propagation channel itself
 
 The bus is:
 
@@ -648,15 +669,15 @@ Every event is an `AppEvent` variant. The closed canonical catalogue is the same
 - `ReasoningChunk` — model reasoning delta during streaming (per `capability.permission-policy-fields`, File 05 §3.5 sensitivity defaults; `Sensitive` by default)
 - `BlockStreamStarted` — a block began streaming (the durable counterpart is `StreamStarted`; the transient form notifies the UI immediately)
 - `BlockStreamCompleted` — a block finished streaming (durable counterpart is `StreamCompleted`)
-- `ContextAssembled` — context assembly produced a model request (per cross-cutting/context-assembly.md); payload includes budget breakdown
-- `ContextBudgetWarning` — context approached a budget (per cross-cutting/context-assembly.md)
+- `ContextAssembled` — context assembly produced a model request (per File 13); payload includes budget breakdown
+- `ContextBudgetWarning` — context approached a budget (per File 13)
 - `CompactionStarted` / `CompactionCompleted` — compaction pipeline events (per File 13)
-- `UiPanelRegistered` / `UiPanelUnregistered` / `UiPrimaryPanelChanged` / `UiSelectionChanged` / `UiModeChanged` / `UiAvailableCapabilitiesRecomputed` — UI state-awareness events (per cross-cutting/state-awareness.md)
+- `UiPanelRegistered` / `UiPanelUnregistered` / `UiPrimaryPanelChanged` / `UiSelectionChanged` / `UiModeChanged` / `UiAvailableCapabilitiesRecomputed` — UI state-awareness events (per File 18)
 - `UiThemeChanged` / `UiKeybindingChanged` / `UiLayoutChanged` — UI customization events
 - `DebugLog` — structured log entry (sensitive by default; secret content always redacted)
 - `EventBufferOverflow` — a subscriber's bounded buffer overflowed; the subscriber transitions to `degraded` state
 - `Ping` / `Pong` — heartbeat events for cross-tab or remote subscribers
-- `SocketIoMessage` — gateway-bridge wire message (for systems exposing the bus over network transports)
+- `GatewayBridgeMessage` — transport-neutral gateway-bridge wire message for remote subscribers (for systems exposing the bus over network transports)
 - `Heartbeat` — periodic liveness signal from a background worker
 
 All `LedgerEntryKind` variants from §4 are also `AppEvent` variants; the consequential events fan out to both the bus (live coordination) and the ledger (durable record).
@@ -718,13 +739,13 @@ The bridge implementation is owned by the Runtime Infrastructure and Lifecycle s
 
 ### 5.8 Boundary
 
-The event bus is the live coordination substrate. It does not own:
+The event stream is the live coordination substrate. It does not own:
 
 - the underlying transport (Tauri, SSE, WebSocket, Unix socket, MCP — File 42)
 - the durable persistence of consequential events (File 20)
 - the cross-device sync mechanics (File 21)
 - the UI rendering of event-driven updates (File 37 and File 38)
-- the typed-error propagation through services (cross-cutting/errors.md)
+- the typed-error propagation through services (per `core.typed-errors`, File 01 §6.9)
 - the policy-evaluation logic that consumes events (File 06)
 
 It does own the wire-format contract, the envelope, the closed `AppEvent` catalogue, the delivery and ordering semantics, the aggregation policies, the sensitivity rules at emission, and the subscription contract.
@@ -755,7 +776,7 @@ The required schema:
 - `cache_creation_tokens` — cache write tokens when the provider exposes or can derive them
 - `cache_read_tokens` — cache hit tokens when the provider exposes or can derive them
 - `reasoning_tokens` — extended-thinking tokens (when the provider exposes them; `None` otherwise)
-- `request_id` — provider-supplied request id (for cross-referencing with provider dashboards or audit)
+- `provider_request_id` — provider-supplied request id (for cross-referencing with provider dashboards or audit)
 - `token_source` — the typed `TokenSource` (§6.3) indicating accuracy provenance
 - `usage_source` — provider-reported, local-estimated, provider-counting-endpoint, multimodal-estimated, or mixed
 - `cost_calculated_at` — timestamp of cost calculation when cost is displayed or stored as a projection
@@ -822,7 +843,7 @@ Anchor: `ledger.hook`
 
 ### 7.1 Definition
 
-A `Hook` is a typed subscriber on the canonical event bus. It is the canonical extensibility primitive: every component that wants to react to system events, intercept proposed actions, or extend the runtime registers as a `Hook` against the bus.
+A `Hook` is a typed subscriber on the canonical event stream. It is the canonical extensibility primitive: every component that wants to react to system events, intercept proposed actions, or extend the runtime registers as a `Hook` against the bus.
 
 Hook registration is unified; dispatch is not. Blocking hooks run through interceptable boundary dispatch before the proposed action proceeds. Non-blocking hooks observe emitted events through the live bus after the authoritative subsystem has emitted or recorded the fact.
 
@@ -883,10 +904,10 @@ Each hook declares an `authority_class` (per `policy.internal-composition-policy
 
 - `observe_only` — may emit notes and explanations through `DebugLog` events; may not produce a `Block`, `Substitute`, or `RedirectSuggestion` decision; the executor treats any non-`Continue` decision from an `observe_only` hook as `Continue` plus a recorded warning
 - `narrowing_only` — may produce `Block`, `Substitute { substitution_kind: narrowing_only | redaction }`, or `RedirectSuggestion`; may not produce `Continue` that bypasses a prior hook's stricter decision
-- `allow_capable` — may produce `Continue` even when prior hooks expressed concern (used by the approval router and equivalent terminal-authority hooks); registered only by `Builtin`, `Subsystem`, `Verified`, or explicitly user-approved sources
+- `allow_capable` — may produce `Continue` even when prior hooks expressed concern (used by the approval router and equivalent terminal-authority hooks); registered only by `Builtin` or `Subsystem` sources, by sources the user has raised to `Verified` trust state, or by explicitly user-approved sources
 - `substitute_capable` — may produce `Substitute { substitution_kind: transparent_redirect }` (changing the target capability while preserving semantics); registered with the same trust restriction as `allow_capable`
 
-`Community`, `Unverified`, `Plugin`, `McpServer`, `Api`, and `UserDefined` sources default to `narrowing_only` until the user explicitly upgrades authority through source-approval (per `policy.source-approval-flow`, File 06 §9). No hook can bypass `permission_floor`, typed-confirmation requirements, contradiction detection, or touched-resource constraints.
+`Plugin`, `McpServer`, `Api`, and `UserDefined` sources — and any source carrying `Community` or `Unverified` trust state — default to `narrowing_only` until the user explicitly upgrades authority through source-approval (per `policy.source-approval-flow`, File 06 §9). `Verified`, `Community`, and `Unverified` are trust-state overlays over a source (registered-entry state per `capability.trust-source-approval-flow`, File 05 §9.2), not `source` enum variants (§7.1). No hook can bypass `permission_floor`, typed-confirmation requirements, contradiction detection, or touched-resource constraints.
 
 ### 7.5 Timeout and Fail-Direction
 
@@ -1041,9 +1062,9 @@ Shell-script hooks operate over a typed JSON wire protocol:
 }
 ```
 
-The `context_modification` field is a hook-specific extension allowing the hook to add attributed text to the next model request (per the cline pattern); it is consumed by the agent loop when the hook is on a user-input-submitted or `PreToolUse`-equivalent event.
+The `context_modification` field is a hook-specific extension allowing the hook to add attributed text to the next model request; it is consumed by the agent loop when the hook is on a user-input-submitted or `PreToolUse`-equivalent event.
 
-The `system_message_injection` field similarly injects a system-level note (e.g., "memory available" hint from claude-mem; "loop detected" warning from openclaw).
+The `system_message_injection` field similarly injects a system-level note (e.g., a "memory available" hint or a "loop detected" warning).
 
 - **stderr**: any output here is captured as a `DebugLog` event with `Sensitive` sensitivity, attributed to the hook. The runtime does not require stderr to be empty.
 - **exit codes**: exit code 0 means the stdout JSON is the decision. Exit code 2 (or other configured "client bug" codes) indicates a client-side bug and produces `HookHandlerError`. Non-2 non-zero exit codes are treated as transport failures and produce `HookHandlerError`; the synthesized default decision applies per fail-direction rules.
@@ -1053,7 +1074,7 @@ The runtime enforces:
 - the timeout: kills the handler process at `timeout_ms`
 - `Secret`-tagged payloads: never written to stdin in raw form; the runtime substitutes safe labels per per-field sensitivity_field_map (per `block.per-field-override`, File 08 §9.2)
 - the working directory: the hook's declared working directory; default is the active workspace root
-- the environment: the runtime passes a minimal allowlist of environment variables (per shell-operations.md); additional variables are declared in the hook's `env` configuration
+- the environment: the runtime passes a minimal allowlist of environment variables (per File 23); additional variables are declared in the hook's `env` configuration
 
 ### 9.3 `InvokeCapability` Semantics
 
@@ -1115,9 +1136,9 @@ The redaction happens at commit, not at query time. The runtime ensures that no 
 
 Retention is configurable per sensitivity class through settings:
 
-- `events.retention.public` — policy default, commonly indefinite unless user-controlled storage management says otherwise
-- `events.retention.sensitive` — policy default, configurable per source class, workspace, and export/sync profile
-- `events.retention.secret` — N/A for raw content; safe descriptions follow `events.retention.sensitive`
+- `ledger.retention.public` — policy default, commonly indefinite unless user-controlled storage management says otherwise
+- `ledger.retention.sensitive` — policy default, configurable per source class, workspace, and export/sync profile
+- `ledger.retention.secret` — N/A for raw content; safe descriptions follow `ledger.retention.sensitive`
 
 Per-event-kind retention overrides are configurable: a noisy event kind (e.g., `ToolCallStreamingPartial`) may have shorter retention than other entries. The override applies to durable storage only; the bus delivery is unaffected.
 
@@ -1129,26 +1150,16 @@ Retention and pruning decisions are themselves durable facts. No storage layer m
 
 A subset of ledger entries (security-sensitive operations) is also represented in a local hash-chained audit overlay for tamper-evident integrity:
 
-- entries: an infrastructure-owned local audit-chain file
-- structure: `{ ledger_entry_id, timestamp, actor, action, target, canonical_redacted_entry_hash, prev_entry_hash, entry_hash, device_id, chain_id }`
-- chain: `entry_hash = sha256(prev_entry_hash + canonical_redacted_entry_hash + timestamp + actor + action + target + device_id)`
-- per-device only — the audit log NEVER syncs across devices; each device's hash chain has its own integrity
+- entries: an infrastructure-owned local audit-chain file whose records are canonical `AuditChainEntry` values (the field set is fixed by §16.2)
+- chain: each `AuditChainEntry`'s `entry_hash` is the canonical hash of that record — computed over its declared `CanonicalEncoding` per `core.canonical-hash` (File 01 §7.14), never a bare field concatenation — covering `prev_entry_hash`, `canonical_redacted_entry_hash`, `actor`, `action`, `target`, `timestamp`, `device_id`, and `chain_id`
+- algorithm pinning — the hash algorithm is pinned per chain at its genesis and named in the chain's declared encoding (per `core.canonical-hash`, File 01 §7.14); changing the algorithm is an encoding change that begins a new chain generation rather than rehashing an existing chain
+- per-device only — the audit log NEVER syncs across devices; each device's hash chain has its own genesis and integrity
 - never replaced by ordinary ledger — the audit log is an integrity overlay; every audit entry references an ordinary ledger entry, but only the audit overlay carries the hash chain
 - never disabled — even when telemetry / logging is disabled, security-sensitive operations write to the audit log
 
-Operations that flow through the audit log:
+The canonical operation classes that flow through the audit log are the single 12-class membership list defined in §16.4; this section does not maintain a second list.
 
-- every approval verdict (`PolicyDecisionMade`)
-- every lease grant / revoke (`LeaseGranted`, `LeaseRevoked`)
-- every typed-confirmation completion (`TypedConfirmationSatisfied`)
-- every floor violation (`PolicyFloorViolated`)
-- every source approval / denial (`SourceRegistrationApproved`, `SourceRegistrationDenied`)
-- every credential or secret operation registered by the Security, Credentials, and Trust Boundaries spec, including secret storage, backend-only resolution-for-use, rotation, revocation, deletion, export, and vault backup/restore
-- every system-state mutation (`SystemChangeApplied`, `SystemChangeRolledBack`)
-- every hard delete (`BlockHardDeleted`, `ArtifactHardDeleted`)
-- every `DeniedFloorOverridden`
-
-The audit overlay is verifiable: a verifier computes `entry_hash` for each audit overlay entry in order and checks it matches the recorded `entry_hash`. Any mismatch produces `AuditChainTamperDetected` event (high-severity, surfaced to the user, halts sync of the affected device).
+The audit overlay is verifiable: a verifier computes `entry_hash` for each `AuditChainEntry` in order and checks it matches the recorded `entry_hash`. Any mismatch produces an `AuditChainTamperDetected` event (high-severity, surfaced to the user, halts sync of the affected device).
 
 ### 10.6 Export and Share Filtering
 
@@ -1232,7 +1243,7 @@ Anchor: `ledger.streaming-live-partials`
 
 ### 12.1 Streaming Categories
 
-The system streams several kinds of partial output through the event bus:
+The system streams several kinds of partial output through the event stream:
 
 - **Model text deltas** — `MessageChunk` events for token-by-token model output
 - **Reasoning deltas** — `ReasoningChunk` events for extended-thinking content (default `Sensitive`)
@@ -1291,7 +1302,7 @@ This is bounded and best-effort. When the stream cannot replay the missing range
 For coordination across multiple browser tabs, multiple processes, or multiple devices, the bus exposes coordination channels:
 
 - intra-process: the bus itself, with in-memory broadcast
-- intra-device cross-tab: BroadcastChannel pattern (per the bolt-diy and terax-ai pattern in batch-05) for browser-based UIs
+- intra-device cross-tab: BroadcastChannel pattern for browser-based UIs
 - inter-process: Tauri events (or equivalent transport) for backend-to-frontend
 - inter-device: cross-device sync (File 21); the bus does not directly cross devices (File 21 handles propagation)
 
@@ -1322,21 +1333,16 @@ The following hook-related state is computed:
 
 ### 13.2 Startup Sequence
 
-On startup (per cross-cutting infrastructure/lifecycle.md):
+Within the `hooks` startup phase (per §17.1 step 4, after the event stream, the capability registry, and the settings cascade are ready and before background workers spawn), hook subscriptions register in this sub-sequence:
 
-1. the event bus initializes (subscriber registry empty)
-2. built-in capability declarations register (per `capability.startup-registration`, File 05 §16.1 phase 1)
-3. built-in hook subscriptions register (the approval router, structured-logging audit, telemetry collector, stuck detectors, completion-forgery guard)
-4. subsystems load and register their hooks
-5. plugins load and register their hooks subject to source-approval state
-6. MCP servers connect and register hooks subject to source-approval state
-7. external-API definitions load
-8. user-defined hooks register from settings and file-based declarations
-9. background workers spawn and subscribe to their triggering events
-10. the bus enters operational state
-11. `AppStarted` ledger entry committed
+1. built-in hook subscriptions register (the approval router, structured-logging audit, telemetry collector, stuck detectors, completion-forgery guard)
+2. subsystems register their hooks
+3. plugins register their hooks subject to source-approval state
+4. MCP servers register their hooks subject to source-approval state
+5. external-API definitions register their hooks
+6. user-defined hooks register from settings and file-based declarations
 
-If a hook fails to register (handler unresolved, source unavailable, declaration invalid), the failure is recorded as a `HookSubscriptionRegistrationFailed` event and the hook is marked `unavailable` until the underlying cause resolves; startup does not abort.
+This section owns only the hook sub-sequence; the full startup phase ordering (infrastructure, registry, settings, hooks, background workers, UI, `AppStarted`) is owned by §17.1. If a hook fails to register (handler unresolved, source unavailable, declaration invalid), the failure is recorded as a `HookSubscriptionRegistrationFailed` event and the hook is marked `unavailable` until the underlying cause resolves; startup does not abort.
 
 ### 13.3 Runtime Mutation
 
@@ -1351,7 +1357,7 @@ Each capability call goes through the standard pipeline and produces the canonic
 
 ### 13.4 Shutdown
 
-On graceful shutdown (per cross-cutting infrastructure/lifecycle.md):
+On graceful shutdown (per the Runtime Infrastructure and Lifecycle spec, File 42):
 
 1. `AppShuttingDown` event emitted with the configured shutdown policy.
 2. new work is rejected or queued according to policy.
@@ -1436,7 +1442,7 @@ Every mechanism in this file is configurable through settings. The dimensions:
 - `hooks.discovery_path` — file-based hook discovery location, when infrastructure exposes one
 - `hooks.shell_script_allowlist` — explicit allowlist of shell-script hook handler commands per source class
 
-**Event bus configuration:**
+**Event stream configuration:**
 
 - `events.buffer_size_per_subscriber`
 - `events.aggregation.<event_kind>.batch_ms` — per-kind aggregation cadence
@@ -1511,7 +1517,7 @@ Per `policy.agent-exposure-policy-settings` (File 06 §16.4):
 
 ### 15.4 Settings Changes Emit Events
 
-Per `run.event-stream` (File 04 §23.2) and cross-cutting/settings.md, every settings change emits `SettingChanged` to the bus. Affected subscriptions recompose on receipt; affected ledger queries re-evaluate.
+Per `run.event-stream` (File 04 §23.2) and File 15, every settings change emits `SettingChanged` to the bus. Affected subscriptions recompose on receipt; affected ledger queries re-evaluate.
 
 ### 15.5 Boundary
 
@@ -1527,17 +1533,19 @@ The hash-chained audit log is a local integrity overlay on a subset of ledger fa
 
 ### 16.2 Required Fields
 
-Each audit-overlay entry carries:
+Each audit-overlay entry is a canonical `AuditChainEntry` record carrying:
 
 - `ledger_entry_id` — cross-reference to the corresponding ordinary ledger entry
 - `timestamp` — full-granularity
 - `actor` — user identity, agent identity, automation identity, system identity
 - `action` — typed verb (e.g., `approve_tool_call`, `grant_lease`, `revoke_lease`, `accept_typed_confirmation`, `apply_system_change`, `rollback_system_change`, `delete_block`, `delete_artifact`, `register_capability`, `approve_source`, `deny_source`)
 - `target` — the affected primitive (capability id, block id, artifact id, lease id, source id, etc.)
-- `canonical_redacted_entry_hash` — hash of the canonical redacted ledger entry or safe summary
+- `canonical_redacted_entry_hash` — canonical hash (per `core.canonical-hash`, File 01 §7.14) of the canonical redacted ledger entry or safe summary
 - `prev_entry_hash` — the prior entry's `entry_hash`; for the first entry, the genesis hash (zero bytes or installation-specific genesis seed)
-- `entry_hash` — hash over the prior hash, canonical redacted entry hash, actor, action, target, timestamp, device id, and chain id
+- `entry_hash` — the canonical hash of the record (per `core.canonical-hash`, File 01 §7.14) over `prev_entry_hash`, `canonical_redacted_entry_hash`, `actor`, `action`, `target`, `timestamp`, `device_id`, and `chain_id`; the hash algorithm is pinned per chain at genesis and named in the chain's declared encoding, so an algorithm change starts a new chain generation rather than rehashing the chain
 - `device_id` and `chain_id` — identify the local chain
+
+The `entry_hash` is computed over the record's declared `CanonicalEncoding`, never a bare field concatenation; §10.5 states the same chain rule, so the two sections describe one record shape and one hash rule.
 
 ### 16.3 Per-Device Integrity
 
@@ -1588,9 +1596,9 @@ Anchor: `ledger.lifecycle-integration`
 
 ### 17.1 Startup Phases
 
-Startup (per cross-cutting infrastructure/lifecycle.md and `capability.startup-registration` (File 05 §16.1)):
+Startup (per the Runtime Infrastructure and Lifecycle spec, File 42, and `capability.startup-registration` (File 05 §16.1)):
 
-1. infrastructure: SQLite / libsql open, schema migrations applied, file system watchers spawned, event bus initialized
+1. infrastructure: SQLite / libsql open, schema migrations applied, file system watchers spawned, event stream initialized
 2. registry: capability declarations register (built-in → subsystem → plugin → MCP → API → user-defined)
 3. settings: settings cascade resolves, settings change watchers spawn
 4. hooks: hook subscriptions register per §13.2
@@ -1624,7 +1632,7 @@ Anchor: `ledger.explicit-rejections`
 
 The following shapes are wrong for this layer:
 
-- a parallel event bus, parallel ledger, or parallel hook system — every event flows through one bus, every consequential fact persists to one ledger, every extensibility point is a hook on the canonical bus; subsystems, plugins, MCP servers, and user-defined sources never invent parallel mechanisms
+- a parallel event stream, parallel ledger, or parallel hook system — every event flows through one bus, every consequential fact persists to one ledger, every extensibility point is a hook on the canonical bus; subsystems, plugins, MCP servers, and user-defined sources never invent parallel mechanisms
 - silent execution: any capability invocation that does not produce a `ToolCallProposed` followed by either `ToolCallExecuted` plus `ToolCallCompleted` or `ToolCallFailed` or `ToolCallDenied` violates the canonical pipeline contract; every consequential action is recorded
 - silent hook decisions: any blocking hook that returns a decision without emitting `HookDecisionRecorded`, or any timeout / error without `HookTimedOut` / `HookHandlerError`, is invalid
 - unkeyed model-dependent scalars: token counts, costs, cache statistics, or any model-dependent value as an unkeyed integer or float on a ledger row violates `core.explicit-rejections` (File 01 §8) and is rejected at commit
@@ -1633,7 +1641,7 @@ The following shapes are wrong for this layer:
 - ledger entries with payload schemas outside the closed canonical catalogue plus registered `Custom` extensions — every entry is typed
 - time-based hook firing: hooks fire only on event emission; the runtime never polls for hooks; periodic background work uses background workers (per §17.2), not hook-polling
 - hard-coded hook timeouts: every timeout is a settings dimension; canonical defaults exist but the user can override per category
-- hooks that bypass the event bus: a hook handler must dispatch through the standard `HookAction` taxonomy (`RunScript`, `InvokeCapability`, `EmitEvent`, `InternalHandler`); ad-hoc procedural execution is rejected
+- hooks that bypass the event stream: a hook handler must dispatch through the standard `HookAction` taxonomy (`RunScript`, `InvokeCapability`, `EmitEvent`, `InternalHandler`); ad-hoc procedural execution is rejected
 - hooks that mutate the ledger directly: hooks emit decisions that the executor records as `HookDecisionRecorded` entries; hooks do not write ledger entries themselves
 - implicit ledger inference from events: events are live coordination; consequential events must be explicitly committed to the ledger by the executor / emitter; the ledger never silently materializes from event observation
 - live events as durable history: events are transient; the ledger is durable; pure UI-coordination events do not persist
@@ -1668,7 +1676,7 @@ Every later spec that produces or consumes execution facts, emits or subscribes 
 
 The canonical principles later specs must follow:
 
-- emit events through the canonical bus with the standard envelope; never invent a parallel event bus or omit envelope fields
+- emit events through the canonical bus with the standard envelope; never invent a parallel event stream or omit envelope fields
 - record consequential facts to the ledger through the canonical `LedgerEntry` mechanism; never invent a parallel durable record store
 - register extensibility points as `Hook` subscriptions on the canonical bus; never invent a parallel hook system or middleware chain
 - honor the typed `HookDecision` vocabulary (`Continue`, `Substitute`, `Block`, `RedirectSuggestion`); never invent new decision shapes
@@ -1688,4 +1696,4 @@ Specific integration contracts:
 - Model Strategy, Provider, Rate Limits, and Usage Accounting consume `TokenUsageRecord`, provider identity, tokenizer identity, and pricing snapshots; they must not store unkeyed token or cost scalars.
 - World Model, Settings, Storage, Sync, Security, Sandbox, Process Control, Workspaces, Control Rails, Plugins, MCP integrations, UI, Quality Control, Evaluation, Telemetry, Runtime Infrastructure, and Packaging consume this file's envelope, delivery-class, sensitivity, hook, audit-overlay, replay, and ledger contracts.
 
-Specific integration contracts will be stated in those specs when they are written. Until then, the canonical contract here is the load-bearing reference for every spec that touches execution recording, live coordination, or extensibility.
+Specific integration contracts will be stated in those specs. Until then, the canonical contract here is the load-bearing reference for every spec that touches execution recording, live coordination, or extensibility.

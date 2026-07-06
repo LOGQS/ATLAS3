@@ -170,7 +170,7 @@ Anchor: `capability.permission-policy-fields`
 - `permission_floor`: optional minimum tier that global settings cannot lower (§5.4)
 - `capability_class`: `InternalAnalysis`, `ActionExternal`, `UserArtifact`, or `Unknown`; policy-critical class consumed by File 06 for default template selection and trust escalation. Tags may mirror this value for discovery, but tags are not the source of truth.
 - `approval_template_id`: optional identifier for the default approval-policy template used when policy escalates (template definitions live in File 06)
-- `data_sensitivity`: default sensitivity class for events and outputs the capability emits (`Public`, `Sensitive`, `Secret`); per `run.event-stream` (File 04 §23.2)
+- `data_sensitivity`: optional default sensitivity class for events and outputs the capability emits (`Public`, `Sensitive`, `Secret`); when omitted, the conservative default configured by policy applies, so the field is not part of the §2.2 required set; per `run.event-stream` (File 04 §23.2)
 
 ### 3.6 Execution-Semantic Fields
 
@@ -185,7 +185,7 @@ These fields are declared in `run.call-pipeline` (File 04 §8.2) and referenced 
 - `partial_output_meaningful`: bool
 - `cooperative_stop_deadline_ms`: u64 with policy default
 - `sibling_abort_on_failure`: bool
-- `resume_on_restart`: bool with optional resume handler reference
+- `resume_on_restart`: bool with an optional `resume_handler_ref` — a serializable handler reference (of the §3.12 backend-descriptor kinds) the registry resolves to a live binding that reconstructs and continues an interrupted call from its persisted invocation record; when the bool is true and no `resume_handler_ref` is declared, the capability's primary backend descriptor is reused with the persisted record as input (§16.6)
 - `result_bounding`: optional declaration for large outputs: inline excerpt shape, full-output reference kind, and sensitivity/locality handling
 - `terminal_result_hint`: optional declaration that successful results may carry a terminal-result hint consumed by File 04
 
@@ -212,7 +212,7 @@ Trust state and registration timestamp are not declaration fields; they live on 
 Anchor: `capability.availability-fields`
 
 - `availability_predicate`: declarative requirements and blockers evaluated against world-model state (§15.2)
-- `platforms`: optional platform constraint list (`windows`, `macos`, `linux`, `mobile`, etc.); a capability whose platforms list omits the current platform is catalogued as `availability_status: unavailable_platform` on the registered entry rather than absent (§9.4, §10)
+- `platforms`: optional platform constraint list (`windows`, `macos`, `linux`, `mobile`, etc.); a capability whose platforms list omits the current platform is catalogued as `availability_status: UnavailablePlatform` on the registered entry rather than absent (§9.4, §10)
 - `prerequisite_capabilities`: optional list of scoped prerequisites that must have been invoked previously before this capability becomes invocable (§15.3)
 
 The `enabled` flag is registry state, not a declaration field; it lives on the registered entry (§10). The settings system scopes enable state per workspace, conversation, or globally without mutating the declaration.
@@ -311,7 +311,7 @@ Anchor: `capability.permission-tier-declaration`
 
 ### 5.1 Tier Set
 
-The permission-tier set is canonical (`run.approval-during-execution`, File 04 §11): `Denied`, `ReadOnly`, `WorkspaceWrite`, `UserApproval`, `Unrestricted`, with the `typed-confirmation` mode as a variant of `UserApproval`.
+The permission-tier set is canonical (`run.approval-during-execution`, File 04 §11): `Denied`, `ReadOnly`, `WorkspaceWrite`, `UserApproval`, `Unrestricted`, with the `typed-confirmation` mode as a variant of `UserApproval`. Their restrictiveness ordering — `Unrestricted < ReadOnly < WorkspaceWrite < UserApproval < Denied` — is owned by File 06 §4 (`policy.effective-tier-resolution`); the declaration-order of the set named above is not that ladder, and File 05 defers to File 06 §4 for all tier comparison and clamping.
 
 ### 5.2 `TierResolver`
 
@@ -326,7 +326,7 @@ The dynamic case exists because some capabilities are inherently argument-sensit
 
 Argument-aware resolvers are themselves registered, named, and inspectable. A capability declares the resolver by id; the resolver's behavior must be deterministic given the same arguments and world-model snapshot. Resolvers are not capabilities (they do not execute work) but they are registry-managed declarations; the resolver registry is colocated with the Capability Registry.
 
-The resolver declaration belongs to the declaration. The resolved tier for a given call belongs to the invocation record (§11). File 06 computes the final effective tier and approval path.
+The resolver declaration belongs to the declaration. The resolved tier for a given call belongs to the invocation record (§11). File 06 computes the final effective tier and approval path, ordering and clamping tiers against the restrictiveness ladder it owns (`policy.effective-tier-resolution`, File 06 §4).
 
 ### 5.3 Tier Composition With Leases
 
@@ -375,8 +375,9 @@ The canonical top-level resource classes are a closed enumerable set:
 - `ui-element`
 - `sub-agent`
 - `scheduler`
+- `capability-registry`
 
-These cover the resource kinds the canonical execution, policy, isolation, settings, and ledger layers reason about. The closed set keeps policy-side resource matching, lease-scope inclusion checks, and conflict detection deterministic.
+These cover the resource kinds the canonical execution, policy, isolation, settings, and ledger layers reason about. `capability-registry` is the twelfth class: it covers reads of and mutations to the registry itself — capability entries, source entries, registry projections, and registration authority — so that `register`, `unregister`, `enable`/`disable`, and `tools.register_custom` (§16.2) are policy-gated as first-class resource access rather than through prose alone. The closed set keeps policy-side resource matching, lease-scope inclusion checks, and conflict detection deterministic.
 
 ### 6.3 Extension Resource Classes
 
@@ -398,6 +399,14 @@ Expressions are structured terms over the input schema and registered ambient va
 - external account: `connector.account(args.account_id).mailbox(args.mailbox_id)`
 - setting key: `setting.key(args.key).scope(args.scope)`
 - process group: `process.group(run_id)`
+
+The indicative shapes above are surface syntax over a normative term grammar that File 05 pins so that parsing, resolution, and policy containment are deterministic across implementations:
+
+- `ResourceExpression` — a term naming a resource `class` (§6.2 canonical or §6.3 extension), an `access` mode (§6.1), and a `scope` composed of `ResourceValue` terms. It is the parsed form stored in `touched_resources`; an expression that does not parse into this shape fails registration with `UnparseableResourceExpression` (§12.3).
+- `ResourceValue` — the scope operands: a literal (a host, a path, a setting key), an argument binding `args.<field>` resolved against invocation arguments at call time (§11), a derivation over another value (`shell.parse(args.command).filesystem_writes`), or a containment qualifier (`.within(...)`, `.scope(...)`) over a base value.
+- `AmbientValue` — the registered ambient operands a `ResourceValue` may reference (`workspace_root`, the current process group id, `run_id`, `conversation_id`, current credential-vault keys), resolved from the run and world-model context rather than from arguments.
+
+Policy decides lease-scope inclusion by evaluating a three-way `Containment` over two resolved expressions of the same class: `Contains` (the reference scope wholly contains the call's resolved scope), `Disjoint` (the scopes cannot overlap), or `Undetermined` (containment cannot be decided from the resolved terms — for example a derived expression whose values are not statically comparable). `Undetermined` is never treated as `Contains`: an undetermined containment forces the conservative outcome (no silent lease match; the call escalates to approval per File 06). This keeps containment total and side-safe even when a scope is only partially resolvable.
 
 File 05 owns the canonical resource-expression grammar used in `CapabilityDeclaration.touched_resources`; this file requires that expressions are machine-parseable, that argument-bound expressions reference `args.*` field paths by name, and that the expression resolves to the concrete resources policy must check. File 06 consumes resolved expressions for policy evaluation, containment, lease matching, and approval decisions; it does not define the grammar.
 
@@ -453,7 +462,7 @@ Every declaration carries a `replay_class`:
 - `effect_replayable_with_policy` — the call causes external effects (sending an email, calling a payment API, mutating a database) and may be reissued only through policy; the contract names the policy hook the replay must consult before reissuing
 - `not_replayable` — cannot be reproduced across process/device/session boundaries; closure-backed capabilities, capabilities depending on transient runtime handles, and inherently uncontrolled side-effects fall here
 
-The author classifies based on the call shape, not on per-call state — whether the file referenced by `args.path` still exists at replay time is a snapshot/policy concern, not a declaration concern. The replay layer (per `run.execution-ledger`, File 04 §23.1 and File 10) consumes `replay_class` to decide what evidence to record, what to require for replay, and what to refuse to reproduce.
+The author classifies based on the call shape, not on per-call state — whether the file referenced by `args.path` still exists at replay time is a snapshot/policy concern, not a declaration concern. The replay layer (`ledger.replay-semantics`, File 10 §11), reading the execution ledger (`run.execution-ledger`, File 04 §23.1), consumes `replay_class` to decide what evidence to record, what to require for replay, and what to refuse to reproduce.
 
 Closure-backed declarations (§3.12) must declare `replay_class: not_replayable`. Declaring otherwise is an Explicit Rejection (§19).
 
@@ -519,7 +528,7 @@ Every declaration names its source. The source is one of:
 - `Builtin` — compiled into the application binary; ships with every install; cannot be unregistered without an update
 - `Subsystem { subsystem_id }` — owned by a registered subsystem (work surface or substrate service such as Memory, Routing, Context Assembly, Retrieval, Knowledge Indexing, Settings, Evaluation, Policy); registered when the subsystem registers; loaded as part of the subsystem. A subsystem is any registered work surface or substrate service that owns capabilities. New subsystems may be added or removed through the subsystem-registration capability (proposal-first per §16.2), so subsystem composition itself is first-class and customizable.
 - `Plugin { plugin_id, plugin_version }` — bundled in a plugin (per `core.extension-planes`, File 01 §6.14 extension planes; see File 35); registered when the plugin loads; unregistered when the plugin unloads
-- `McpServer { server_id, server_uuid, server_version }` — sourced from an external Model Context Protocol server; registered when the server connects; unregistered when the server disconnects
+- `McpServer { server_id, server_uuid, server_version }` — sourced from an external Model Context Protocol server (connector); registered when the connector is added; unregistered on connector removal — a transient disconnect disables the entry (§16.3) rather than unregistering it (§16.5)
 - `Api { api_name, api_definition_path }` — sourced from a user-authored external-API TOML or equivalent declarative definition; registered when the definition file is loaded
 - `UserDefined { backend, scope }` — registered at runtime by the user or, with explicit user approval, by the agent through a capability-registration capability; backend is `Wasm` or `Shell` (per `run.interruption-pause-cancellation`, File 04 §17 self-modification); scope is `conversation`, `workspace`, or `global`
 
@@ -533,7 +542,7 @@ Trust is registry state, not a declaration field. The declared source carries so
 
 - `declared_trust_hint`: the trust class the source asserts (for plugins, the plugin manifest's claim; for MCP servers, the configured server trust)
 - `registry_trust_override`: any explicit user override applied through settings
-- `effective_trust`: `System` (Builtin/Subsystem), `Verified`, `Community`, `Unverified`, or `User` (UserDefined/Api), computed from the hint and any override
+- `effective_trust`: `System` (Builtin/Subsystem), `Verified`, `Community`, `Unverified`, `Sideloaded`, or `User` (UserDefined/Api), derived from registration evidence (provenance, install-time manifest review, source-integrity verification) together with any `registry_trust_override`; the `declared_trust_hint` is one input to that derivation, never by itself the determinant (per File 22 §9.4)
 
 Trust does not rewrite declared fields. A capability declaring `permission_tier: WorkspaceWrite` from a `Community`-trust MCP server retains the declared `WorkspaceWrite` in the registered entry. The policy layer reads declaration plus trust and resolves an effective tier of at least `UserApproval` by default for `Community` and `Unverified` sources; the user may explicitly upgrade trust per source. This keeps declarations honest and lets policy change when trust settings change without mutating capability versions.
 
@@ -551,11 +560,11 @@ There is no parallel "MCP tool list," "plugin tool list," or "user-tool list." A
 
 Anchor: `capability.platform-availability`
 
-Platform mismatch is registry availability state, not a registration filter. A declaration whose `platforms` list omits the current OS still registers; the registered entry carries `availability_status: unavailable_platform` and no resolved backend binding. Such capabilities are visible in settings, plugin inspection, dependency diagnostics, automation validation, and cross-device transparency, but are not invocable on the current platform.
+Platform mismatch is registry availability state, not a registration filter. A declaration whose `platforms` list omits the current OS still registers; the registered entry carries `availability_status: UnavailablePlatform` and no resolved backend binding. Such capabilities are visible in settings, plugin inspection, dependency diagnostics, automation validation, and cross-device transparency, but are not invocable on the current platform.
 
 A surface or discovery layer may hide unavailable capabilities from default views; advanced settings can reveal them so users understand why an automation that works on one device does not work on another. Equivalent semantic capabilities for different platforms (a Windows registry-write capability and a macOS plist-write capability) may share the same family and be selected by the routing layer based on the platform; capability ids remain platform-disambiguated.
 
-A capability that is registered as `Available` on Windows must not throw `PlatformUnsupported` on Linux; the executor never has to discover the mismatch by crashing a handler. The registered entry on Linux is `unavailable_platform` from registration onward.
+A capability that is registered as `Available` on Windows must not throw `PlatformUnsupported` on Linux; the executor never has to discover the mismatch by crashing a handler. The registered entry on Linux is `UnavailablePlatform` from registration onward.
 
 ## 10. `RegisteredCapability` — Registry State
 
@@ -568,7 +577,7 @@ A `RegisteredCapability` is the live registry entry produced when a `CapabilityD
 - `declaration`: the registered `CapabilityDeclaration` (immutable for the version)
 - `registered_at`: timestamp of registration
 - `enabled`: runtime enable flag distinct from existence; settings-scoped per workspace, conversation, or globally (§16.3)
-- `availability_status`: `Available` | `UnavailablePlatform` | `UnavailableHandler` | `UnavailablePrerequisite` | `Disabled` | `Shadowed`
+- `availability_status`: `Available` | `UnavailablePlatform` | `UnavailableHandler` | `UnavailablePrerequisite` | `Disabled` | `Shadowed` — a derived projection, not independently stored: it is computed from platform match (§9.4), backend-binding resolution (§10.4), prerequisite satisfaction (§15.3), the `enabled` flag, and `collision_state`, and reports the most fundamental active blocker in that order (platform, then handler, then prerequisite, then disabled, then shadowed). `Disabled` restates `enabled: false`, `Shadowed` restates `collision_state: Shadowed`, and `UnavailablePlatform` restates a platform mismatch; the underlying fields remain the source of truth and `availability_status` is the single read-surface over them
 - `resolved_backend_binding`: the live resolved handler reference (service-method handle, loaded Wasm module instance, MCP client adapter, HTTP client, in-process closure); never serialized into the declaration
 - `source_instance`: the registered source-instance reference (which loaded plugin, which connected MCP server, which loaded API definition file)
 - `contributing_bundle` (optional): `{ plugin_id, plugin_version }` when the capability is contributed by a plugin bundle but the runtime source is another source instance, such as a bundled MCP server or external API definition. This is distinct from `source_instance`: lifecycle and uninstall attribution may key on the contributing bundle while approval and runtime risk key on the actual source instance.
@@ -586,7 +595,7 @@ Mutations emit registry events (§12.2) so surfaces, settings, and the capabilit
 
 ### 10.3 Inactive Entries Remain Inspectable
 
-Disabled, shadowed, and `unavailable_platform` entries remain in the registry as inspectable catalogue records. They are not invocable but they appear in settings, diagnostics, plugin inspection, and dependency analysis. A user can see why a capability is unavailable, when it became unavailable, and what would re-enable it. Removal from the catalogue happens only through `unregister` (§16.5).
+Disabled, shadowed, and `UnavailablePlatform` entries remain in the registry as inspectable catalogue records. They are not invocable but they appear in settings, diagnostics, plugin inspection, and dependency analysis. A user can see why a capability is unavailable, when it became unavailable, and what would re-enable it. Removal from the catalogue happens only through `unregister` (§16.5).
 
 ### 10.4 Backend Binding Lifecycle
 
@@ -602,6 +611,8 @@ The declaration carries the serializable backend descriptor (§3.12). The regist
 - `Closure` — for runtime-registered closures (test fixtures, in-process plugins); not serializable; deregisters at process exit; declarations using `Closure` must declare `replay_class: not_replayable` (§7.3)
 
 The declaration is the contract. The binding is registry state. Diagnostics about binding failure (handler unresolved, MCP server unreachable, Wasm module load error) live on the registered entry; they do not invalidate the declaration.
+
+Two named states distinguish when a binding fails. `HandlerUnresolved` is the registration-time rejection (§12.3) when the backend descriptor cannot be bound at admission, so the declaration never enters the registry. `UnavailableHandler` is the runtime `availability_status` (§10.1) for an already-admitted entry whose previously-resolved binding later becomes unresolvable (the MCP connector is removed, the Wasm module is unloaded). Mirroring the platform rule (§9.4), a runtime binding loss marks the entry `UnavailableHandler` and refuses invocation in-band rather than discovering the loss by crashing the handler.
 
 ## 11. `CapabilityInvocation` — Per-Call Record
 
@@ -643,6 +654,8 @@ The Capability Registry must support:
 - `subscribe(events) -> Stream<RegistryEvent>` — registry mutation event stream
 - `resolve_for_invocation(id, args, world_state) -> Result<InvocationDescriptor, ResolutionError>` — resolve identity, version, alias, source-collision active winner, and prepare the invocation descriptor the executor consumes
 
+`InvocationDescriptor` is the resolved bundle `resolve_for_invocation` returns for the executor: the resolved `(id, version)`, the active (non-shadowed, enabled, available) registered entry, the resolved backend-binding reference, and any alias that matched. `ResolutionError` is the typed failure vocabulary when no such descriptor can be produced — capability-not-found, alias-ambiguous, no-active-entry (every colliding entry shadowed or disabled), pinned-version-not-found, or resolved-entry-unavailable (its `availability_status` is not `Available`). Resolution performs no execution; it hands the descriptor to the executor (`run.call-pipeline`, File 04 §8.2).
+
 The registry resolves; the executor invokes. The registry owns: registration, lookup, version resolution, alias resolution, source-collision active-entry selection, declaration validation, availability projection, and backend-binding resolution. The executor (`run.call-pipeline`, File 04 §8.2) owns: proposal, approval, tool-call execution, hooks, cancellation, streaming, ledger entries, and result blocks. The registry does not own an `execute` primitive; convenience facades that combine the two are explicit delegations to the execution runtime, not registry-owned execution.
 
 ### 12.2 Events
@@ -679,12 +692,12 @@ Anchor: `capability.id`
 A capability id is a stable, namespaced, lowercase, dotted string. The first segment names the source class; the remaining segments name the family and operation:
 
 - Built-in / subsystem capabilities: `<family>.<operation>` (e.g., `file.read`, `shell.exec`, `web.fetch`, `memory.recall`, `gui.click`, `teacher.explain`, `data.pdf.extract_text`)
-- Plugin-bundled capabilities: `plugin.<plugin_id>.<operation>` (or the plugin's declared namespace if it ships with one — `<plugin_namespace>:<operation>` is also accepted; the registry stores both forms and resolves equivalently)
-- MCP-sourced capabilities: `mcp.<server_id>.<remote_tool_name>` (the server_id is the user-visible server name, not the server UUID; the UUID is in the registered source instance)
+- Plugin-bundled capabilities: `plugin.<plugin_id>.<operation>` is the canonical stored id; a plugin that ships its own namespace may register as `<plugin_namespace>:<operation>`, which the registry normalizes to the canonical dotted form and records as an alias (§13.3) so lookups by either spelling resolve to the one registered entry
+- MCP-sourced capabilities: `mcp.<connector_slug>.<remote_tool_name>` (the `connector_slug` is a registry-assigned stable slug for the connector, not its mutable display name and not the server UUID; renaming the connector's display name does not change the slug, so saved ids and automations stay stable. The slug is derived at registration and recorded on the registered source instance alongside the `server_uuid`, which remains the connector's provenance identifier)
 - Registry-bridged external API capabilities: `api.<service_name>.<endpoint_id>`
 - User-defined capabilities: `custom.<scope>.<tool_id>` where scope is `conversation`, `workspace`, or `global`
 
-Ids are case-insensitive at lookup (registered case is preserved for display) and may not contain whitespace, slashes, or characters that conflict with the namespace separators (`.`, `:`, `__`). The registry rejects ids that do not conform.
+Ids are case-insensitive at lookup (registered case is preserved for display). The characters `.`, `:`, and `__` are namespace separators that delimit segments; a segment value may not itself contain those separators, whitespace, or slashes. The registry rejects ids that do not conform.
 
 ### 13.2 `family`
 
@@ -724,7 +737,7 @@ The version is part of the wire identity for replay and reproducibility: a ledge
 
 `schema_version` is the format version of the declaration itself, distinct from the capability's `version`. Increments allow the declaration field set to evolve (new metadata fields added, deprecated fields removed) without breaking older declarations: at registration the registry normalizes supported earlier `schema_version` declarations forward to the current format.
 
-ATLAS3 is in initial development; no third-party persisted declarations exist yet. A migration framework with chained migrations is therefore not required at present (per project constraints — no migration code for things that don't exist). The registry validates the current `schema_version` and rejects unknown versions; once external declarations begin to persist (plugins shipping declarations across releases, MCP adapters surviving Atlas upgrades), normalization-on-load will apply at that boundary.
+ATLAS3 is in initial development; no third-party persisted declarations exist yet. A migration framework with chained migrations is therefore not required at present (per project constraints — no migration code for things that don't exist). The registry validates the current `schema_version`, normalizes supported earlier versions forward, and rejects a `schema_version` newer than it supports with the typed `SchemaTooNew` registration error (§12.3); once external declarations begin to persist (plugins shipping declarations across releases, MCP adapters surviving Atlas upgrades), normalization-on-load will apply at that boundary.
 
 ### 13.6 Boundary
 
@@ -749,11 +762,9 @@ The default behavior is rejection. Replacement is opt-in and surfaced. Replay ca
 
 ### 14.2 Source Priority
 
-When a user explicitly opts into a capability override, source priority resolves:
+When a user explicitly opts into a capability override, source priority breaks the tie: `UserDefined` over `Plugin` over `Subsystem` over `Builtin`. This ladder is a tiebreak for an explicit override, not an automatic collision path. Because ids are source-prefixed (§13.1) — `custom.*`, `plugin.*`, `mcp.*`, and `api.*` versus the bare `<family>.<operation>` of built-in and subsystem capabilities — a plugin, user-defined, MCP, or external-API capability never id-collides with a built-in by its own id. The only bare-id collision that arises automatically is `Subsystem` against `Builtin`, which share the `<family>.<operation>` namespace; the ladder resolves that in the subsystem's favor, and then only with explicit user opt-in.
 
-`UserDefined` overrides `Plugin` overrides `Subsystem` overrides `Builtin`. `McpServer` and `Api` capabilities live in their own source-prefixed namespaces (`mcp.*`, `api.*`) and do not collide with other sources by id alone.
-
-Source priority does not auto-override. A user-defined capability that wishes to take over a built-in id must declare the override and the user must accept it; the registry then shadows the built-in registration. Shadowing is reversible: removing or disabling the user-defined capability restores the built-in.
+A source in a prefixed namespace reaches an override solely through the explicit-declaration path (§14.1): it declares the target built-in or subsystem id as an alias and offers itself as a replacement under its own id, and the user must accept it; the registry then shadows the prior registration. Source priority never auto-overrides. Shadowing is reversible: removing or disabling the shadowing capability restores the prior entry.
 
 ### 14.3 Layered Resources
 
@@ -813,7 +824,7 @@ The registry encodes the dependency declaration with its scope. The detailed pre
 
 ### 15.4 Runtime Discovery Capabilities
 
-Discovery is itself a capability surface. The canonical built-in discovery capabilities (per `run.routing-influence`, File 04 §10.3) — `tool.search`, `tool.borrow`, `mcp.search`, `extensions.search_registry` — are first-class registered capabilities. The agent invokes them through the same call pipeline, and their outputs flow as typed blocks that the agent loop consumes.
+Discovery is itself a capability surface. The canonical built-in discovery capabilities — the runtime-discovery roster `tool.search`, `tool.borrow`, and `mcp.search` owned by `surface.late-loading-runtime-discovery` (File 07 §7.1), together with the registry-facing `plugin.search_registry` — are first-class registered capabilities. The agent invokes them through the same call pipeline, and their outputs flow as typed blocks that the agent loop consumes.
 
 The built-in discovery capability set is canonical; surface tools and presentations may add subsystem-specific or family-specific discovery shortcuts. Discovery capabilities themselves declare `ReadOnly` permission tiers and declare the registry projections they read.
 
@@ -832,7 +843,7 @@ At application startup, the registry is populated in declared phases:
 3. Plugin capabilities register as plugins load (per File 35)
 4. MCP-sourced capabilities register as configured MCP servers connect (per File 36)
 5. External-API capabilities register as TOML definitions are loaded
-6. User-defined capabilities register from their persisted declarations (per `run.interruption-pause-cancellation`, File 04 §17 self-modification storage and the future user-defined capability storage spec)
+6. User-defined capabilities register from their persisted declarations (the `UserDefined` source per `capability.capability-source` (File 05 §9.1), admitted through the runtime-mutation path (§16.2); the declarations are persisted per File 35 §12 and File 20 §8)
 
 The phases are sequenced because later phases may register capabilities that override or alias earlier ones; the registry reaches a stable state when all phases complete.
 
@@ -855,7 +866,7 @@ Registration proposals preview source, declared permissions, declared touched re
 
 ### 16.3 `enabled`
 
-`enabled` is registry state, not a declaration field. A disabled capability remains in the registry (it appears in the catalogue with disabled status; `availability_status: Disabled`) but is not invocable. Disabling a capability is a settings-level operation; enabling restores invocability.
+`enabled` is registry state, not a declaration field. A disabled capability remains in the registry (it appears in the catalogue with disabled status; `availability_status: Disabled`) but is not invocable. Disabling a capability is a settings-level operation; enabling restores invocability. A newly registered capability is `enabled: true` by default; if a scoped disable setting for its id or source is already in effect at registration, that scoped state applies immediately, so re-registration never silently re-enables a capability the user disabled.
 
 Use cases for disable rather than unregister:
 
@@ -877,9 +888,9 @@ The update is atomic from the caller's perspective: in-flight calls against the 
 
 ### 16.5 Unregistration
 
-`unregister(id)` removes a capability. In-flight calls complete; new calls are refused with a typed `CapabilityUnregistered` error. Persisted leases for the unregistered capability transition to a "stale" state and are pruned per the policy spec's lease-cleanup rules.
+`unregister(id)` removes a capability. In-flight calls complete; new calls are refused with a typed `CapabilityUnregistered` error. Persisted leases for the unregistered capability transition to `Stale` and remain in storage for inspection and audit rather than being pruned, per the lease-lifecycle rules (File 06 §10.4 and §11.6); the canonical default is indefinite retention, not lease-cleanup.
 
-Unregistering a built-in capability is forbidden (the binary defines what built-in means); a built-in may only be disabled. Unregistering a subsystem capability happens implicitly when the subsystem unregisters. Plugin capabilities unregister on plugin unload. MCP capabilities unregister on server disconnect. User-defined and API capabilities unregister on user action.
+Unregistering a built-in capability is forbidden (the binary defines what built-in means); a built-in may only be disabled. Unregistering a subsystem capability happens implicitly when the subsystem unregisters. Plugin capabilities unregister on plugin unload. MCP capabilities unregister on connector removal. User-defined and API capabilities unregister on user action.
 
 ### 16.6 Restart Behavior
 
@@ -954,11 +965,11 @@ Dimensions and ownership:
 - per-capability observability enablement and verbosity — declaration carries the dimension; resolution lives in File 41
 - per-source user trust overrides — registered entry carries the override separately from source-authored trust; effective trust is resolved by File 06
 - registry-wide collision behavior (warn vs reject vs ask-on-override) — registry-owned
-- discovery-capability enablement (`tool.search`, `mcp.search`, `extensions.search_registry`) — registry-owned
+- discovery-capability enablement (`tool.search`, `mcp.search`, `plugin.search_registry`) — registry-owned
 - alias deprecation enforcement (warn vs refuse on use of deprecated aliases) — registry-owned
-- runtime-registration enablement: whether the agent is permitted to invoke `tools.register_custom`, `extensions.install`, `subsystems.register`, and equivalent registration capabilities at all (off, ask-each-time, allowlist of trusted sources, allow) — declaration carries the dimension; resolution lives in File 06 and File 35
+- runtime-registration enablement: whether the agent is permitted to invoke `tools.register_custom`, `plugin.install`, `subsystems.register`, and equivalent registration capabilities at all (off, ask-each-time, allowlist of trusted sources, allow; default `ask-each-time`) — declaration carries the dimension; resolution lives in File 06 and File 35
 - per-capability availability-predicate overrides for users who want to expose normally-hidden capabilities at their own risk — declaration carries the dimension; resolution lives in File 18
-- platform-availability surface visibility (whether `unavailable_platform` entries appear in the default discovery view or only in advanced settings) — registry/surface-owned
+- platform-availability surface visibility (whether `UnavailablePlatform` entries appear in the default discovery view or only in advanced settings) — registry/surface-owned
 - source-approval risk thresholds and defer/cancel fallback behavior — registered entry carries the relevant source state; resolution lives in File 06
 
 ### 18.2 Settings-Key Convention
@@ -993,7 +1004,7 @@ The following shapes are wrong for this layer:
 - registry mechanisms that hardcode any of the variations in §18 settings instead of exposing them as configuration
 - capability declarations whose `output_schema` returns inline content for outputs that should be durable blocks — durable outputs reference blocks; inline returns are reserved for short structured data
 - allowing settings, leases, or trust upgrades to lower irreversible high-blast-radius operations below their declared `permission_floor` — a `permission_floor` for account deletion, destructive publish, force-push to a protected branch, system shutdown, or credential export is the absolute lower bound; no toggle, lease, or trust override may pierce it
-- platform mismatch silently dropping a capability from the registry — platform-incompatible capabilities are catalogued as `availability_status: unavailable_platform`, not absent
+- platform mismatch silently dropping a capability from the registry — platform-incompatible capabilities are catalogued as `availability_status: UnavailablePlatform`, not absent
 - treating capability versioning as implicit (mutating a registered capability's behavior without bumping `version`) — every observable change is a version increment
 - treating registry state (enable, trust override, collision shadowing, backend binding) as a declaration mutation — declarations are immutable for `(id, version)`; runtime changes live on the registered entry
 - hidden delegation (a capability invoking another capability without declaring it as a dependent and without going through the shared call pipeline) — declaration of dependents is required and is not a bypass
@@ -1014,5 +1025,3 @@ Every later spec that touches capabilities consumes the `CapabilityDeclaration` 
 - consume the trust/source/declaration boundary established in §9 — trust influences policy, never the declaration
 - consume the platform-as-availability-state model from §9.4 and §10 — platform-incompatible capabilities are inspectable, not absent
 - consume the collision-as-registry-state model from §14.1 — colliding declarations remain inspectable; the active entry is registry state
-
-Specific integration contracts will be stated in those files when they are written.

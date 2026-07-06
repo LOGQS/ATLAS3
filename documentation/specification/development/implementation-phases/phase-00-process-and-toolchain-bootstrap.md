@@ -54,8 +54,11 @@ The signing/provenance job is its own thin lane once the build job exists.
    live-provider availability.
 3. **One command surface** — **decided: `cargo xtask`** (decision-recorded: Rust-first project,
    tasks written in Rust behave identically on all three OSes — no cross-platform shell divergence,
-   nothing extra to install) wired to `fmt`, `lint`, `typecheck`, `test`, `docs`, `gen-check`,
-   `banned-patterns`, `conformance-check`. CI calls the same entry points (CI/local parity).
+   nothing extra to install) wired to `fmt`, `lint`, `test`, `docs`, `gen-check`,
+   `banned-patterns`, `conformance-check` — with `typecheck` as an inner-loop-only leg (a fast local
+   `cargo check` for development feedback; the full compile under `test` is the authoritative
+   type-correctness gate, so `typecheck` is not a gate leg CI runs). CI calls the same entry points
+   (CI/local parity).
 4. **CI (GitHub Actions)** — 3-OS matrix from the first commit (compile + test + lint per OS);
    banned-pattern greps (invariants doc §28, `devproc.banned-patterns` — checks vacuous until code
    exists are registered as no-ops); gitleaks; cargo-deny (licenses + advisories); coverage capture with ratchet baseline;
@@ -107,8 +110,9 @@ The signing/provenance job is its own thin lane once the build job exists.
   the generated-artifact registry itself.
 - **Docs**: README; developer setup; decision records (command surface, CI path, signing custody);
   conformance-matrix usage doc; key-custody/rotation doc.
-- **CI/local commands**: `fmt`, `lint`, `typecheck`, `test`, `docs`, `gen-check`, `banned-patterns`,
-  `conformance-check`, `build-artifact`, `verify-signature`.
+- **CI/local commands**: `fmt`, `lint`, `test`, `docs`, `gen-check`, `banned-patterns`,
+  `conformance-check`, `build-artifact`, `verify-signature`; `typecheck` as an inner-loop-only local
+  leg (not a CI gate — `test`'s compile is the authoritative type check).
 
 ## 8. Exit criteria
 

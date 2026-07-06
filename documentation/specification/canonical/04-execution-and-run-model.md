@@ -100,7 +100,7 @@ Every run must attach to:
 - one conversation
 - one primary intent thread
 - one trigger
-- one route result or equivalent non-conversation trigger decision
+- one route result
 
 A run may also attach to:
 
@@ -142,6 +142,18 @@ Required statuses:
 - `superseded`: replaced by edit, reroute, retry, or branch
 
 Status changes must be ledgered.
+
+The legal status transitions are:
+
+- `pending` → `running`, `cancelling`, `superseded`, `failed`
+- `running` → `awaiting_user`, `paused`, `cancelling`, `completed`, `failed`, `superseded`
+- `awaiting_user` → `running`, `paused`, `cancelling`, `failed`, `superseded`
+- `paused` → `running`, `cancelling`, `failed`, `superseded`
+- `cancelling` → `cancelled`, `failed`
+
+`cancelled`, `failed`, `completed`, and `superseded` are terminal: a terminal run is never re-opened, and later work links a new run rather than mutating a terminal status. A transition outside this adjacency is rejected at the ledger boundary.
+
+`superseded` is setting-conditioned. Retry, reroute, and branch default (§19) to leaving the prior run executing in parallel, so a transition to `superseded` is taken only when the active prior-run resolution policy requires it; supersession is never the default outcome of a retry. A run that was `pending`, `running`, or `cancelling` at process restart transitions to `failed` (§17.3), never silently resuming a non-terminal status.
 
 ### 2.5 Ownership
 
@@ -192,7 +204,7 @@ Completion rule:
 A run may be marked `completed` only when every active requirement of its latest authorized `RunCompletionContract` is satisfied by ledgered facts, committed blocks, committed artifacts, or recorded policy decisions. A fluent assistant response satisfies only a plain-text-only contract; it never satisfies a contract that requires artifact mutation, validation, approval, or evidence capture. This contract is what the deterministic forgery guard of §22 and `ledger.forgery-guards` (File 10 §3.7) enforces.
 
 Revision authority:
-A `RunCompletionContract` is revised only through a ledgered `RunCompletionContractRevised` event (`ledger.entry-kind-catalogue`, File 10 §4.1). Revisions are authority-gated:
+A `RunCompletionContract` is revised only through a ledgered `RunCompletionContractRevised` event (`ledger.entry-kind-catalogue`, File 10 §4.1). Each requirement carries the `RequirementAuthority` that introduced it — one of `Agent`, `Validation`, `Router`, `Policy`, or `User` — ordered by strength `Agent < Validation < Router < Policy < User`. This ordering governs the at-least-as-strong test for weakening below; it grants no unilateral `User` override of a `Policy`-introduced requirement, whose removal or weakening always routes through policy approval. Revisions are authority-gated:
 
 - Requirements may be added by reroute, policy escalation, validation, or explicit execution update.
 - Removing a requirement, weakening it, or marking it no longer required may be done only by an authority at least as strong as the authority that introduced it.
@@ -509,7 +521,7 @@ The tool surface is a model-request visibility and availability strategy, not a 
 
 Anchor: `run.zones`
 
-The tool surface has three zones:
+The tool surface exposes the three model-facing zones — the first three of the closed five-zone set defined in `surface.zone-model` (File 07 §3.1), the remaining two being resolved presentation states not shown in the model request:
 
 - `primary`: full schemas available immediately
 - `borrowable`: names and short descriptions visible; full schema loaded only after borrow
@@ -531,7 +543,7 @@ If `RunIntent` includes a tool-surface strategy, execution respects it:
 
 When absent, execution uses the active surface defaults and settings.
 
-Routing is not the only entry point for capability loading. Deferred capabilities may be discovered and loaded mid-execution by the model itself, through canonical built-in capabilities — `tool.borrow` for already-named borrowable tools whose schemas need to be loaded, and `tool.search` or `mcp.search` for discovering deferred capabilities by name, family, or description. Discovery and borrow are themselves capability calls and pass through the full pipeline (§8); newly loaded tools become part of the run's tool surface for the rest of the turn or for the duration of the granting lease, whichever is longer.
+Routing is not the only entry point for capability loading. Deferred capabilities may be discovered and loaded mid-execution by the model itself, through the built-in late-loading capabilities that File 07 §7.1 owns (`surface.late-loading-runtime-discovery`) — for example `tool.borrow` for already-named borrowable tools whose schemas need to be loaded, and `tool.search` or `mcp.search` for discovering deferred capabilities by name, family, or description. Discovery and borrow are themselves capability calls and pass through the full pipeline (§8); newly loaded tools become part of the run's tool surface for the rest of the turn or for the duration of the granting lease, whichever is longer.
 
 The default surface composition follows the active model's context budget. When all primary plus borrowable tools fit, they may be fully loaded; under context pressure, the runtime auto-shrinks to selective loading and surfaces the trade-off to the user through the settings UI (with concrete recommendations) rather than silently dropping tools. Surface runtimes load their surface-scoped tools by default within the surface; capabilities outside the active surface/subsystem are reachable only through `tool.search` or `tool.borrow`, never through silent autoload — this keeps the active model request focused while preserving full reachability.
 
@@ -558,7 +570,7 @@ Anchor: `run.approval-during-execution`
 
 Execution uses the shared capability policy system. There is no agent-specific approval mechanism.
 
-Capabilities declare a permission tier. The canonical tiers are `Denied`, `ReadOnly`, `WorkspaceWrite`, `UserApproval`, `Unrestricted`. `Denied` means the capability cannot be auto-approved by any lease; the only path to execution is `typed-confirmation` (below) or an equivalent policy-defined override path. Tiers compose with leases: a lease can lower friction within a tier (a `UserApproval` capability with an `AlwaysAllow` lease for the granted scope runs without prompting) but cannot escalate above the capability's declared tier or below `Denied`. The capability's permission tier and reversibility class (§8.2) together drive the default approval policy template.
+Capabilities declare a permission tier. The canonical tiers are `Denied`, `ReadOnly`, `WorkspaceWrite`, `UserApproval`, `Unrestricted`; their restrictiveness total order is defined by File 06 §4. `Denied` means the capability cannot be auto-approved by any lease; the only path to execution is `typed-confirmation` (below). Tiers compose with leases: a lease can lower friction within a tier (a `UserApproval` capability with an `AlwaysAllow` lease for the granted scope runs without prompting) but cannot escalate above the capability's declared tier or below `Denied`. The capability's permission tier and reversibility class (§8.2) together drive the default approval policy template.
 
 Approval behavior must support:
 
@@ -704,6 +716,8 @@ Default behavior:
 
 Capabilities can opt into sibling abort by declaring `sibling_abort_on_failure: true`. When set, the executor cancels in-flight siblings on first failure within the same batch — used for first-wins-races, best-of-N selectors with early termination, and tightly coupled coordinated batches. Parallel batches may also declare per-call `depends_on` relationships at dispatch time; when a dependency fails, the dependent units are skipped or blocked, matching the existing downstream-on-failure rule. Both the per-capability declaration and the per-call dependency are user-customizable.
 
+A call may additionally raise `terminates_sequence` to signal that the batch's goal is met and remaining sibling work is moot. On that signal the executor aborts still-queued siblings and cancels in-flight siblings, reusing the sibling-cancel machinery of `sibling_abort_on_failure` above, while retaining already-completed sibling results. File 05 §7.1 owns when `terminates_sequence` fires within a sequenced batch; this file owns the abort-queued-and-cancel-in-flight behavior it triggers, and the behavior is user-customizable.
+
 Silent absence is forbidden.
 
 ### 15.4 Mutation Rule
@@ -768,7 +782,7 @@ The canonical isolation primitives for child runs are filesystem-or-resource-lev
 
 Inline work must not bypass policy, ledgering, or version boundaries.
 
-An inline child run's mutations land in the parent's pending-operations buffer (§23.4) and commit at the parent's version-commit boundary. An isolated child run does not contribute to the parent's pending buffer; its work is captured as a single tool result block (or a sequence of blocks) returned to the parent under the declared output contract. The parent's incorporation step (§16.4) decides whether to apply that returned work to its own buffer, branch on it, or discard it.
+An inline nested execution unit's mutations land in the parent's pending-operations buffer (§23.4) and commit at the parent's version-commit boundary. An isolated child run does not contribute to the parent's pending buffer; its work is captured as a single tool result block (or a sequence of blocks) returned to the parent under the declared output contract. The parent's incorporation step (§16.4) decides whether to apply that returned work to its own buffer, branch on it, or discard it.
 
 ### 16.4 Merge
 
@@ -865,7 +879,7 @@ Capabilities must declare enough cancellation semantics for the runtime and UI t
 
 The system should prefer clean cooperative stop first when that is fast enough for safety and user control. It must escalate to forceful termination when immediate stop is required or when cooperative stop fails to complete promptly enough for the active policy.
 
-The cooperative-stop deadline is declared per capability. If undeclared, the runtime uses a configurable default (§27 settings: cancellation default deadlines). Defaults must be generous enough for legitimate long-running work and weak hardware, configurable per profile and scope, and extendable before termination where policy allows; the spec defines no concrete duration. Every cancellation path must still carry a finite deadline. The model may override the deadline per call when the default would be too short, but every override must itself remain finite; timeoutless operations are not permitted. The cancellation UI surfaces the deadline as a countdown so the user can intervene before forceful escalation.
+The cooperative-stop deadline is declared per capability. If undeclared, the runtime uses a configurable default (§27 settings: cancellation default deadlines). Defaults must be generous enough for legitimate long-running work and weak hardware, configurable per profile and scope, and extendable before termination where policy allows; the spec defines no concrete duration. Every cancellation path must still carry a finite deadline. The model may override the deadline per call when the default would be too short, but every override must itself remain finite and is clamped to a settings-owned maximum resolved per capability, family, and scope (§27 settings: model-override ceiling) under the same policy gate as the extend-before-termination path; timeoutless operations are not permitted. The cancellation UI surfaces the deadline as a countdown so the user can intervene before forceful escalation. An explicit user cancel escalates immediately to forceful termination without waiting out a pending countdown or a model-requested deadline override.
 
 Cancellation choices are user-customizable. The cancel UI must offer at minimum: cancel the run alone, cancel the run and its child-run tree, cancel a specific tool call without cancelling the run, cancel a specific child run without cancelling siblings or the parent, and cancel a specific sandbox or process. The default action of the cancel button is configurable; its expanded menu surfaces the rest. Every active long-running unit owned by the runtime must be wrappable into one of these targets and reliably cancellable.
 
@@ -882,7 +896,7 @@ Cancellation must record:
 
 Each capability declares whether its partial output is meaningful. When `partial_output_meaningful` is `true`, partial outputs produced before cancellation are kept by default; when `false`, partial outputs are discarded. If the capability does not declare, the runtime defaults to keep-on-cooperative-stop and discard-on-forceful-kill. The user can override the default per cancellation through the cancellation UI; the user's choice is recorded in the ledger.
 
-Runs that were `running` or `cancelling` at process restart become `failed` with typed reason `process_restart_orphan` by default; their resources (worktrees, sandboxes, child processes, leases) are reaped according to each capability's declared post-kill cleanup. The runtime preserves the run's saved state across restart — most agentic progress lives in durable storage, so failure-on-restart loses work-in-flight, not committed work. Capabilities that own genuinely resumable infrastructure (long-lived browser sessions, scheduled tasks, durable workflows) may declare `resume_on_restart: true` and provide a resume handler; the runtime calls the handler instead of marking the run failed. The handler must revalidate world state, re-acquire leases, and either continue execution or transition the run to `failed` with a more specific typed reason. Runs that fail-on-restart must be surfaced to the user with a per-run resume-or-discard affordance — the runtime must not auto-resume orphaned runs at startup, but the user must be able to retry or resume any one of them on demand.
+Runs that were `pending`, `running`, or `cancelling` at process restart become `failed` with typed reason `process_restart_orphan` by default; their resources (worktrees, sandboxes, child processes, leases) are reaped according to each capability's declared post-kill cleanup. The runtime preserves the run's saved state across restart — most agentic progress lives in durable storage, so failure-on-restart loses work-in-flight, not committed work. Capabilities that own genuinely resumable infrastructure (long-lived browser sessions, scheduled tasks, durable workflows) may declare `resume_on_restart: true` and provide a resume handler; the runtime calls the handler instead of marking the run failed. The handler must revalidate world state, re-acquire leases, and either continue execution or transition the run to `failed` with a more specific typed reason. Runs that fail-on-restart must be surfaced to the user with a per-run resume-or-discard affordance — the runtime must not auto-resume orphaned runs at startup, but the user must be able to retry or resume any one of them on demand.
 
 ## 18. Task Promotion and Task Updates
 
@@ -1050,11 +1064,14 @@ Anchor: `run.stuck-detection`
 The runtime must detect obvious stuck states, including:
 
 - repeated identical tool calls without progress
+- repeated actions that produce no observed effect — successive captures fingerprint identical under File 19 §9.6's stagnation signal, so the action executes but does not advance world state
 - repeated failed validations
 - repeated provider/tool errors
 - no new durable output after configured iteration limits (including single-iteration empty responses where the model produced neither tool calls nor committable text — these escalate per the soft-warning rule below)
 - child runs waiting on each other cyclically
 - ping-pong between repeated tool/action patterns
+
+This no-observed-effect signal is consumed here, not owned here: File 19 §9.6 emits the typed stagnation signal as a pure perception output from comparing successive captures, and this section owns correlating a repeated stagnation signal with a stuck run and deciding whether to warn or stop.
 
 Stuck detection must escalate in-band before hard-stopping. On detection, the executor first injects a typed warning into the active model or programmatic unit's context — the model can self-correct, narrow scope, or stop. Repeated detection within the same run escalates: the warning becomes a structured directive, then a hard stop with typed failure. The number of warnings before hard escalation, the warning text templates, and per-pattern overrides (some patterns escalate immediately because the model cannot resolve them in-band — cyclic child waiting, for instance) are all settings, not hardcoded constants.
 
@@ -1096,7 +1113,7 @@ A run may terminate because:
 - required capability was unavailable
 - validation failed unrecoverably
 - configured budget was reached
-- execution was superseded by edit, retry, or reroute
+- execution was superseded by edit, retry, reroute, or branch
 
 A successful completion requires accepted output and satisfaction of every active requirement of the run's latest authorized `RunCompletionContract` (§2.7):
 
@@ -1135,7 +1152,7 @@ It records:
 
 The list above is a minimum, not an exhaustive schema. The ledger must record full-granularity timestamps on every entry and any additional execution-relevant attribution the storage spec requires (request ids, trace context, attempt counters, classification metadata) without forcing the canonical to enumerate exhaustively. The storage spec extends the schema; this file specifies the minimum that execution reasoning depends on.
 
-The ledger enforces a forgery guard at status transition: a transition from `running` to `completed` is rejected if the run has no recorded capability executions, no committed artifact revisions, and no model-step outputs beyond plain text — when the run contract required action. The forgery guard is the storage-side counterpart to §22's run-completion contract.
+The ledger enforces a forgery guard at status transition: a run cannot terminate as `completed` if it has no recorded capability executions, no committed artifact revisions, and no model-step outputs beyond plain text — when the run contract required action. The forgery guard is the storage-side counterpart to §22's run-completion contract.
 
 ### 23.2 Event Stream
 
@@ -1315,7 +1332,7 @@ At minimum, settings must support:
 - capability result bounding: inline-output limits, excerpt strategy, spill target, and full-output follow-up behavior per capability, family, surface, and sensitivity class
 - terminal-result hint behavior: enabled/disabled per capability or family, and whether eligible batches skip the next model step
 - sibling-abort and `depends_on` dispatch behavior per capability and per batch
-- per-capability and category-default cancellation deadlines, partial-output retention overrides, and resume-on-restart enablement, plus the cancel UI's default action and expanded-menu options
+- per-capability and category-default cancellation deadlines, the maximum model-requested per-call deadline override (the override ceiling) per capability, family, and scope, partial-output retention overrides, and resume-on-restart enablement, plus the cancel UI's default action and expanded-menu options
 - stuck detection thresholds (per pattern), in-band soft-warning escalation rules, and opt-in model-mediated stuck detection
 - per-stage and per-run budget composition (off by default), warning thresholds, and granularity (per turn, per task, per surface, per subsystem, per workspace, global)
 - completion-verification hook surface configuration: enablement, deterministic-versus-model-mediated mode, cadence (every N steps, parallel/background, sequential, on demand), and per-task expected-outcome shape
@@ -1376,7 +1393,7 @@ Later specs must follow these rules:
 
 - task specs must define revision-safe task updates and success criteria
 - capability specs must define proposals, leases, previews, reversibility, idempotency, postconditions, concurrency metadata, partial-output meaningfulness, cooperative-stop deadlines, sibling-abort behavior, resume-on-restart handlers, stale-state revalidation patterns, and per-capability classification mode (deterministic vs. model-mediated)
-- policy specs must define approval, denial, escalation, lease semantics, the permission tier hierarchy including `Denied`, `typed-confirmation`, the lease scope hierarchy, model-mediated `auto-decide` mode, and contradiction-checking across scope levels
+- policy specs must define approval, denial, escalation, lease semantics, the permission tier hierarchy including `Denied`, `typed-confirmation` and its restrictiveness total order (File 06 §4), the lease scope hierarchy, model-mediated `auto-decide` mode, and contradiction-checking across scope levels
 - provider specs must expose model role, tool support, modality, streaming, and fallback metadata, and must surface backend identity for parallel-run demultiplexing
 - context specs must compile context from run, task, artifact, world, memory, and evidence state, and expose overflow/degraded-assembly outcomes without mutating state, including the typed context-pressure boundary execution signals through
 - storage specs must separate ledger, version commits, artifacts, and projections, must record full per-call provider/model/role/token/cache/cost attribution keyed by model identifier, must carry full-granularity timestamps and any extension attribution, must enforce the ledger-side forgery guard at status transition, and must define the orphan-run reconciliation policy at process restart

@@ -552,7 +552,7 @@ A read-optimized derived view of canonical state, required for responsive UI and
 Rules:
 
 - every projection must be rebuildable from its source-of-truth data
-- projections must declare their rebuild trigger (event-driven, on-demand, or periodic)
+- projections must declare their rebuild trigger (event-driven, on-demand, or periodic); a periodic trigger is legal only for a source that emits no change events, per `core.event-first-by-default` (§7.15)
 - projections are not the source of truth for any durable fact
 - the cost of a stale or corrupted projection is a rebuild, never data loss
 
@@ -618,7 +618,7 @@ A `CanonicalEncoding` must define:
 - enum tag encoding
 - optional-field representation
 - null-versus-omitted semantics
-- integer, string, and boolean encoding
+- integer, string, boolean, and byte-string encoding
 - map key ordering
 - collection ordering
 - a schema/version tag carried inside the encoded payload
@@ -627,6 +627,9 @@ Ordering rule:
 
 - order-insensitive collections must be sorted by a stable key before encoding
 - order-sensitive sequences must preserve their order and must be explicitly declared as order-sensitive
+
+Strings and byte-strings:
+A string is encoded as its UTF-8 bytes exactly as given — no Unicode normalization, case folding, or whitespace trimming is applied, so a value round-trips to the identical byte sequence it was constructed from. A byte-string is a first-class scalar category alongside integers, strings, and booleans, carrying its raw bytes unchanged. Where the ordering rule above requires a stable sort key over strings or byte-strings, the comparison is over those encoded bytes, never over decoded code points, locale collation, or any normalized form.
 
 Real-valued quantities:
 A `CanonicalEncoding` has no native floating-point form — IEEE-754 admits multiple bit patterns for one value (`-0.0` vs `+0.0`), `NaN` is not reflexively equal, and operations round differently across platforms, all of which are hostile to the byte-identical guarantee of `core.canonical-hash` (§7.14). A durable record therefore carries a real quantity in one of exactly two canonical forms:
@@ -742,13 +745,27 @@ Every hash used for identity, integrity, deduplication, sync, replay, cache vali
 
 This applies without exception, including `content_hash`, `diff_hash`, `expected_view_hash`, block and content-address hashes, audit-chain hashes, snapshot and integrity hashes, and any future canonical hash.
 
-Order-insensitive collections are sorted by a stable key before hashing; order-sensitive sequences preserve their order and are declared order-sensitive (§6.15). Two peers may rely on hash equality only when they share the same `CanonicalEncoding` version. Cross-device hash equality is an optimization for deduplication and duplicate-suppression, never the correctness basis for sync.
+Every canonical hash names its hash algorithm as part of its declared encoding; the algorithm is never an out-of-band convention or an implementation default. Changing the algorithm is an encoding change: it bumps the `CanonicalEncoding` version (§6.15) and carries the same migration and compatibility obligations as any other encoding-version change. A hash value is therefore identified by an (algorithm, encoding-version) pair, and equality is defined only within one such pair.
+
+Order-insensitive collections are sorted by a stable key before hashing; order-sensitive sequences preserve their order and are declared order-sensitive (§6.15). Two peers may rely on hash equality only when they share the same (algorithm, encoding-version) pair. Cross-device hash equality is an optimization for deduplication and duplicate-suppression, never the correctness basis for sync.
 
 ### 7.15 Event-First by Default
 
 Anchor: `core.event-first-by-default`
 
 Observation, reactivity, and projection rebuild are event-driven wherever a change source exists; a component that has a change-event source must consume it and must not poll. Time-based polling is never a correctness mechanism. Polling intervals, staleness timers, and periodic refresh are permitted only as flagged, configurable fallbacks for sources that emit no change events, or as explicit scheduler timers and safety guards owned by the relevant subsystem and computed as deadlines rather than evaluated as continuous conditions. Reading the current time as a world fact is grounding, not scheduling. Auto-continue countdowns, animation timings, and similar timed affordances are conveniences, never correctness conditions. Every exception is flagged and justified by the owning spec.
+
+### 7.16 Total, Bounded Decoding
+
+Anchor: `core.canonical-decode`
+
+Canonical decoding is total and resource-bounded. A decoder for a `CanonicalEncoding` (§6.15) accepts arbitrary, possibly hostile bytes and always terminates in one of exactly two outcomes: a valid typed value, or a typed decode error. It never panics, aborts, or executes undefined behavior on malformed, truncated, or adversarial input. Decoding is bounded by declared limits — a maximum nesting depth and a maximum encoded size at minimum — and input that would exceed a declared bound is rejected as a typed error rather than consuming unbounded stack or memory. Those bounds are part of the encoding's declaration, not an incidental property of one decoder.
+
+### 7.17 Data Locality and Default-Deny Egress
+
+Anchor: `core.data-locality`
+
+User data stays on the local device by default and leaves the local boundary only through an explicitly declared, policy-gated egress channel. The set of egress channels is closed and default-deny: any path not enumerated as a permitted channel carries no data out, and no subsystem may open an undeclared egress path. Later specs enumerate the concrete channels and their gates (File 22 §11); this invariant fixes that the closure is default-deny.
 
 ## 8. Explicit Rejections
 

@@ -110,6 +110,8 @@ For each new user request, dispatch proceeds in this order:
 
 The seven-step pipeline is the canonical logical contract. Implementations may compose additional steps — extension prechecks, validators, observers, gates — through the actions and events hook architecture (per `run.hook-integration`, File 04 §23.3) without changing the canonical step order or the routing decision contract.
 
+A crash between step 5 and step 6 can leave fast-path ledger entries written with no route record yet persisted and no run adopting them; those entries are a reclaimable orphan, never a live reference, and the crash residue is safe to reclaim.
+
 ### 3.1 Routing Frame
 
 Anchor: `routing.routing-frame`
@@ -137,7 +139,7 @@ The frame inputs are organized into four categories.
 
 - currently available capabilities and capability families
 - enabled work surfaces
-- active approval posture (the equivalent of a `GooseMode` / `AskForApproval` / active approval policy template)
+- active approval posture
 
 **Model-and-provider context**
 
@@ -223,6 +225,19 @@ The route result is recorded durably as part of the run record. The record must 
 
 The record references the policy snapshot, capability snapshot, and world snapshot in effect at routing time; snapshot identities live in the storage and version specs. Every precheck that fired (with its verdict) and every pre-routing transformation that altered trigger content (§3.1) must be present in the record.
 
+### 3.6 Routing Failure
+
+Anchor: `routing.routing-failure`
+
+Routing can fail: the router step may error, time out, hit a provider outage, or emit a malformed decision that cannot be materialized into a valid `RunIntent`. Routing failure is a typed outcome — `RoutingFailed` — never a silent drop.
+
+On `RoutingFailed`, dispatch takes one of two deterministic paths, selected by settings (§13):
+
+- safe-default route: the runtime materializes a minimal valid `RunIntent` from the default model profile, a `respond_inline` or `respond_with_tools` execution entry, and the current surface as `primary_surface` (or no primary surface when none is active). `model_route` may be null when no provider could be resolved (§4.3), leaving model selection to downstream fallback.
+- surface-to-user: the runtime does not dispatch and surfaces the failure to the user for an explicit decision.
+
+Either way, the `RoutingFailed` outcome is recorded in `routing_metadata` and the route record (§3.5), with enough detail to inspect and replay the failure. A routing failure must not silently discard the route or the request.
+
 ## 4. `RunIntent`
 
 Anchor: `routing.run-intent`
@@ -255,6 +270,8 @@ It is short-lived as a dispatch object, but its result is durably recorded.
 - `routing_metadata`
 - `reasoning_summary`
 
+`primary_surface` is optional: a request with no single primary work surface omits it (§4.3). `model_route` may be null when the route enters no model-bound step, such as the safe-default route produced under a routing failure (§3.6).
+
 ### 4.3 Field Meanings
 
 `trigger_kind`
@@ -263,7 +280,7 @@ The class of trigger that produced this `RunIntent`. One of: `user_request`, `re
 
 `trigger_id`
 
-Polymorphic identity of the trigger. Resolves to a `message_id` for user requests, an `event_id` for external events, an `automation_id` for automations, a `parent_run_id` for child runs, an `action_invocation_id` for user-invoked actions, and equivalent identifiers for the other kinds.
+Polymorphic identity of the trigger. Resolves to a `message_id` for user requests, an `event_id` for external events, an `automation_id` for automations, a `parent_run_id` for child runs, an `action_invocation_id` for user-invoked actions, the `message_id` of the edited message for edit reroutes, the `run_id` of the retried run for retries, and the `run_id` of the continued run for continuations.
 
 `parent_run_id`
 
@@ -283,11 +300,10 @@ Optional propagation envelope for cross-run observability. Carries a stable trac
 
 `primary_surface`
 
-The main work surface most relevant to the request.
+The main work surface most relevant to the request, if any. Optional: a request may resolve to no primary surface — for example, discovery, capability-level, or conversation-baseline work that runs against the always-present baseline subsystem surface (`SubsystemSurfaceSpec`, File 07 §5, §9) rather than a specific work surface. When `primary_surface` is absent, downstream surface fallback follows File 25 §2.3, §11.2.
 
 Examples:
 
-- `conversation`
 - `coder`
 - `web`
 - `teacher`
@@ -331,9 +347,9 @@ Allowed values:
 
 `model_route`
 
-The chosen model strategy for the request.
+The chosen model strategy for the request. May be null when the route enters no model-bound step — for example, a safe-default route produced under a routing failure (§3.6) whose provider could not be resolved, left for downstream fallback resolution.
 
-It must include:
+When present, it must include:
 
 - `profile_id`
 - `resolved_provider_id`
@@ -345,7 +361,7 @@ It must include:
 
 `tool_surface_strategy`
 
-The tool surface strategy chosen for the request. One of: `use_current_surface_tools`, `borrow_foreign_capabilities`, `load_deferred_capabilities`. Enumeration mirrored in §8.3.
+The tool surface strategy chosen for the request; always present, defaulting to `use_current_surface_tools` when nothing signals borrowing or deferred loading (§8.3). One of: `use_current_surface_tools`, `borrow_foreign_capabilities`, `load_deferred_capabilities`. Enumeration mirrored in §8.3.
 
 `fast_path`
 
@@ -357,13 +373,19 @@ It must include:
 - `performed_capabilities`
 - `result_state`
 
+`result_state` is one of: `not_performed` (no fast-path work ran), `completed` (all fast-path capabilities succeeded), or `failed` (at least one fast-path capability failed, per §9.4).
+
 `precheck_results`
 
 The ordered record of deterministic prechecks (§3.2) that fired during dispatch and the effect each had on the route: `resolved`, `constrained`, or `no_op`. Empty when no prechecks fired.
 
 `routing_metadata`
 
-Observability fields for the routing decision: the source of the decision (one of: `precheck_chain_resolved`, `model_router_emitted`, `classifier_emitted`, `inherited_from_parent_run`), routing latency, and any error if a recovery path was used.
+Observability fields for the routing decision: the source of the decision (one of: `precheck_chain_resolved`, `model_router_emitted`, `classifier_emitted`, `inherited_from_parent_run`, `direct_hand_back`), routing latency, and any error if a recovery path was used. The `direct_hand_back` source records a route supplied whole by a deterministic trigger source without invoking the router (§12.2).
+
+`reasoning_summary`
+
+A short natural-language explanation of the routing decision — why this work line, surface, capability set, and model route were chosen. It is the short routing explanation surfaced in the UI (§10.2). It is distinct from a routing summary (§6): the `reasoning_summary` explains one routing decision for inspection, while a routing summary is a compact router-side continuity aid for future routing.
 
 ### 4.4 What `RunIntent` Does Not Contain
 
@@ -474,7 +496,7 @@ Model routing must consider:
 - provider health state
 - fallback policy
 - task complexity
-- active approval posture (the equivalent of a `GooseMode` / `AskForApproval` / active approval policy template)
+- active approval posture
 - active per-scope budget state (token budgets; cost-ceiling overlay is provider-dependent and may be absent)
 
 ### 7.3 Required Shape
@@ -502,6 +524,8 @@ Examples:
 - math-heavy requests may prefer a reasoning-oriented route
 - trivial search or fetch preparation may use the low-cost router profile
 - non-streaming models must not break the runtime because they are non-streaming
+
+To stay capability-aware, model routing derives a `ModelWorkloadRequirements` descriptor for the request — modality, reasoning depth, tool-calling needs, streaming needs, and context-window pressure — from the trigger content and work-state, and matches it against provider capability metadata (§7.2) so the selected route is capability-valid. `ModelWorkloadRequirements` is a routing-time derivation, not a durable field of `RunIntent`.
 
 ## 8. Surface and Capability Selection
 
@@ -532,7 +556,7 @@ This is stronger than single-surface/subsystem routing and simpler than full exe
 
 Anchor: `routing.tool-surface-strategy`
 
-Routing chooses a tool-surface strategy for the request and records it in the `tool_surface_strategy` field of `RunIntent` (§4.2, §4.3).
+Routing always chooses a tool-surface strategy for the request and records it in the `tool_surface_strategy` field of `RunIntent` (§4.2, §4.3). The field is always present: when the request gives no signal to borrow foreign capabilities or defer loading, the strategy defaults to `use_current_surface_tools`, so downstream execution has no absent case to handle.
 
 Allowed strategies:
 
@@ -624,7 +648,7 @@ Overrides take two shapes:
 
 Common overridable parts include the primary surface, supporting surfaces, model route, capability families and `tool_surface_strategy`, the active approval posture, fast-path enablement, intent-thread attachment (including reattaching to a different thread), router enablement itself, and the active router context policy.
 
-The UI exposes overrides progressively — common overrides surface as primary controls; the full field set is available on demand. An override affects downstream execution for that request, is recorded as part of the route record (§3.5), and may inform later learned preferences.
+The UI exposes overrides progressively — common overrides surface as primary controls; the full field set is available on demand. A route override changes the `RunIntent` for the current request only; it is not a settings change. Persisting a choice as a new default is a separate settings action (§13). An override affects downstream execution for that request, is recorded as part of the route record (§3.5), and may inform later learned preferences.
 
 ## 11. Retry and Edit Rules
 
@@ -725,6 +749,7 @@ At minimum, settings must support:
 - route visibility verbosity
 - whether routing summaries are enabled (only meaningful under richer router context policies; §6.4)
 - mid-execution reroute enablement per trigger source (§12.3) and self-routing enablement
+- routing-failure handling: safe-default route versus surface-to-user (§3.6)
 - routing telemetry and routing-eval enablement
 
 Settings whose mechanism depends on optional provider capability — accurate token counting, cost reporting, native tool-call streaming, and similar — must degrade gracefully when the capability is absent and must surface the degraded state to the user. They must not silently disable themselves, fail closed without notice, or block routing on a missing capability whose absence is recoverable.
@@ -749,6 +774,7 @@ The following shapes are wrong for this layer:
 - confidence-threshold-driven routing as a canonical mechanism (strategies may use confidence internally to pick between paths or fall back; routing's external decision is one route, not a probability distribution)
 - treating fast path as a capability-policy bypass
 - bypassing routing for automation, child-run, external-event, or user-invoked-action triggers
+- silently discarding the route or request when routing fails instead of applying a safe-default route or surfacing the failure (§3.6)
 
 ## 15. Consequences for Later Specs
 

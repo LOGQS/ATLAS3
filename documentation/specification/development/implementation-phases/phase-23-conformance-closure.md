@@ -87,7 +87,7 @@ This phase *is* test obligations. Closure items checked explicitly because they 
   path now exists.
 - 25 §12.4 / 26 §16.2 structural no-private-architecture verification over the final dependency
   graph — automated: imports, DB tables, and registries audited against the closed reuse list.
-- The full accessibility conformance pass over every surface, dialog, and state (37 §14.4).
+- The full accessibility conformance pass over every surface, dialog, and state (37 §14.2).
 - The 3-OS platform-conditional behavior matrix: every typed platform gap recorded, none silent.
 - The superseded-vocabulary grep at full strength: every banned legacy name across the canon absent
   from code and schema.

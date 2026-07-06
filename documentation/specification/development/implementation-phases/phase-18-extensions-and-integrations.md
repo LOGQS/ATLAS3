@@ -45,13 +45,13 @@ tested property.
   path, never the user (§10); the `ExternalApi` connector — `api.<service>.<endpoint>` +
   `HttpEndpoint` backends + closed auth/body/pagination sets + OAuth user-delegated flow; definitions
   load **after the vault**; literal secrets where refs belong are refused (§11); **the webhook
-  receiver** → File 33 `Webhook` triggers with auth/freshness/idempotency, registered on the 42 HTTP
-  server after the IPC layer; localhost default, remote bind explicit (§13); remote workflow node
+  receiver** → File 33 `Webhook` triggers with auth/freshness/idempotency, bound to a 42-owned
+  dynamically-allocated loopback listener after the IPC layer; localhost default, remote bind explicit (§13); remote workflow node
   kinds + retrieval adapters (§14); `mcp.*`/`connector.*` capabilities — `mcp.search` mechanics
   discharge the P6-reserved id (§16). Connector definitions are device-local and never sync;
   configuring elsewhere is a fresh local configure-and-approve (§17).
-- **File 42 — §9.3/§5.7 completion**: the `DynamicServiceRegistry` (plugin-backed services);
-  connection pools + the idle reaper + the Stdio-process crash reaper; the webhook route
+- **File 42 — §9.3/§10.3/§6 completion**: the `DynamicServiceRegistry` (plugin-backed services, §9.3);
+  connection pools + the idle reaper (§10.3); the Stdio-process crash reaper (§6); the webhook route
   registration.
 
 ## 3. Prerequisites

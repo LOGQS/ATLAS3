@@ -2,7 +2,7 @@
 
 ## Status
 
-Canonical. This file defines how a user's data moves: across the user's own devices, out of the system, into the system, and into recovery media. It realizes the cross-device and portability contracts Files 09, 10, 11, 14, 15, and 20 declare and delegate to this layer. Later canonical files may refine it, but may not contradict it.
+Canonical. This file defines how a user's data moves: across the user's own devices, out of the system, into the system, and into recovery media. It realizes the cross-device and portability contracts Files 09, 10, 11, 14, 15, 20, and 24 declare and delegate to this layer. Later canonical files may refine it, but may not contradict it.
 
 ## Scope
 
@@ -160,7 +160,7 @@ Multi-device users need work to appear on every device without an Atlas-operated
 - interrupted operation marker
 - checkpoint validation status
 
-A corrupt, mismatched, zeroed, or interrupted checkpoint produces a typed invalid-checkpoint state. Recovery revalidates from the last safe boundary or performs a non-destructive re-enumeration. It never truncates local data based on remote absence or a suspect cursor.
+The `SyncCheckpoint` is device-local transport progress state and never itself replicates. A corrupt, mismatched, zeroed, or interrupted checkpoint produces a typed invalid-checkpoint state. Recovery revalidates from the last safe boundary or performs a non-destructive re-enumeration. It never truncates local data based on remote absence or a suspect cursor.
 
 ### 3.5 Boundary
 
@@ -237,7 +237,7 @@ A user who edits the same conversation on two devices made two legitimate edits.
 - **Version divergence becomes siblings.** Different children of the same parent version become siblings after sync. Neither overwrites the other. The remote child is appended to the local tree. `current_version_id` is unchanged. A `SyncVersionDiverged` event fires.
 - **The per-device pointer is never yanked.** Pulling remote commits never moves the user's current view. The user switches or merges explicitly.
 - **Sync is additive.** Remote absence never causes local deletion. Deletion propagates only as explicit tombstone records. Empty, partial, or failed remote responses are not authoritative absence.
-- **Settings conflicts are causal.** Syncable setting values carry causal revision identity: `settings_value_revision_id`, `base_revision_id`, `device_id`, `actor_id`, and optional causal parents for merged values. A causally descendant write supersedes its ancestor. Concurrent writes to the same `(key, scope)` from the same base produce a typed settings conflict. No wall-clock or `updated_at` rule selects the winner.
+- **Settings conflicts are causal.** Syncable setting values carry causal revision identity: `settings_value_revision_id`, `base_revision_id`, `device_id`, `actor_id`, and optional causal parents for merged values. Each write is stamped with this identity and lands as a durable syncable source-of-truth revision in the substrate File 20 partitions; the transport carries revisions, it does not own them. A causally descendant write supersedes its ancestor. Resetting a value to inherit or unset is itself a causally descendant unset/inherit revision carrying this identity, serving as the settings tombstone rather than a row deletion. Concurrent writes to the same `(key, scope)` from the same base produce a typed settings conflict: each device's local value stays effective and neither revision auto-wins, and the user resolves it with an ordinary `settings.write` recording both conflicting revisions as causal parents, which introduces no new capability. No wall-clock or `updated_at` rule selects the winner.
 - **Poisoned checkpoints self-heal non-destructively.** Bad checkpoints route through section 3.4. They never trigger destructive resync.
 - **Unavailable references resolve to typed state.** A synced record referencing a missing capability, plugin, custom kind, blob, or connector remains preserved and resolves as unavailable until the dependency is installed, approved, or fetched.
 
@@ -287,8 +287,8 @@ Per-device state must be attributable without syncing private identity material.
 - Each installation has a stable `DeviceIdentity`, assigned once and never reused. It keys the audit chain, rate-limit state, and per-device pointers. It is device-local and never synced, exported, or shared raw.
 - Pairing is account-based against a user-controlled primary, with no Atlas-hosted server. The user points the device at a primary they control and authorizes it with credentials held in the secret vault.
 - A `PairedDeviceRecord` is syncable metadata: device id or public fingerprint, display label, authorization status, capabilities, pairing source, revocation marker, and sensitivity/locality classification.
-- Adding or removing a device is an explicit user action and a durable auditable fact. Removing a device writes a revocation record and unbinds its replica; it does not delete that device's local substrate. Other devices stop accepting future sync from a revoked device after seeing the revocation.
-- Sync authorization credentials are secret-vault material. They never appear inline in settings, TOML, sync payloads, packages, logs, events, or agent context.
+- Adding or removing a device is an explicit user action and a durable auditable fact. The set of `PairedDeviceRecord`s is itself syncable source-of-truth; devices converge on this shared device list rather than negotiating pairwise. Removing a device writes a revocation record and unbinds its replica; it does not delete that device's local substrate. As each remaining device converges on the updated list, it stops accepting future sync from the revoked device.
+- Sync authorization credentials are secret-vault material. They never appear inline in settings, TOML, sync payloads, packages, logs, events, or agent context. Where the transport supports per-device credentials, each paired device holds its own credential and removing that device invalidates only that credential. Where the transport shares one credential across devices, removing a device forces credential rotation and re-pairing of the remaining devices, surfaced as a typed consequence.
 - ATLAS3 is local-first single-user software. Device pairing does not introduce multi-user identity, authentication principals, or per-user access control.
 
 ### 8.4 Boundary
@@ -309,11 +309,11 @@ Importing data from another installation crosses a boundary. Identity must survi
 
 ### 9.3 Rule
 
-- Durable identities are globally unique UUIDs preserved across sync and import. Within a logical installation, an identity is the same on every paired device.
+- Durable identities are globally unique UUIDs preserved across sync and import. Within a logical installation - the set of a user's paired devices that share one identity space, as distinct from a single physical install - an identity is the same on every paired device.
 - Foreign imports preserve identities by default. Same-id/different-content collisions are classified by section 11.3 and never silently merge or overwrite.
 - Content-addressed blobs deduplicate by content hash.
 - Import stamps an `Import { source_kind, source_ref }` producer record on every imported record and records `CrossInstallationMap` entries linking source installation identity, source record identity, and local identity.
-- Originating runtime history is not imported as local execution history. A package may carry source provenance, source ledger references, source run summaries, or profile-specific source records; local import itself always creates new local ledger entries describing the import.
+- Originating runtime history is not imported as local execution history. A package may carry source provenance, source ledger references, source run summaries, or profile-specific source records; these profile-carried non-block records land `Import`-stamped, immutable, and non-sequenced, resolvable through File 09's provenance closure (`Provenance`, File 09 §15) and File 10's `Inspect` replay (File 10 §11), never as sequenced local execution history. Local import itself always creates new local ledger entries describing the import.
 - `CrossInstallationMap` is durable syncable source-of-truth so imported provenance resolves identically on the user's paired devices.
 
 ### 9.4 Boundary
@@ -355,7 +355,9 @@ Typed package gap records include:
 - `PackageRedacted { source_id, source_kind, redaction_kind, reason }`
 - `PackageProvenanceGap { source_id, gap_kind, reason }`
 
-Cross-cutting reasons include `SensitivityRestriction`, `SecretPayloadExcluded`, `DeviceLocal`, `ProjectionExcluded`, `PolicyDenial`, `UserExcluded`, `UnavailableDependency`, `UnsupportedCustomKind`, and `CorruptOrMissingPayload`.
+Cross-cutting reasons include `SensitivityRestriction`, `SecretPayloadExcluded`, `DeviceLocal`, `ProjectionExcluded`, `PolicyDenial`, `UserExcluded`, `UnavailableDependency`, `UnsupportedCustomKind`, `DeferredNotFetched`, and `CorruptOrMissingPayload`.
+
+For a `RecoveryArchive`, a referenced blob that is not locally present is either fetched into the package or recorded as a typed `PackageOmitted { source_id, source_kind, reason: DeferredNotFetched }` waiver; a deferred blob is never dropped silently, and mandatory fetch of every referenced blob is not a precondition of producing the archive.
 
 ### 10.4 Canonical Encoding and Integrity
 
@@ -394,7 +396,7 @@ The import pipeline proceeds in order:
 
 1. **Validate source and manifest.** Manifest, schema versions, dependency declarations, canonical encodings, and integrity hashes are checked. Tampered, truncated, hash-mismatched, or structurally invalid packages are rejected before visible writes.
 2. **Create staging area.** Blobs and materialized payloads write to an `ImportStagingArea`. Staged blob bytes are hash-verified before any record can reference them authoritatively.
-3. **Normalize on load.** Package schema versions and per-record schema versions are normalized to current shapes through File 20/File 15/File 09 mechanisms. Foreign/external formats enter only through explicit registered import capabilities. This file does not require migration/adaptation paths for obsolete draft schemas or nonexistent deployed user data.
+3. **Normalize on load.** Package schema versions and per-record schema versions are normalized to current shapes through File 20's generic normalization-on-load mechanism, which consumes each record's `*_schema_version` stamp (File 20 §10), and through File 15's stored-value normalization (File 15 §11) for settings. Foreign/external formats enter only through explicit registered import capabilities. This file does not require migration/adaptation paths for obsolete draft schemas or nonexistent deployed user data.
 4. **Resolve dependencies.** Custom kinds, capability declarations, plugin-owned settings definitions, extension references, and connector references are resolved. Missing implementations are preserved as inert/unavailable dependency states; importing a package never installs, updates, enables, or executes plugin or connector code.
 5. **Remap foreign references while preserving UUIDs.** Identities are preserved by default. Cross-references are resolved through a UUID-preserving pass. `CrossInstallationMap` entries are prepared.
 6. **Deduplicate by content.** Existing blobs and content-equal records are referenced by content hash where safe.
@@ -424,7 +426,7 @@ Anchor: `portability.sensitivity-egress`
 
 ### 12.1 Definition
 
-Egress governance is the rule set applied whenever data leaves the device or installation: sync to a primary, export to a package, surface-owned format export, sharing, publishing, clipboard copy, or external destination transfer.
+Egress governance is the rule set applied whenever data leaves the device or installation: sync to a primary, export to a package, surface-owned format export, sharing, publishing, clipboard copy, provider-call content transmission, or external destination transfer.
 
 ### 12.2 Purpose
 
@@ -480,7 +482,7 @@ The portability layer exposes canonical capabilities for sync control, export, i
 ### 14.2 Rule
 
 - Canonical capabilities include enabling/disabling sync, editing destination profiles, pairing/unpairing devices, pushing/pulling, previewing and producing packages, previewing and producing surface-owned format exports, previewing and running imports, generating/revoking shares, creating backups, and restoring backups.
-- Egress capabilities carry section 12 policy gates. Import that introduces foreign records carries source approval. Restore over live data and unpair-with-wipe-style operations expose preview plans and typed confirmation.
+- Egress capabilities carry section 12 policy gates. Import that introduces foreign records carries source approval. Restore over live data and unpair-with-wipe-style operations expose preview plans and typed confirmation; an unpair-with-wipe defines no new destructive primitive here but composes File 20's storage reclamation (File 20 §11) and File 22's vault handling.
 - Preview is first-class. Package export preview returns the proposed manifest and included/omitted/redacted/gap sets. Import preview returns `ImportPlan`. Format-export preview returns its own surface-owned preview plus egress classification.
 - Long-running sync, export, import, backup, and restore operations are cancellable and killable per File 04. They report progress from durable boundaries, record counts, blob hashes, checkpoints, and typed outcomes, not elapsed time.
 - No portability capability may bypass sensitivity filtering, no-secret-egress, source approval, dependency closure, or policy.
@@ -525,6 +527,7 @@ Dimensions include:
 - enabled sync scopes
 - sensitivity floor for sync, package export, surface-owned format export, share, publish, and clipboard
 - sync divergence notification and branch-switch preferences
+- settings-conflict notification and resolution preferences
 - blob-fetch policy and metered-connection behavior
 - package profile defaults and export scope defaults
 - redaction policy for sensitive egress
@@ -580,7 +583,7 @@ Later specs must follow these rules:
 - The **per-surface specs** may declare lossy presentation-format exports, but every such export passes through egress governance, audit recording, and sensitivity filtering. Their durable state rides the syncable substrate and `PortablePackage`, never a private export path.
 - The **Automation and Triggers** spec (File 33) tags machine-bound execution state device-local while replicating portable schedule, watch, and trigger definitions when allowed. It drives nothing from sync cadence.
 - The **Extension and Plugin System** (File 35) and **MCP and External Integrations** (File 36) specs make synced/imported records referencing missing capabilities, plugins, custom kinds, connectors, or MCP servers resolve to unavailable/inert states. They own installation, execution, enablement, and update of code.
-- The **UI Shell** spec (File 37) and the **UI Customization** spec (File 38) render sync status, destination profiles, export preview, import review, `ImportPlan`, divergence resolution, collision classes, dependency gaps, omissions/redactions, and backup/restore surfaces from the contracts this file defines.
+- The **UI Shell** spec (File 37) and the **UI Customization** spec (File 38) render sync status, destination profiles, export preview, import review, `ImportPlan`, divergence resolution, settings conflicts, collision classes, dependency gaps, omissions/redactions, and backup/restore surfaces from the contracts this file defines.
 - The **Telemetry, Logging, and Observability** spec (File 41) consumes portability events as data and builds views as projections. It never makes telemetry a source of truth and never egresses content this file excludes.
 - The **Evaluation and Benchmarking** spec (File 40) verifies package export/import round-trip, import idempotence, interruption safety, tamper rejection, additive sync safety, causal settings conflicts, restore staging, golden canonical-encoding fixtures for package hashes, and replay equivalence over typed package contents. It replays over recorded snapshots and immutable references, not live sync state.
 - Every later spec that produces durable state declares replication eligibility, export inclusion, import handling, dependency declarations, and sensitivity behavior. It obeys no-secret-egress, no-silent-last-write-wins, UUID preservation, content-addressed deduplication, additive sync, typed gaps, and package round-trip rules.

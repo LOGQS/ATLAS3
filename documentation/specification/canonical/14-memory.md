@@ -115,6 +115,7 @@ A `MemoryEntry` must carry:
 - `retention_policy` - whether the memory is durable, time-bounded, user-pinned, review-needed, or cleanup-eligible
 - `conflict_state` - conflict projection when known
 - `created_at` and `updated_at`
+- `revision` - monotonic revision over the entry's in-place-mutable metadata; mutation goes only through a precondition-checked path that fails typed on staleness
 - `entity_schema_version`
 
 The entity may cache safe descriptions, derived summaries, or display labels, but those are projections. Durable memory content remains in the block.
@@ -189,6 +190,8 @@ Useful facets include:
 - freshness requirements
 
 Facets are typed. Prose-only facets are insufficient for policy-critical behavior.
+
+Spaced-repetition scheduling is expressed through these temporal facets, not a separate scheduler: a `Mastery` memory's next-review time and review cadence are `when` and recurrence facets. A card scheduled for a future review is an active memory whose validity stays current; a pending next-review time is not an expiration and must not be treated as stale-toward-cleanup.
 
 ## 5. Core Memory
 
@@ -386,7 +389,7 @@ Every memory must have provenance.
 - sensitivity and redaction state
 - freshness requirements
 
-Factual memories may publish or reference File 09 claims/evidence when useful. Preference, style, procedure, commitment, and mastery memories do not need to become claims by default, but still need provenance.
+Factual memories may publish or reference File 09 claims/evidence when useful; a memory that consolidates a claim must preserve that claim's identity and confidence class per File 09. Preference, style, procedure, commitment, and mastery memories do not need to become claims by default, but still need provenance.
 
 Conflict handling:
 
@@ -406,6 +409,7 @@ Consolidation maintains memory quality. It may:
 - lower confidence or mark stale
 - drop expired or low-value memories from active projections
 - create summaries or richer memories from several sources
+- promote one or more claims into consolidated memory, preserving each source claim's identity and confidence class and linking the memory to the source claim blocks through a `consolidates` edge per File 09
 - propose scope changes
 - reinforce useful memories
 - mark cleanup candidates

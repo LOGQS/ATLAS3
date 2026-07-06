@@ -88,7 +88,7 @@ A `ToolSurface` is not:
 A `ToolSurface` is always typed with an `invoker_kind` and an `invocation_lens`. The canonical invoker kinds are:
 
 - `ModelAgent` — an executing model inside a `Run`; the surface renders into the model request as callable declarations and model-request text content
-- `ProgrammaticUnit` — a deterministic execution unit (per `run.programmatic-execution`, File 04 §14) that resolves capabilities by id; the surface enumerates ids the unit may invoke
+- `ProgrammaticUnit` — a deterministic execution unit (per `run.programmatic-execution`, File 04 §14) that resolves capabilities by id; the surface enumerates ids the unit may invoke. Unlike the tag-filtered lenses, the `ProgrammaticUnit` surface applies no display-tag filter — it enumerates exactly the ids in the unit's enumerated allowed set, and File 06 policy still gates each resolved invocation (§9.1 step 12)
 - `Palette` — the command palette and equivalent quick-action surfaces (slash commands, palette overlays); the surface renders as a searchable user-facing list
 - `Voice` — voice command resolver; the surface renders as a vocabulary-matchable set of voice-invokable capabilities with their aliases
 - `Shortcut` — keyboard-shortcut dispatcher; the surface renders as a map from chord to capability id
@@ -106,7 +106,7 @@ The composition algorithm produces a `ResolvedToolSurface` carrying at minimum:
 
 - `surface_id` — stable identity for this composition for the duration of its validity (one model turn, one palette open, one voice session, etc.)
 - `invoker_kind` and `invocation_lens` — what computed the surface
-- `scope_context` — the snapshot of (`run_id`, `intent_thread_id`, `task_id`, `conversation_id`, `workspace_id`, `surface_zone`, `profile_id`, world-model snapshot id, settings snapshot id, borrow-grant set id) that fed the composition
+- `scope_context` — the snapshot of composition inputs that fed the composition; the canonical `scope_context` signature is the single one the composition algorithm consumes (§9.1): `run_id` (optional), `intent_thread_id`, `task_id`, `conversation_id`, `workspace_id`, `profile_id`, `primary_surface_id`, `supporting_surface_ids`, `routing_strategy`, `routing_metadata`, `tool_allowlist` (optional), `active_world_snapshot_id`, `active_settings_snapshot_id`, `active_borrow_grant_set_id`, `active_policy_snapshot_id`, `active_model_id`, `active_provider_id`, and `active_context_budget`. The zones a composition produces are outputs, never a `scope_context` input
 - `zoned_entries` — typed per-capability records grouped by zone (per §3): `primary`, `borrowable`, `deferred`, `disabled`, `unavailable`
 - `routing_inputs` — the `RunIntent.tool_surface_strategy` consulted (per File 03), the active routing decision facts (per §6), and any pre-existing `BorrowGrant`s honored
 - `provider_name_map` — when rendered for a provider, a bijective map from every provider-visible tool name to `(capability_id, capability_version, declaration_version)`; invocation records store both the canonical id and the provider-visible name used for the call
@@ -164,7 +164,7 @@ The split between `Primary` and `Borrowable` is semantically meaningful for the 
 
 When ATLAS3 exposes capabilities to an external MCP client (per `capability.chosen-model`, File 05 §1's "agent and user invoke same underlying capability system through different control rails" and `core.extension-planes` (File 01 §6.14)), the surface filter applies the same way:
 
-- `Primary` and `Borrowable` entries — visible in the external surface only if the capability is tagged for external exposure (per `capability.display-fields`, File 05 §3.2 tags) and the active source-approval policy permits external exposure (per `policy.source-approval-flow`, File 06 §9); a capability not tagged for external exposure is filtered to `Disabled` for the `ExternalMcp` lens regardless of its zone in other lenses
+- `Primary` and `Borrowable` entries — visible in the external surface only if the capability is tagged for external exposure (per `capability.display-fields`, File 05 §3.2 tags) and the active source-approval policy permits external exposure (per `policy.source-approval-flow`, File 06 §9); a capability not tagged for external exposure is excluded from the `ExternalMcp` lens (a lens-local exclusion, not the registry `Disabled` zone) regardless of its zone in other lenses
 - `Deferred`, `Disabled`, `Unavailable` — hidden from the external surface; external clients see only the externally exposed Primary + Borrowable set
 
 The `tool.borrow` and `tool.search` capabilities are themselves first-class capabilities (§7); whether they are externally exposed is a user setting per source-approval and source policy.
@@ -220,7 +220,7 @@ The model request receives `Borrowable` entries as model-request text content pl
 
 - `family` grouping — entries are grouped by `family` (per `capability.family`, File 05 §13.2) so the model can scan by family
 - per-entry one-liner — `name` and `short_description` (per `capability.display-fields`, File 05 §3.2)
-- `borrow_invocation_hint` — a single hint line indicating that `tool.borrow(name)` loads the schema for the rest of the turn
+- `borrow_invocation_hint` — a single hint line indicating that `tool.borrow(name)` loads the schema for the rest of the run (the default `BorrowGrant` scope, §7.3)
 
 The block is deterministically ordered (alphabetical by family, then alphabetical by name within family) so the model-request prefix is cache-friendly where the provider supports caching (per `run.from-run-intent-to-run`, File 04 §3 cheap routing and File 13). If a `BorrowGrant` (per §7.3) is active, the borrowed capability is rendered in `Primary` for the duration of the grant and removed from the `Borrowable` catalog block to avoid duplication.
 
@@ -269,6 +269,7 @@ Every work surface and every capability-owning substrate service declares a `Sub
 A `SubsystemSurfaceSpec` carries:
 
 - `subsystem_id` — the subsystem id from `capability.capability-source` (File 05 §9.1); matches the `primary_surface` value from `routing.run-intent` (File 03 §4.3) routing when this subsystem owns that surface
+- `spec_version` — the declaration version of this `SubsystemSurfaceSpec` (per `capability.version`, File 05 §13.4); it increments on each update through the registration pipeline and is the `old_version`/`new_version` carried by `SubsystemSurfaceSpecUpdated` (§13)
 - `display_name` — localized human-readable surface name (per `capability.display-fields`, File 05 §3.2)
 - `primary_capability_ids` — the ordered list of capability ids (per `capability.id`, File 05 §13.1) that should be in `Primary` zone for a run whose primary surface is this subsystem
 - `borrowable_capability_ids` — the ordered list of capability ids that should be in `Borrowable` zone for such a run; these are capabilities the subsystem expects the model to occasionally need but does not want consuming model-request budget by default
@@ -279,6 +280,8 @@ A `SubsystemSurfaceSpec` carries:
 - `availability_predicate` — optional subsystem-level predicate; if the predicate fails, the entire `SubsystemSurfaceSpec` is unavailable (e.g., a Web surface that requires a registered browser backend, a GUI Control surface that requires accessibility API access)
 
 The `SubsystemSurfaceSpec` is declarative. It is a typed object the registering subsystem provides through the same proposal-first capability-registration pipeline that registers individual capabilities (per `capability.runtime-mutation`, File 05 §16.2). A subsystem's surface spec is updateable through that pipeline; updates emit `SubsystemSurfaceSpecUpdated` events (per §13).
+
+Every ATLAS3 install ships one baseline `SubsystemSurfaceSpec` — the conversation surface — that is always present and is the active spec for any run whose `RunIntent.primary_surface` is `conversation` (per `routing.run-intent`, File 03 §4.3) or resolves to no subsystem-owned surface. Its `subsystem_id` is `conversation`; its `primary_capability_ids` are the discovery capabilities (`tool.borrow`, `tool.borrow_persistent`, `tool.search`, `mcp.search`, `tool.inspect`, per §7.1) so that even a no-surface conversational run can discover and borrow; it declares no `forbidden_capability_ids` and no subsystem `availability_predicate`. The baseline surface guarantees that the composition algorithm's Step 1 (§9.1) always resolves an active `SubsystemSurfaceSpec`, so the no-surface case is a named baseline rather than an absent spec.
 
 ### 5.2 Capabilities Outside the Spec
 
@@ -369,7 +372,7 @@ The discovery capabilities carry the following declarations (per `capability.dec
 - `permission_tier`: `ReadOnly` — loading metadata is read-only and never grants invocation authority of the borrowed capability (the borrowed capability's own tier applies on invocation)
 - `concurrency`: `ConcurrencySafe` — multiple borrows in parallel are safe; they each add to the `BorrowGrant` set
 - `replay_class`: `deterministic_replayable` — same arguments and registry state produce same result
-- `touched_resources`: meta-resource declaration over the registry (registry-state-read, no external effects)
+- `touched_resources`: `{ class: capability-registry, access: read }` — reads Capability Registry state to resolve and expose the borrowed capability's schema, with no external effects (per `capability.touched-resources`, File 05 §6 and the `capability-registry` resource class, File 05 §6.2)
 - `idempotent`: true — borrowing twice is no-op the second time
 - `preview_mode`: `none` — borrowing is metadata-only
 - result: the full capability schema plus the granted `BorrowGrant` record
@@ -377,6 +380,7 @@ The discovery capabilities carry the following declarations (per `capability.dec
 `tool.borrow_persistent(capability_id, scope)`:
 
 - same as `tool.borrow` except `permission_tier`: `UserApproval` (granting wider scope persists capability presence across runs)
+- `touched_resources`: `{ class: capability-registry, access: read }` to resolve the borrowed schema, plus a typed `{ class: capability-registry, access: write }` effect for the persistent surface-visibility grant it records — this cross-run visibility change is the typed, policy-gated effect that distinguishes `tool.borrow_persistent` from the read-only `tool.borrow`
 - argument-aware: borrowing for `global` scope may trigger typed-confirmation if the borrowed capability's class is `ActionExternal` per `policy.risk-classification-trust-interaction` (File 06 §15)
 
 `tool.search(query, family, source, top_k)`:
@@ -384,11 +388,12 @@ The discovery capabilities carry the following declarations (per `capability.dec
 - `permission_tier`: `ReadOnly`
 - `concurrency`: `ConcurrencySafe`
 - `replay_class`: `deterministic_replayable` (with caveat: the registry is mutable, so results depend on registry state at search time; replay records the registry snapshot id)
+- `touched_resources`: `{ class: capability-registry, access: read }` — reads registry state to rank matches; no external effects
 - result: ranked list of capability metadata (name, family, short_description, source, current zone, declared tier)
 
 `mcp.search(query, server_id, top_k)`:
 
-- same as `tool.search` but filtered to MCP-sourced capabilities; optional server_id narrows to a specific connected server
+- same as `tool.search` (including `touched_resources`: `{ class: capability-registry, access: read }`) but filtered to MCP-sourced capabilities; optional server_id narrows to a specific connected server
 - result: same shape as `tool.search` plus the MCP-server identity per match
 
 `tool.inspect(capability_id)`:
@@ -396,6 +401,7 @@ The discovery capabilities carry the following declarations (per `capability.dec
 - `permission_tier`: `ReadOnly`
 - `concurrency`: `ConcurrencySafe`
 - `replay_class`: `deterministic_replayable`
+- `touched_resources`: `{ class: capability-registry, access: read }` — reads registry metadata only; no external effects
 - result: declared metadata at the requested detail level without changing zone membership or making the capability callable in provider-native format
 
 `tool.inspect` returns compact metadata by default: name, display metadata, source, family, current zone, declared tier, short input/output summary, and borrow eligibility. Full detail, including full schemas, is available only when requested and allowed by settings, policy, and context budget. Inspecting a capability never changes zone membership and never makes the capability callable.
@@ -417,7 +423,7 @@ A `BorrowGrant` carries:
 - `grant_origin`: `tool_borrow_call`
 - `revocation_conditions`: standard scope expiry, explicit user revoke, capability unregistration, source unavailability, declaration-version incompatibility, or settings change that disables borrowing for the target
 
-`BorrowGrant` uses the same scope vocabulary as File 06 leases where applicable (`run`, `intent_thread`, `task`, `conversation`, `workspace`, `global`, `reusable_policy_rule`), but it is not selected by policy evaluation and is not a policy decision. It is stored and audited with surface state; File 20 may co-locate it physically with policy leases, but the semantics stay separate.
+`BorrowGrant` uses the same scope vocabulary as File 06 leases where applicable (`run`, `intent_thread`, `task`, `conversation`, `workspace`, `global`); the `reusable_policy_rule` scope is a policy-lease construct with no surface-visibility meaning and is not a `BorrowGrant` scope. A `BorrowGrant` is not selected by policy evaluation and is not a policy decision. It is stored and audited with surface state; File 20 may co-locate it physically with policy leases, but the semantics stay separate.
 
 If the approval `Lease` for a `tool.borrow_persistent` call is later revoked, existing `BorrowGrant`s survive under their own revocation conditions. Revoking that approval `Lease` means future persistent borrow calls require re-approval; it does not retroactively remove already-granted `BorrowGrant`s.
 
@@ -478,7 +484,7 @@ When the assembled tool surface's estimated token cost exceeds the configured su
 
 **Step A — drop `default_deferred_families` already-deferred entries** from the `Borrowable` catalog block. These entries entered `Borrowable` only through `supporting_surfaces` promotion or routing; the subsystem explicitly deferred them.
 
-**Step B — demote `Borrowable` entries beyond a configured `borrowable_cap` to `Deferred`**. The capacity cap is a setting (per §18); the default keeps roughly the active subsystem's natural borrowable size. Demoted entries leave the `Borrowable` catalog block in the model request.
+**Step B — demote `Borrowable` entries beyond a configured `borrowable_cap_count` to `Deferred`**. The capacity cap is a setting (per §18); the default keeps roughly the active subsystem's natural borrowable size. Demoted entries leave the `Borrowable` catalog block in the model request.
 
 **Step C — abbreviate `Borrowable` catalog block** by removing per-family grouping headers and per-entry family annotations, keeping only `name` and `short_description`.
 
@@ -502,10 +508,10 @@ Auto-shrink should preserve stable ordering and cacheable model-request prefixes
 
 The settings system (per §18) controls:
 
-- `tool_surface_budget` per scope — the token budget the surface is allowed to consume
-- `borrowable_cap` — the maximum number of `Borrowable` entries
-- `shrink_priority_override` — per-capability or per-family override of the default priority order
-- `shrink_enabled` per scope — users may disable auto-shrink; if the resulting surface no longer fits, context assembly receives a typed overflow instead of an over-limit request
+- `budget_token_count` per scope — the token budget the surface is allowed to consume
+- `borrowable_cap_count` — the maximum number of `Borrowable` entries
+- `shrink_priority` — per-capability or per-family override of the default priority order
+- `auto_shrink_enabled` per scope — users may disable auto-shrink; if the resulting surface no longer fits, context assembly receives a typed overflow instead of an over-limit request
 
 ### 8.4 Shrink Does Not Affect User-Facing Surfaces
 
@@ -531,12 +537,16 @@ scope_context := {
   intent_thread_id, task_id, conversation_id, workspace_id,
   profile_id, primary_surface_id, supporting_surface_ids,
   routing_strategy, routing_metadata,
+  tool_allowlist (optional),
   active_world_snapshot_id, active_settings_snapshot_id,
   active_borrow_grant_set_id, active_policy_snapshot_id, active_model_id, active_provider_id,
   active_context_budget,
 }
 
 Step 1 — Resolve the active SubsystemSurfaceSpec from primary_surface_id.
+  If primary_surface_id is conversation or resolves to no subsystem-owned
+  surface, resolve the baseline conversation SubsystemSurfaceSpec (§5.1),
+  which is always present.
 Step 2 — Snapshot the registry:
   Materialize declaration view, enabled state, availability_status, source,
   and registration facts for every RegisteredCapability relevant to the lens.
@@ -588,8 +598,18 @@ Step 11 — Apply floor enforcement:
       zone is clamped to Disabled for the ModelAgent lens (agent cannot invoke);
       remains visible in palette and inspector per user customization.
 Step 12 — Filter by invocation lens:
+  The lens filter runs after every promotion path (supporting-surface
+  promotion, tool_surface_strategy, active BorrowGrants, forced tool choice,
+  and always-load pins); no promotion path overrides it, so a capability that
+  lacks the lens's required tag is excluded even when a promotion placed it in
+  a zone. Tag-based filtering obeys lens_filter_strictness (§9.4, default
+  strict): under strict a capability must explicitly carry the lens tag to
+  appear; under permissive it is eligible unless explicitly excluded.
   Apply per-lens filters:
     - ModelAgent: capability.tags must include 'agent-invokable'.
+    - ProgrammaticUnit: no tag filter; resolve capabilities by id against the
+                   unit's enumerated allowed set, and File 06 policy applies to
+                   each resolved id.
     - Palette: capability.tags must include 'palette-invokable'.
     - Voice: capability.tags must include 'voice-invokable'.
     - Shortcut: capability has default_shortcut OR user-bound shortcut.
@@ -597,19 +617,24 @@ Step 12 — Filter by invocation lens:
     - ExternalMcp: capability.tags must include 'external-exposed'
                    AND source-approval permits external exposure.
     - Inspector: no filter; all entries surfaced (including Disabled, Unavailable).
-  Capabilities filtered out for the lens are placed in Disabled for this lens,
-  with diagnostic note `lens_filter_excluded`.
-Step 13 — Estimate model-request cost (ModelAgent lens only):
+  Capabilities filtered out for the lens are excluded from this lens's zoned
+  entries — a lens-local exclusion, not the registry Disabled zone — with
+  diagnostic note `lens_filter_excluded`.
+Step 13 — Apply child-run tool_allowlist (if scope_context.tool_allowlist is present):
+  Capabilities not in the allowlist are excluded from this composition
+  (per `run.isolation` (File 04 §16.2)), with diagnostic note
+  `child_allowlist_excluded`.
+Step 14 — Estimate model-request cost (ModelAgent lens only):
   Sum estimated tokens for all Primary entries' full schemas + Borrowable
   catalog block + discovery capabilities catalog.
-Step 14 — Apply auto-shrink if estimated cost > active_context_budget.tool_surface_budget:
+Step 15 — Apply auto-shrink if estimated cost > active_context_budget.tool_surface_budget:
   Run the auto-shrink algorithm (§8.2). Record every demotion in
   auto_shrink_record. The Primary and Borrowable sets after shrink are the
   rendered sets.
-Step 15 — If legal shrink cannot fit the surface:
+Step 16 — If legal shrink cannot fit the surface:
   Return ToolSurfaceOverflow with pinned entries, estimated size, active limit,
   and recovery options.
-Step 16 — Produce ResolvedToolSurface:
+Step 17 — Produce ResolvedToolSurface:
   - surface_id = stable hash over (invoker_kind, invocation_lens,
     scope_context.snapshot, registry snapshot id, settings snapshot id,
     borrow-grant set id, post-shrink zones, provider_name_map).
@@ -617,7 +642,7 @@ Step 16 — Produce ResolvedToolSurface:
   - provider_name_map if provider-visible names were rendered.
   - composition_diagnostics with per-capability reason for assignment.
   - auto_shrink_record (empty if no shrink).
-Step 17 — Emit ToolSurfaceComposed event with surface_id and diagnostic facts
+Step 18 — Emit ToolSurfaceComposed event with surface_id and diagnostic facts
   for the inspector and the ledger.
 ```
 
@@ -634,9 +659,9 @@ The algorithm's result is cached keyed by the input snapshot identifiers. A subs
 The algorithm's behavior is configurable through settings (per §18):
 
 - `auto_shrink_enabled` — whether auto-shrink runs at all
-- `tool_surface_budget_token_count` — the model-request budget for tool definitions; default is a fraction of the model context window
+- `budget_token_count` — the model-request budget for tool definitions; default is a fraction of the model context window
 - `borrowable_cap_count` — the maximum number of `Borrowable` entries before forced demotion
-- `lens_filter_strictness` — `strict` (capability must explicitly carry the lens tag) or `permissive` (capabilities are eligible unless explicitly excluded)
+- `lens_filter_strictness` — `strict` (default; a capability must explicitly carry the lens tag to appear in the lens) or `permissive` (capabilities are eligible unless explicitly excluded). A capability that a `SubsystemSurfaceSpec` lists in `primary_capability_ids` or `borrowable_capability_ids` but that lacks the corresponding lens tag is silently excluded under `strict`; registration emits a validation warning for such spec-listed-but-untagged capabilities so the omission surfaces at registration rather than as an unexpectedly empty model-request surface at runtime
 - `trust_narrowing_active` — whether trust narrowing affects zone assignment or only displays inspector-side flags
 - `forbidden_visible_in_palette` — whether capabilities in `forbidden_capability_ids` for the active surface still appear in palette with a disabled indicator (default true for inspectability)
 - `unavailable_visible_in_palette` — whether `Unavailable` entries appear in palette (default true with a "currently unavailable" indicator)
@@ -744,15 +769,11 @@ The block is alphabetized by family then by name within family for cache-friendl
 
 Keeping `Deferred` entries out of the model request is the load-bearing request-economy decision. A `Borrowable` catalog of fifty entries is cheap; a `Deferred` set of five hundred is too expensive to render — search-based discovery is the design.
 
-### 11.6 Empty Surface Handling
+### 11.6 Empty Model-Request Surface
 
-If the composition algorithm produces no `Primary` entries (e.g., `execution_entry` is `respond_inline` and no surface or routing strategy contributed Primary capabilities), the model request's callable-declaration section is empty. The native provider format omits the tools field where appropriate (per `run.tool-calls`, File 04 §9 and File 17). `tool_choice` semantics:
+If the composition algorithm produces no `Primary` entries (e.g., `execution_entry` is `respond_inline` and no surface or routing strategy contributed Primary capabilities), the model request's callable-declaration section is empty. The native provider format omits the tools field where appropriate (per `run.tool-calls`, File 04 §9 and File 17).
 
-- `none` — model produces text only (the surface is rendered as if empty for this turn)
-- `auto` — default; model uses tools or not at its discretion based on the rendered surface
-- `required` — model must call a tool; rendered surface must have at least one Primary entry, otherwise composition fails with `EmptyToolSurfaceWithRequiredChoice`. Routing or execution recovery may intentionally downgrade to `respond_inline`, but that decision is recorded.
-
-`tool_choice` is set by `RunIntent.execution_entry` and the active model strategy per `run.execution-entry` (File 04 §4) and `routing.model-routing` (File 03 §7); File 07 specifies how the chosen mode interacts with surface composition.
+The full `tool_choice` enumeration and the interaction of an empty surface with each mode — including the `EmptyToolSurfaceWithRequiredChoice` failure and `specific_tool` promotion — are owned by Tool-Choice Mechanics (§16); this section specifies only the request-rendering consequence: an empty `Primary` set renders an empty callable-declaration section. `tool_choice` is set by `RunIntent.execution_entry` and the active model strategy per `run.execution-entry` (File 04 §4) and `routing.model-routing` (File 03 §7).
 
 ### 11.7 Cache-Friendly Ordering
 
@@ -798,7 +819,7 @@ The palette consumes this typed data and renders. File 07 specifies the data; Fi
 The `Voice` lens filters capabilities tagged `voice-invokable` (per `capability.display-fields`, File 05 §3.2). Each entry carries:
 
 - `display_name` and `description`
-- `voice_aliases` — the spoken phrases that map to this capability (per File 05 display fields and unit-spec recommendations); examples like "read the file", "open the project", "send an email"
+- `voice_aliases` — the spoken phrases that map to this capability (per `capability.display-fields`, File 05 §3.2); examples like "read the file", "open the project", "send an email"
 - `argument_extraction_hints` — typed hints for the voice-to-arguments extraction (per File 26)
 - `effective_tier` — voice invocation may produce a typed-confirmation request for high-tier capabilities (per `policy.approval-ui-surface-contract`, File 06 §13)
 
@@ -808,8 +829,8 @@ Voice invocation invokes the capability through the same `run.call-pipeline` (Fi
 
 The `Shortcut` lens renders a chord-to-capability map. Entries are capabilities with a declared `default_shortcut` or a user-bound shortcut. The chord format is per File 26 (the keymap); File 07 specifies that:
 
-- Conflicts are detected at registration time (two capabilities with the same shortcut produce a `ShortcutConflict` event per §13; the registry rejects the second registration unless explicitly overridden)
-- User-bound shortcuts override `default_shortcut` declarations
+- A declaration collision — two capabilities declaring the same `default_shortcut` — is detected at registration time and produces a `ShortcutConflict` event (per §13); the registry rejects the second registration unless explicitly overridden, so no two declared defaults silently claim one chord
+- A binding collision — a user-bound shortcut that lands on a chord already bound in the same keybinding context — is not a registration rejection; it resolves through the keymap's precedence rules (a user-bound shortcut overrides a capability's `default_shortcut`, and same-context collisions resolve through the declared priority order) per File 26 §7.5
 - Shortcuts are keybinding-context-aware: the same chord may invoke different capabilities depending on the active keybinding context.
 
 ### 12.4 Inspector Lens
@@ -850,7 +871,7 @@ External MCP exposure is gated by source-approval (per `policy.source-approval-f
 
 ### 12.7 Per-Lens Visibility Rules
 
-Each lens enforces its own visibility rules in step 11 of the composition algorithm (§9.1). A capability with tags `[agent-invokable, palette-invokable]` appears in `ModelAgent` and `Palette` lenses but not in `Voice` or `Shortcut`. A capability with only `[agent-invokable]` appears only in the `ModelAgent` lens; the model can call it, but the user cannot invoke it through the palette. The visibility tags are part of the declared `tags` field per `capability.display-fields` (File 05 §3.2); users may customize per-capability through settings (per §18).
+Each lens enforces its own visibility rules in step 12 of the composition algorithm (§9.1). A capability with tags `[agent-invokable, palette-invokable]` appears in `ModelAgent` and `Palette` lenses but not in `Voice` or `Shortcut`. A capability with only `[agent-invokable]` appears only in the `ModelAgent` lens; the model can call it, but the user cannot invoke it through the palette. The visibility tags are part of the declared `tags` field per `capability.display-fields` (File 05 §3.2); users may customize per-capability through settings (per §18).
 
 ### 12.8 Boundary
 
@@ -925,7 +946,7 @@ The following are durable:
 
 - the Capability Registry — registered capabilities and their `RegisteredCapability` state (per `capability.registered-capability`, File 05 §10) survive restart
 - per-scope settings — per-workspace and per-conversation surface customization persists through the settings system; profile-specific defaults are profile layers; run and per-call changes are invocation overlays
-- `BorrowGrant`s — durable grants at scopes `intent_thread`, `task`, `conversation`, `workspace`, `global`, `reusable_policy_rule` survive restart until their revocation conditions apply
+- `BorrowGrant`s — durable grants at scopes `intent_thread`, `task`, `conversation`, `workspace`, `global` survive restart until their revocation conditions apply
 - the execution ledger — every `ResolvedToolSurface` consumed by an invocation is recorded with surface_id, composition_diagnostics, and zoned_entries; replay can reconstruct the exact surface a past invocation saw
 
 The following are not persisted as independent state:
@@ -963,7 +984,7 @@ Per `run.child-runs-multi-agent-work` (File 04 §16), a child run runs with its 
 
 The child run's surface is composed fresh from the resolved settings snapshot applicable to its scope, but it does not inherit the parent's run-scoped `BorrowGrant`s by default. A child run may borrow capabilities its parent had borrowed (the same capabilities are still in the registry), but the `BorrowGrant` is granted to the child's run id, not inherited from the parent.
 
-The child run's tool surface is constrained by its declared `tool_allowlist` per `run.isolation` (File 04 §16.2) — if the parent run declares the child run can only use a subset, the child's surface composition filters by the allowlist as an additional step at the end of step 11 of §9.1.
+The child run's tool surface is constrained by its declared `tool_allowlist` per `run.isolation` (File 04 §16.2) — if the parent run declares the child run can only use a subset, the child's surface composition applies the allowlist in the dedicated child-run allowlist step (§9.1 Step 13), carried on `scope_context.tool_allowlist`.
 
 ### 14.5 Reconstruction in Edit-Reroute
 
@@ -981,13 +1002,13 @@ Anchor: `surface.mcp-plugin-tool-integration`
 
 Per `capability.sourcing` (File 05 §9), capabilities sourced from MCP servers (`McpServer`), plugins (`Plugin`), external APIs (`Api`), or user definitions (`UserDefined`) enter the same Capability Registry through the same registration pipeline as built-in and subsystem capabilities. There is no parallel "MCP tool list" or "plugin tool catalog" — there is one registry, and source is metadata on the registered entry (per `capability.sourcing-equivalence`, File 05 §9.3).
 
-File 07 surfaces consume this registry uniformly. The composition algorithm (§9) does not distinguish source kinds in its core logic; per-source filters and per-source trust narrowing are settings-driven options applied during step 9, but the surface itself is built from the registry, not from per-source registries.
+File 07 surfaces consume this registry uniformly. The composition algorithm (§9) does not distinguish source kinds in its core logic; per-source filters and per-source trust narrowing are settings-driven options applied during the settings-override and trust-narrowing steps (§9.1 Steps 6 and 10), but the surface itself is built from the registry, not from per-source registries.
 
 ### 15.2 MCP Server Lifecycle and the Surface
 
 MCP server connect → MCP server's tools register into the Capability Registry → next surface composition incorporates them, subject to source-approval (per `policy.source-approval-flow`, File 06 §9). MCP server disconnect → registered MCP-sourced capabilities transition to `availability_status: unavailable_handler`; next composition shows them as `Unavailable`. MCP server reconnect → capabilities transition back to `Available`; next composition restores them to their declared zones.
 
-The reconnection should preserve identity (per `capability.trust-source-approval-flow`, File 05 §9.2): the same `mcp.server_id.tool_name` capability id is re-resolved to the same registered entry. Re-registration is the normal path; the registry detects idempotent registration and updates the `resolved_backend_binding` without changing identity.
+The reconnection should preserve identity (per `capability.trust-source-approval-flow`, File 05 §9.2): the same `mcp.<connector_slug>.<tool_name>` capability id is re-resolved to the same registered entry. The `connector_slug` segment is the registry-assigned stable slug for the MCP connector (per `capability.id`, File 05 §13.1), not the connector's mutable display name; renaming the connector's display name does not change the `connector_slug`, and therefore does not change capability identity or invalidate active `BorrowGrant`s. Re-registration is the normal path; the registry detects idempotent registration and updates the `resolved_backend_binding` without changing identity.
 
 ### 15.3 Plugin Lifecycle and the Surface
 
@@ -1065,8 +1086,9 @@ When `tool_choice: specific_tool(id)` is set, the composition algorithm promotes
 - `availability_status` is `Available`
 - the capability is not in `forbidden_capability_ids` for the active surface
 - the effective tier (per `policy.effective-tier-resolution`, File 06 §4) does not yield `Denied`
+- the capability carries the `agent-invokable` tag — forced tool choice promotes across zones but does not override the lens filter (§9.1 step 12)
 
-If any of these conditions fails, the executor returns a typed denial: `ForcedToolChoiceUnavailable { capability_id, reason }`. Routing handles the denial.
+If any of these conditions fails, the executor returns a typed denial `ForcedToolChoiceUnavailable { capability_id, reason }` — the `reason` names the failed condition, including `lens_tag_missing` when the capability lacks the `agent-invokable` tag. Routing handles the denial.
 
 ### 16.4 Boundary
 
@@ -1136,8 +1158,10 @@ Dimensions:
 - `surface.borrowable_cap_count` — maximum `Borrowable` entries
 - `surface.auto_shrink_enabled` — whether auto-shrink runs
 - `surface.shrink_priority.<capability_id>` — per-capability shrink priority override
+- `surface.auto_shrink_eligible.<capability_id>` — per-capability flag marking the capability eligible for demotion in auto-shrink Step D (per §8.2)
 - `surface.default_deferred_visible_in_palette` — show `Deferred` entries in palette
 - `surface.unavailable_visible_in_palette` — show `Unavailable` entries in palette
+- `surface.forbidden_visible_in_palette` — whether capabilities in `forbidden_capability_ids` for the active surface still appear in palette with a disabled indicator (default true for inspectability)
 - `surface.policy_blocked_visible` — show capabilities currently blocked by policy
 - `surface.borrow_grant_default_scope` — default scope for `tool.borrow` (typically `run`)
 - `surface.cross_surface_borrow_enabled` — whether the model can borrow capabilities outside the active `SubsystemSurfaceSpec` (default true; some safety-conscious workspaces may disable)
@@ -1145,7 +1169,7 @@ Dimensions:
 - `surface.mcp_default_zone` — default zone for newly registered MCP-sourced capabilities (default `Borrowable`)
 - `surface.plugin_default_zone` — default zone for newly registered plugin-sourced capabilities (default `Borrowable`)
 - `surface.model_request_order_strategy` — `cache_friendly` (default; preserves request prefix where supported) | `alphabetical` | `frequency_based`
-- `surface.lens_filter_strictness` — `strict` | `permissive`
+- `surface.lens_filter_strictness` — `strict` (default) | `permissive`
 - `surface.trust_narrowing_active` — whether trust narrowing affects zone or only inspector flags
 - `surface.composition_diagnostic_verbosity` — what diagnostics are recorded per composition (default minimal; verbose for debugging)
 - `surface.mutation_event_emit_level` — which surface-relevant events emit (default all consequential events; the user can suppress noisy ones like every recomposition under heavy churn)
@@ -1240,4 +1264,4 @@ The canonical principles later specs must follow:
 - the Runtime Infrastructure and Lifecycle spec (File 42) implements the composition algorithm with deterministic semantics; File 07 specifies the contract, the runtime realizes it
 - the Packaging, Platform, and Distribution spec (File 43) packages built-in `Capability` declarations including the canonical discovery capabilities (`tool.borrow`, `tool.borrow_persistent`, `tool.search`, `mcp.search`, `tool.inspect`); they ship in every ATLAS3 install as the `Builtin` source
 
-Specific integration contracts will be stated in those files when they are written. Until then, the canonical contract here is the load-bearing reference.
+Specific integration contracts will be stated in those files. Until then, the canonical contract here is the load-bearing reference.

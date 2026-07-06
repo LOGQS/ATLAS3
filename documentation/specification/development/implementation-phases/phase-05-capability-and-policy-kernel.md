@@ -78,8 +78,8 @@ Three lanes: (a) declaration types + validation + registry operations + restart 
    separate audit-visible records (06 §11.5).
 5. **Typed-confirmation**: always-asks; never persists; never batched; the `Denied` carve-out as the
    only path through `Denied`.
-6. **Interaction objects** (File 02): durable Conversation/Message over the block pool (a Message
-   anchors a primary block); IntentThread single-primary-ownership; Task with revision-safe
+6. **Interaction objects** (File 02): durable Conversation and Message, the Message anchored over the
+   block pool (a Message anchors a primary block); IntentThread single-primary-ownership; Task with revision-safe
    concurrent updates (succeed / typed-conflict / branch); activity-state reduction.
 7. **Headless approval harness**: policy emits the §13 data-contract objects; a test harness consumes
    and answers them (06 §13.8) — P12 renders the *same* contract verbatim.

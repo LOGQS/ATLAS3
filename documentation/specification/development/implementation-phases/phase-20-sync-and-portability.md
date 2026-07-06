@@ -70,8 +70,13 @@ independent of (a)/(b). May overlap P18/P19.
    never device-local/audit/vault/TOML); enablement flow (destination profile, credentials via
    vault, policy validation); push after local commit boundaries; pull → remote commits appended as
    siblings; checkpoint self-healing; blob deferred fetch.
-4. **Settings conflicts**: causal metadata on syncable values; concurrent same-(key,scope) writes
-   from the same base → typed conflict surfaced.
+4. **Settings conflicts**: causal metadata (`settings_value_revision_id`/`base_revision_id`/
+   `device_id`/`actor_id`) on syncable values; a reset-to-inherit/unset is itself a causally
+   descendant unset revision (the settings tombstone, never a row delete); concurrent same-(key,scope)
+   writes from the same base produce a typed conflict — each device's local value stays effective,
+   neither revision auto-wins, and the user resolves it with an ordinary `settings.write` recording
+   both revisions as causal parents (no new capability), surfaced through the settings-conflict
+   notification (21 §6).
 5. **Device pairing**: DeviceIdentity assignment; pairing records; revocation; the 22 §10 trust
    hooks realized.
 6. **Receiving-device rebuilds**: projections/indexes/caches rebuilt locally, never transported as
@@ -85,7 +90,10 @@ independent of (a)/(b). May overlap P18/P19.
 - **No-silent-last-write-wins** (the headline family): no `if remote.updated_at > local.updated_at`
   anywhere (grep + tests); version divergence → both siblings + `SyncVersionDiverged`, the
   per-device pointer never yanked; settings conflicts resolve by causal revision identity, never
-  clock; concurrent same-base writes → typed conflict.
+  clock — neither revision auto-wins, each device's value stays effective, resolution is a user
+  `settings.write` recording both as causal parents (21 §6), and a reset is a causally descendant
+  unset revision, never a row delete; concurrent same-base writes → typed conflict surfaced with
+  notification.
 - **Additive sync**: remote absence never causes local deletion; deletion only as explicit
   tombstones; empty/corrupt/failed remote responses are not authoritative absence.
 - **Local-first**: every write durable locally before any sync activity; reads never wait on the

@@ -110,7 +110,7 @@ The file has two internal parts:
 - Part A, Shared Provider Substrate: provider identity, profile and instance registration, credentials, accounts, credential pools, provider health, rate limits, retry, usage accounting, pricing snapshots, runtime and offering projections, events, settings, and source approval.
 - Part B, Model-Call Adapter Family: `ProviderRequest`, `ProviderResponse`, `ProviderStreamChunk`, parameter serialization, cache-marker translation, tokenizer dispatch, model catalog, capability normalization, and model-call-specific events.
 
-Future STT, TTS, image, embedding, video, and local-inference adapter families reuse Part A and define their own family-specific request and response contracts later. They are not forced into the model-call surface.
+Future STT, TTS, image, embedding, video, and local-inference adapter families reuse Part A and define their own family-specific request and response contracts later; the deferred TTS adapter family is the named provider-layer home voice-synthesis output dispatches through. They are not forced into the model-call surface.
 
 ## 2. Boundaries with Adjacent Layers
 
@@ -132,7 +132,7 @@ File 16's behavioral intents (`reasoning_posture`, `sampling_posture`, `output_l
 
 ### 2.3 With File 10 (Execution Ledger, Event Stream, and Hooks)
 
-`ledger.entry-kinds` (File 10 §4) enumerates the canonical `LedgerEntryKind` catalogue; the model-call entries (`ModelCallStarted`, `ModelCallCompleted`, `ModelCallStreamingDelta`, `ModelCallFailed`, `ModelCallCancelled`, `ProviderHealthChanged`, `RateLimitSnapshotReconciled`, `TokenCountEstimationTelemetry`) and the related event kinds (`ProviderModelsRefreshed`, `RateLimitHit`, `CapabilityProbed`, `CredentialRotated`, `ParameterClamped`, `CacheBreakDetected`) are emitted by this layer. File 10 owns the entry shape; this file specifies what per-call attribution every model-call entry must carry (`TokenUsageRecord` per §18, cost computed from per-model pricing per §19, never an unkeyed scalar per `core.explicit-rejections`, File 01 §8).
+`ledger.entry-kinds` (File 10 §4) enumerates the canonical `LedgerEntryKind` catalogue; the model-call entries (`ModelCallStarted`, `ModelCallCompleted`, `ModelCallStreamingDelta`, `ModelCallFailed`, `ModelCallCancelled`, `ProviderHealthChanged`, `RateLimitSnapshotReconciled`) are canonical File 10 kinds, while the related provider-operational events (`ProviderModelsRefreshed`, `RateLimitHit`, `CapabilityProbed`, `CredentialRotated`, `ParameterClamped`, `CacheBreakDetected`, `TokenCountEstimationTelemetry`) register as `Custom { namespace: "provider" }` per §22.1 unless File 10 later promotes them; both sets are emitted by this layer. File 10 owns the entry shape; this file specifies what per-call attribution every model-call entry must carry (`TokenUsageRecord` per §18, cost computed from per-model pricing per §19, never an unkeyed scalar per `core.explicit-rejections`, File 01 §8).
 
 `ledger.sensitivity-aware-persistence-retention` (File 10 §10)'s sensitivity classification (`Public`/`Sensitive`/`Secret`) governs persistence; this file specifies which provider-layer events carry which sensitivity, and the rule that raw credentials, raw request bodies, and resolved secret material never enter durable persistence.
 
@@ -315,6 +315,8 @@ The `ProviderRegistry` is the projection over registered adapters, profiles, ins
 - runtime-snapshot lookup by `provider_id`
 - offering-projection enumeration consumed by File 16
 
+Adapter and profile registration performs registration-time validation that the implementation meets the full `ProviderAdapter` contract, including the secret-scrubbing requirement in §23.4; an implementation that fails validation is rejected rather than activated.
+
 The registry is event-driven. Registration, unregistration, credential rotation, model-catalog refresh, capability refresh, rate-limit reconciliation, and health transitions emit canonical events per §22.
 
 The registry is not an independent source of provider truth. Capability data is provider-reported, adapter-fallback, or user-supplied; pricing data is provider-reported, user-supplied, or unknown; rate-limit data is header-reconciled or user-configured. The registry caches and exposes these facts with full provenance.
@@ -367,7 +369,7 @@ It carries:
 - the rendered or pending `CacheMarker` candidates from `context.cache-marker-candidates` (File 13 §11)
 - the `RunIntent` and `Run` cross-references required for ledger attribution per `ledger.boundaries-with-adjacent-layers` (File 10 §2.1)
 - the active `policy_snapshot_ref`, `settings_snapshot_ref`, `world_snapshot_ref`, and `registry_snapshot_ref` per `ledger.cross-references` (File 10 §3.6)
-- the role tag for usage attribution (`router`, `responder`, `critic`, `validator`, `planner`, `summarizer`, `completion_verifier`, `child_run_model`, or a registered `Custom { namespace, name }`)
+- the role tag for usage attribution — one of the closed canonical workload roles enumerated in §18.3 (matching `model.model-workload-requirements` (File 16 §5.2)), or a registered `Custom { namespace, name }`
 - the `cancellation_signal` propagated from File 04
 - the `idempotency_key` for safe transport-level retry
 
@@ -464,7 +466,7 @@ The runtime records partial outputs per the capability semantics defined in `run
 
 ### 9.5 Streaming Aggregation
 
-High-frequency streaming events (`TextDelta`, `ReasoningDelta`, `ToolUseArgumentsDelta`, `RateLimitHeadersObserved` when emitted per chunk) are subject to the aggregation policy declared per `ledger.subscription-persistence-lifecycle` (File 10 §13.4). The ledger records the aggregated `ModelCallStreamingDelta` entry rather than every chunk. Live UI consumers receive every chunk through the event bus.
+High-frequency streaming events (`TextDelta`, `ReasoningDelta`, `ToolUseArgumentsDelta`, `RateLimitHeadersObserved` when emitted per chunk) are subject to the aggregation policy declared per `ledger.streaming-live-partials` (File 10 §12.3). The ledger records the aggregated `ModelCallStreamingDelta` entry rather than every chunk. Live UI consumers receive every chunk through the event bus.
 
 ## 10. Provider Error Classification
 
@@ -490,7 +492,6 @@ Every provider error is one of the following canonical variants. Every adapter m
 - `TimeoutError { provider_id, phase, retry_advice }`
 - `ServiceOverloaded { provider_id, retry_advice }`
 - `StreamInterrupted { provider_id, phase, retry_advice }`
-- `GatewayIncompatibility { provider_id, message }`
 - `ProviderInternalError { provider_id, message }`
 - `ProviderSpecificError { provider_id, provider_error_code, provider_error_class, scrubbed_message, http_status?, retry_after?, classified_as: ErrorClassification, classification_confidence }` — the declared escape hatch for a provider failure that maps cleanly to none of the named variants above (per the closed-canonical extension path, `core.closed-canonical` (File 01 §6.16)). It still carries a `classified_as: ErrorClassification`, so downstream behavior never depends on the raw provider strings. `scrubbed_message` is secret-scrubbed per §10.5; `provider_error_code` and `provider_error_class` are preserved for telemetry; `classification_confidence` records how certain the adapter's classification is.
 
@@ -519,13 +520,13 @@ Adapters map provider-reported HTTP status codes and error codes to the canonica
 
 Adapters extract `retry_after_ms` — the wait before the next attempt for the current response — from typed provider sources in priority order:
 
-1. the canonical `Retry-After` header when present (typically on a `429`) — the provider's explicit instruction for this rejection; when both `Retry-After` and reset headers are present, `Retry-After` controls the immediate retry wait
+1. the canonical `Retry-After` header when present (typically on a `429`) — the provider's explicit instruction for this rejection, in either delta-seconds or HTTP-date form (an HTTP-date is reduced against the response `Date` to the wait, equivalently an absolute instant per §13.4, and range-clamped per §13.7); when both `Retry-After` and reset headers are present, `Retry-After` controls the immediate retry wait
 2. provider-specific reset headers when the provider exposes typed reset hints
 3. provider-reported retry hints in the error body
 4. profile-declared policy for the error class
 5. `None`, when no signal exists
 
-This precedence governs the per-response retry/block wait only. Provider-specific reset headers still feed the proactive `(scope, window)` reset state (§13.4/§13.5): a normal response usually carries no `Retry-After`, so its reset headers are the reset signal; a `429` may carry `Retry-After` for the immediate block deadline (§13.6) and reset headers that reconcile the window state. Every extracted value is range-clamped (§13.7) so a hostile or absurd value cannot park or panic the retry path.
+This precedence governs the per-response retry/block wait only. Provider-specific reset headers still feed the proactive `(scope, window, dimension)` reset state (§13.4/§13.5): a normal response usually carries no `Retry-After`, so its reset headers are the reset signal; a `429` may carry `Retry-After` for the immediate block deadline (§13.6) and reset headers that reconcile the window state. Every extracted value is range-clamped (§13.7) so a hostile or absurd value cannot park or panic the retry path.
 
 The runtime does not treat retry waits as correctness logic. Provider reset hints are respected unless the user cancels or policy permits explicit override.
 
@@ -558,7 +559,7 @@ Every transport-level retry obeys:
 - `AuthenticationFailed`, `NotAuthenticated` — `RefreshAuth` once per call; if refresh fails or is unsupported, fail without retry
 - `CredentialExhausted` — `RotateCredential` through the `CredentialPool`; if every credential is exhausted, fail with the typed variant for File 16 to consume
 - `ContextTooLargeForSelectedModel` — non-retryable at the transport layer; surface to `run.boundary-rule` (File 04 §20.1) for context-layer recovery
-- `InvalidRequest`, `RequestRejectedByProvider`, `CapabilityMismatchDiscovered`, `PolicyOrDataBoundaryConflict`, `GatewayIncompatibility` — non-retryable; surface to caller
+- `InvalidRequest`, `RequestRejectedByProvider`, `CapabilityMismatchDiscovered`, `PolicyOrDataBoundaryConflict` — non-retryable; surface to caller
 - `ModelUnavailable`, `ProviderUnavailable` — non-retryable at the transport layer in the sense of same-`(provider, model)`-retry; surface for File 16
 
 ### 11.4 Idempotency
@@ -575,7 +576,7 @@ Anchor: `provider.provider-health`
 
 ### 12.1 Definition
 
-`ProviderHealth` is the per-`provider_id` runtime state machine consumed by `ProviderRuntimeSnapshot` and ultimately by File 16's selection algorithm to skip degraded or unhealthy providers.
+`ProviderHealth` is the per-`provider_id` runtime state machine consumed by `ProviderRuntimeSnapshot` and ultimately by File 16's selection algorithm to deprioritize `Degraded` providers (still attempted, §12.2) and skip `Unhealthy` ones (disqualified by default, §12.2).
 
 ### 12.2 States
 
@@ -586,13 +587,14 @@ Anchor: `provider.provider-health`
 
 ### 12.3 Transitions
 
-- successful call → `Healthy`, contributing_failures reset
-- consecutive failures of `NetworkError`, `TimeoutError`, `ProviderUnavailable`, `ServiceOverloaded`, or `ProviderInternalError` increment the contributing counter
+- successful call → `Healthy` once the configured recovery threshold is met (a single success by default; the required consecutive-success count is a §24 recovery-hysteresis setting, not a hardcoded mandate), contributing_failures reset
+- consecutive failures whose `ErrorClassification` (§10.2) marks them transient provider/transport availability faults — `NetworkError`, `TimeoutError`, `ProviderUnavailable`, `ServiceOverloaded`, `StreamInterrupted`, and `ProviderInternalError` — increment the contributing counter; the classification, not a hardcoded variant list, is authoritative, so any variant an adapter classifies into this availability class contributes
 - crossing the configured `degraded_threshold` (per §24) transitions to `Degraded`
 - crossing the configured unhealthy-failure policy transitions to `Unhealthy` with diagnostic retry guidance derived from provider hints and settings
 - `RateLimited`, `ModelUnavailable`, `AuthenticationFailed`, `InvalidRequest`, `ContextTooLargeForSelectedModel`, `CapabilityMismatchDiscovered`, `PolicyOrDataBoundaryConflict`, and `RequestRejectedByProvider` do not contribute to health — they are accounted to rate-limit, model-availability, credential, request-shape, or compatibility concerns respectively
 - a cancellation (a `StreamCancelled` terminal / `ModelCallCancelled` / buffered cancellation outcome, §9.3) is neither a successful call nor a contributing failure: it does not reset health to `Healthy` (a caller-initiated stop is not evidence the provider is healthy), does not increment the contributing counter, and leaves provider health unchanged
 - health transitions are observed only at a genuine call outcome: a buffered call's returned result, or a stream's terminal chunk (`CompletionReceived` / `StreamError`). A streaming call's health is not recorded at stream-open before the terminal is known, so a stream cancelled or interrupted after opening cannot mark an otherwise-unhealthy provider `Healthy`
+- recovery from `Unhealthy` is demand-triggered and single-flight, symmetric to admission-control probing (§13.6): when a required call finds no non-`Unhealthy` provider remaining, or once the `retry_after_hint` has elapsed on the monotonic baseline the runtime captured at the `Unhealthy` transition (§13.3 — never a wall-clock read), the runtime admits exactly one in-flight probe call past the disqualification; only its genuine terminal outcome transitions health (a success returns `Healthy` per the configured recovery threshold; a contributing failure keeps `Unhealthy` and re-seeds `retry_after_hint`), and no second probe is admitted while one is in flight
 - explicit user reset through the `provider.reset_health` capability returns the state to `Healthy`
 
 ### 12.4 No Active Health Pings
@@ -684,11 +686,11 @@ Before issuing a call, the runtime consults `RateLimitService::check_allowed(sco
 
 Recovery from an exhausted window is a bounded **probe**, not a permanent block. When the deadline elapses (measured by monotonic elapsed, §13.3, plus a configured margin/jitter to avoid a thundering herd), the runtime admits one in-flight probe per exhausted `(scope, window)` and reconciles the response's fresh headers (§13.5); if still limited, the block is updated from the new headers and the wait repeats. A wrong-early probe costs at most one `429` and a fresh reconciliation — but rejected requests are not assumed free, which is why the probe is single-flight with a margin, not an open retry.
 
-Admission lives in the runtime `RateLimitService`, which owns wait/retry/fallback decisions and the clock discipline. Provider adapters normalize provider headers into `RateLimitSnapshot`s and expose reconciled per-`(scope, window)` state through the provider layer; they do not make final admission decisions. A count-only adapter-side block with no window-roll logic would deadlock a scope that once hit `remaining == 0`.
+Admission lives in the runtime `RateLimitService`, which owns wait/retry/fallback decisions and the clock discipline. Provider adapters normalize provider headers into `RateLimitSnapshot`s and expose reconciled per-`(scope, window, dimension)` state through the provider layer; they do not make final admission decisions. A count-only adapter-side block with no window-roll logic would deadlock a scope that once hit `remaining == 0`.
 
 Provider-reported quota and Atlas-local attempt budgets are evaluated independently and surfaced with their source. The same failed model call may consume an Atlas-local `DispatchedAttempt` request budget while provider-reported request quota remains unchanged; hiding that distinction would make both user controls and provider reconciliation misleading.
 
-Pre-call estimation is sourced from `context.token-counting` (File 13 §10). Post-call recording uses provider-reported usage (Tier 1 per §17) and records the residual against the same `(scope, window)` rows.
+Pre-call estimation is sourced from `context.token-counting` (File 13 §10). Post-call recording uses provider-reported usage (Tier 1 per §17) and records the residual against the same `(scope, window, dimension)` rows.
 
 ### 13.7 Burst, Concurrency, and Clock Skew
 
@@ -951,6 +953,7 @@ Cost is never stored as an unkeyed scalar in any durable row. This obeys `core.e
 `ModelPricing` carries, per `(provider_id, model_id)`:
 
 - `input_unit_price`, `output_unit_price` (per-unit, with unit declared)
+- `currency` — the currency the per-unit prices are denominated in (provider-reported or user-supplied); prices in different currencies are never combined without an explicit, recorded conversion
 - `cache_creation_price_multiplier`, `cache_read_price_multiplier` (relative to input price, where applicable)
 - `reasoning_token_price` (when distinct from completion price)
 - per-modality unit prices (image, audio, video, file) where the provider charges differently
@@ -968,7 +971,7 @@ Cost for one `TokenUsageRecord` is computed on demand by aggregating typed token
 
 ### 19.5 Aggregations
 
-Per-conversation, per-run, per-task, per-day, per-workspace, per-role, per-account, per-provider, and per-model cost views are projections over `TokenUsageRecord`s. They are rebuildable from the canonical records and the pricing snapshots.
+Per-conversation, per-run, per-task, per-day, per-workspace, per-role, per-account, per-provider, and per-model cost views are projections over `TokenUsageRecord`s. They are rebuildable from the canonical records and the pricing snapshots. Every aggregation groups by `currency`; a view spanning multiple currencies presents each currency's subtotal separately rather than summing across them.
 
 ### 19.6 Optional Cost Tracking
 
@@ -999,11 +1002,11 @@ Anchor: `provider.provider-runtime-snapshot-provider-offering-projection`
 `ProviderRuntimeSnapshot` is the typed projection consumed by `model.provider-inputs-consumed-by-model-strategy` (File 16 §2) carrying:
 
 - per-`provider_id` `ProviderHealth`
-- per-`(scope, window)` `RateLimitState` summary
+- per-`(scope, window, dimension)` `RateLimitState` summary
 - in-flight capacity per provider
 - credential state (`Authenticated`, `ExpiringSoon`, `Expired`, `MissingFromVault`, `Rotating`)
 - provider-reported error trends across the last reset window (provider/transport FAILURES only — a cancellation is a caller action, not a provider error, and is excluded from error trends, §9.3/§12.3)
-- known-retryability hints from recent classifications
+- known-retryability hints from recent classifications, including whether an `Unhealthy` provider is currently eligible for a demand-triggered single-flight recovery probe (§12.3)
 
 `ProviderOfferingProjection` is the typed projection consumed by `model.provider-inputs-consumed-by-model-strategy` (File 16 §2) carrying:
 
@@ -1052,7 +1055,7 @@ Every event carries the canonical envelope from `ledger.event-envelope` (File 10
 
 ### 22.3 Ledger Boundary
 
-Consequential events also commit as typed ledger entries per `ledger.entry-kinds` (File 10 §4). `ModelCallStarted`, `ModelCallCompleted`, `ModelCallFailed`, `ModelCallCancelled`, `ProviderHealthChanged`, `RateLimitSnapshotReconciled`, `CredentialRotated`, and `ProviderModelsRefreshed` are durable. High-frequency events (`ModelCallStreamingDelta`, `TokenCountEstimationTelemetry`) are subject to aggregation per `ledger.subscription-persistence-lifecycle` (File 10 §13.4).
+Consequential events also commit as typed ledger entries per `ledger.entry-kinds` (File 10 §4.3). `ModelCallStarted`, `ModelCallCompleted`, `ModelCallFailed`, `ModelCallCancelled`, `ProviderHealthChanged`, `RateLimitSnapshotReconciled`, `CredentialRotated`, and `ProviderModelsRefreshed` are durable. High-frequency events (`ModelCallStreamingDelta`, `TokenCountEstimationTelemetry`) are subject to aggregation per `ledger.streaming-live-partials` (File 10 §12.3).
 
 ### 22.4 Subscribers
 
@@ -1149,7 +1152,7 @@ Every behavior in this file that is meaningful for users, workspaces, conversati
 - per-modality estimation constants where adapter defaults are user-overridable
 - parameter-clamping behavior (`silent_with_diagnostic`, `surface_to_user`, `fail`) per parameter or globally
 - header reconciliation behavior (when to trust provider headers above local-counter state)
-- streaming aggregation policies inherited from `ledger.subscription-persistence-lifecycle` (File 10 §13.4)
+- streaming aggregation policies inherited from `ledger.streaming-live-partials` (File 10 §12.3)
 - subscription-wrapper subprocess defaults (sandbox profile, HOME override behavior, allowed CLI flags)
 - gateway-incompatibility detection rule registration
 - user-controlled `provider.refresh_models` maintenance policy beyond event-driven refresh
@@ -1220,7 +1223,7 @@ Later specs must follow these rules:
 - File 13 must consume the `(block_id, tokenizer_id)` cache contract, produce logical `CacheMarker` candidates this layer translates, and source request-size limits from `ModelCapabilityDescriptor` provided here
 - File 15 must register every provider-layer setting through the canonical source stack; it must not invent a parallel cascade
 - The Security, Credentials, and Trust Boundaries spec implements the backend-only vault resolution interface this layer references through `resolve_for_use(SecretRef("provider.<provider_id>.<account_id>.<credential_id>"), purpose, invocation_context)` and emits `CredentialRotated` events consumed here
-- File 20 must persist `TokenUsageRecord`s with their full keyed attribution and the cross-references this file enumerates; it must persist `RateLimitState` per-device and exclude it from cross-device sync per §13.8
+- File 20 must persist `TokenUsageRecord`s with their full keyed attribution and the cross-references this file enumerates; it must persist the durable provider-pricing family — `ModelPricing` (including `UserSupplied` overrides) per `(provider_id, model_id)` and the immutable `PricingSnapshot` each record references (§19.2/§19.3) — device-local; and it must persist `RateLimitState` per-device and exclude it from cross-device sync per §13.8
 - File 21 must respect the per-event sensitivity classifications declared here and the per-`SettingDefinition` locality declarations the settings spec carries
 - File 36 (MCP and External Integrations) must not subsume the model-provider layer; MCP for tools is a tool-provider concern with its own provider-adapter analogue, not a route through this layer
 - File 23 must support subscription-wrapper subprocess lifecycle in the sandbox primitives declared there (process groups, HOME isolation, shadow homes)

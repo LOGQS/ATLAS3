@@ -42,9 +42,9 @@ assembly sources (13 §3/§6). The surfaces cannot be specced honestly without t
   update protocol with local-id remapping** (§8.1/§8.3); proposal policies (§8.4); recursion
   prevention (§8.5); salience/validity/retention shapes (§7, §9–§10); provenance (§11); memory in
   assembly — core early, archival via RetrievedContext (§2.3); the `memory:` namespace (§6).
-  Implicit learning/distillation + consolidation (§8.2, §12) → any later phase (background
-  extraction is ordinary execution; the explicit path is v1-complete per §18 — consolidation cadence
-  becomes an Automation in P14).
+  Implicit learning/distillation + consolidation (§8.2, §12) → **P14** (background
+  extraction is ordinary execution; the explicit path is v1-complete per §18 — phase-14 §5 owns the
+  consolidation cadence, which becomes an Automation there).
 
 ## 3. Prerequisites
 

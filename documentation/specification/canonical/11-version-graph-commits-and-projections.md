@@ -228,7 +228,7 @@ A `ContextVersion` is not:
 
 Every `ContextVersion` carries at minimum:
 
-- `version_id` — globally stable UUID (v4 or v7 per CONSTRAINTS.md §15); never reassigned, never mutated
+- `version_id` — globally stable, format-agnostic identifier per the record-identity rule (`storage.durable-substrate`, File 20 §3.4) and `core.canonical-encoding` (File 01 §6.15); never reassigned, never mutated
 - `conversation_id` — owning conversation; immutable
 - `parent_version_id` — `Option<version_id>`; `None` for the conversation's root version; immutable
 - `merge_source_version_ids` — optional set of additional source versions when a commit intentionally combines branches; immutable; absent for ordinary linear or branch commits
@@ -237,7 +237,7 @@ Every `ContextVersion` carries at minimum:
 - `op_summary` — `VersionOpSummary` enum value (§5.2)
 - `diff` — `VersionDiff` payload (§4)
 - `label` — optional `String`; user-assigned name; mutable through the `label_version` operation (§17.4), not through diff updates
-- `bookmarked` — `bool`; user-marked retention preference exempting the version from garbage-collection retention policies (§19.4); mutable through the `bookmark_version` operation
+- `bookmarked` — `bool`; user-marked retention preference exempting the version from garbage-collection retention policies (§20); mutable through the `bookmark_version` operation
 - `snapshot_refs` — typed map of snapshot identities the version anchors (§13): `registry_snapshot_id`, `settings_snapshot_id`, `world_snapshot_id`, `policy_snapshot_id`, `pricing_snapshot_id`, `routing_snapshot_id`, plus registered extension keys; entries unused for a given commit are absent rather than null-padded
 - `version_schema_version` — version of the canonical row shape, so File 20 can normalise supported earlier shapes during registration
 - `diff_hash` — SHA-256 over the canonical serialised `VersionDiff` payload; supports materialized-view integrity verification (§7.6) and forgery guards (§19.5)
@@ -253,7 +253,7 @@ A `version_id` is:
 - assigned at commit time
 - never reused, never reassigned, never mutated
 - the canonical cross-layer reference: ledger entries (per `ledger.cross-references`, File 10 §3.6's `version_id` cross-reference key), block-pool queries (per `block.what-is-computed`, File 08 §13.2's per-version lifecycle map keying), artifact-entity surface resolution (per `artifact.per-version-vs-per-entity-derivation`, File 09 §5.4), tool-surface reconstruction (per `surface.reconstruction-across-retry-edit-reroute-branch`, File 07 §14.3), replay invocations (§15 of this file), forensic queries (§16), and cross-conversation forks (§9.3)
-- a UUID (v4 or v7) per the project-wide UUID schema invariant (CONSTRAINTS.md §15)
+- a format-agnostic identifier — any identifier with the required uniqueness and stability properties is acceptable, and the storage spec picks the wire format (`storage.durable-substrate`, File 20 §3.4; `core.canonical-encoding`, File 01 §6.15)
 
 A version's identity is independent of its content. Two versions with identical `VersionDiff` content have different `version_id`s. Deduplication is not required and is explicitly not attempted; equal-content versions are addressable separately and can carry independent labels, bookmarks, and produced-by attributions.
 
@@ -276,7 +276,7 @@ Every non-root `ContextVersion` carries one `VersionDiff` describing the net cha
 - `position_changes` — `Vec<(BlockId, Position)>` — blocks whose sequence position changed in this version's view, with their new position
 - `metadata_changes` — `Vec<MetadataChange>` — typed per-block metadata changes that the version-graph layer tracks (sensitivity-tag override applied at this version, description regeneration sibling activated, scope promotion projection adopted); each `MetadataChange` is a closed enum drawn from the canonical set in §4.3
 - `hard_deletes` — `Vec<BlockId>` — blocks that this version's commit physically destroyed (per `block.hard-delete`, File 08 §6.6); the affected blocks have transitioned to tombstones; this change is irreversible by version switch; switching to a version where the block was active produces a tombstone placeholder (per `block.hard-delete`, File 08 §6.6's materialized-by fallback)
-- `derived_state_changes` — `Vec<DerivedStateChange>` — typed per-entity derived-state transitions that the version graph computes at commit: `(ArtifactReviewState, artifact_id, from, to)`, `(ArtifactValidationState, artifact_version_block_id, from, to)`, `(ClaimStatus, claim_id, from, to)`, plus registered extension entries; documented in §10
+- `derived_state_changes` — `Vec<DerivedStateChange>` — typed per-entity derived-state transitions the version graph computes at commit (artifact review-state change, validation-state transition, artifact-lifecycle transition, claim-status change, task-revision advance, intent-thread continuity summary); each `DerivedStateChange` is a closed enum drawn from the canonical set in §4.4; documented in §10
 
 `Position` is an integer in `[0, view_size)` denoting the block's index in the active version's render-order sequence. Positions are not stable identifiers; the same block at different versions may occupy different positions.
 
@@ -364,7 +364,7 @@ Every `ContextVersion` declares its `op_summary` at commit. The canonical closed
 
 **Entity boundaries (when a single entity transition justifies a standalone commit):**
 
-- `ArtifactVersion` — an artifact-version commit (per `artifact.version-creation`, File 09 §6.3) that stands alone (outside an `AgentTurn` or workflow); the diff carries the `ArtifactCreated` or `ArtifactVersionCommitted` derived-state change
+- `ArtifactVersion` — an artifact-version commit (per `artifact.version-creation`, File 09 §6.3) that stands alone (outside an `AgentTurn` or workflow); the diff carries the `ArtifactLifecycle` derived-state change (§4.4) recording the version's lifecycle transition — a first commit enters `Draft` or `Active`, a superseding commit moves the prior version to `Superseded`
 - `TaskRevision` — a revision-safe task update (per `intent.promotion-rule`, File 02 §6.3) commits with this `op_summary` when not nested inside an `AgentTurn`; the diff carries the `TaskRevisionAdvanced` derived-state change
 - `ClaimPublication` — `claim.publish` capability committed (per `artifact.claim-extraction`, File 09 §10) outside of an `AgentTurn`; the diff records the `Claim`-kind block and the `ClaimStatus` derived-state change
 - `EvidenceLink` — `evidence.link` committed an evidence-link edge outside of an `AgentTurn`; the diff records the edge metadata change
@@ -451,9 +451,9 @@ The buffer is durable — every `ContextOp` applied through the versioning opera
 The buffer's lifecycle:
 
 1. **Empty.** After a boundary commits, the buffer clears. The conversation's `current_version_id` points at the new committed version.
-2. **Accumulating.** As the user or the agent invokes `apply_op` (mask, drop, pin, reorder, etc.), each operation appends to `pending_ops` and updates the materialized view live for immediate UI feedback. The version graph is not yet aware of the operation as a committed fact.
+2. **Accumulating.** As the user or the agent invokes `apply_op` (mask, drop, pin, reorder, etc.), each operation appends to `pending_ops`, emits a `PendingOpApplied { conversation_id, op }` event at apply time, and updates the materialized view live for immediate UI feedback. The version graph is not yet aware of the operation as a committed fact.
 3. **In-session undo.** The user may undo the most recently applied operation via `undo_pending`, which pops the last `ContextOp` from `pending_ops` and re-derives the materialized view from the previous state. No new commit is created; the buffer simply shrinks. Multiple undos walk backward through the buffer; `redo_pending` re-applies (if supported per §6.5).
-4. **Commit.** When a boundary fires (per §5), the runtime computes the net diff of `pending_ops` against the pre-buffer materialized view, creates a new `ContextVersion` with that diff, clears the buffer, advances `current_version_id`, and emits the canonical events (`PendingOpApplied` for each operation that contributed; `VersionCommitted` for the new version).
+4. **Commit.** When a boundary fires (per §5), the runtime computes the net diff of `pending_ops` against the pre-buffer materialized view, creates a new `ContextVersion` with that diff, clears the buffer, advances `current_version_id`, and emits `VersionCommitted` for the new version. The contributing operations' `PendingOpApplied` events were already emitted at apply time (step 2); commit does not re-emit them.
 5. **Discard.** A user-cancellation of an in-flight assistant turn (per `run.cancellation`, File 04 §17.3) may discard the buffer entirely: cooperatively cancel the producing operations, drop the accumulated `pending_ops`, and re-derive the materialized view to the state at `current_version_id`. The conversation returns to the pre-buffer state with no version commit.
 
 ### 6.3 In-Session Undo
@@ -604,13 +604,13 @@ Version switching changes a conversation's `current_version_id` to a target vers
 
 1. **Validate.** The target must exist in the conversation's version tree; the current version must exist; both must share the conversation's root.
 2. **Find path.** Compute the path in the tree from the current version to the target: walk up from current to the common ancestor with target, then walk down from the common ancestor to target. The path is a sequence of `(direction, version_id)` pairs where direction is `Up` or `Down`.
-3. **Discard pending operations.** Any `pending_ops` accumulated from the current version's session are discarded (no implicit commit on switch per §6.4). The buffer clears; the materialized view is re-derived against the current version's state before the walk begins.
+3. **Resolve pending operations.** Any `pending_ops` accumulated from the current version's session are resolved per the configured `versioning.switch_with_pending_behaviour` setting (§8.5), which defaults to `Discard`. Under `Discard`, the buffer clears and the materialized view is re-derived against the current version's state before the walk begins. Under `Commit`, the buffer commits first as a `ContextEdit` version (§8.5) and the path found in step 2 is recomputed from that committed version before the walk proceeds. Under `AskUser`, a typed-confirmation flow resolves to `Commit` or `Discard` first. The runtime never silently discards a non-empty buffer against the user's configured behaviour.
 4. **Apply reverse diffs (up).** For each `Up` step, apply the reverse of that version's diff to `context_view`. Reverse semantics: `added` entries are removed; `removed` entries are re-added at their old positions; `lifecycle_changes` reverse `(block_id, from, to)` to `(block_id, to, from)`; `pin_changes` reverse similarly; `position_changes` move blocks back to their parent-version positions; `metadata_changes` and `derived_state_changes` reverse per their typed inverse rules; `hard_deletes` cannot be reversed by switch — affected blocks remain tombstones, and the materialized view shows the tombstone placeholder.
 5. **Apply forward diffs (down).** For each `Down` step, apply the forward diff of that version to `context_view`.
 6. **Verify integrity.** If the target has an `expected_view_hash`, recompute the canonical hash and verify per §7.6. On mismatch, emit `MaterializedViewIntegrityViolated` and rebuild from the action log.
 7. **Advance pointer.** Update `ConversationVersionState.current_version_id` to `target_version_id`.
-8. **Discard pending again.** The buffer remains empty (it was discarded in step 3); no operations from the prior version's session are retained.
-9. **Emit events.** Emit `VersionSwitched { conversation_id, from_version_id, to_version_id, path_length, rebuild_from_action_log: bool }` (the boolean indicates whether a full rebuild was required) through the canonical bus and record it in the ledger.
+8. **Confirm buffer resolved.** The buffer is empty — it was resolved in step 3 (discarded, or committed as its own version) — so no operations from the prior version's session carry into the target view.
+9. **Emit events.** Emit `VersionSwitched { conversation_id, from_version_id, to_version_id, path_length, rebuilt_from_action_log }` (the boolean indicates whether a full rebuild was required) through the canonical bus and record it in the ledger.
 
 ### 8.3 Path-Length Complexity
 
@@ -681,7 +681,7 @@ A fork is a new conversation seeded from an existing conversation's version. For
 
 1. Creates a new `conversation_id` (per File 02)
 2. Copies allowed materialized-view rows from the source's target version into the new conversation's root materialized view
-3. Creates the new conversation's root `ContextVersion` with `parent_version_id = null` and an `Import` op_summary referencing the source `(source_conversation_id, source_version_id)`
+3. Creates the new conversation's root `ContextVersion` with `parent_version_id = null` and an `Import` op_summary referencing the source `(source_conversation_id, source_version_id)`; as a root version it carries no parent-relative `VersionDiff` (§4.1), and the materialized-view rows copied in step 2 are its recorded seed baseline, against which subsequent commits in the fork diff forward
 4. Establishes block-pool references for blocks whose scope, sensitivity, and policy allow visibility in the destination
 5. Records the fork event `ConversationForked { source_conversation_id, source_version_id, new_conversation_id }` through the canonical bus
 6. Forks are reachable through `provenance.query_lineage` for the new conversation per `artifact.provenance` (File 09 §15)
@@ -815,7 +815,7 @@ ContextOp {
 }
 ```
 
-`Position` is an `Option<usize>`; `None` means "append at end."
+In `ContextOp`, an operation's position is an `Option<usize>` input; `None` means "append at end," and it resolves to a concrete `Position` (the `[0, view_size)` index of §4.1) when the operation's net effect lands in the committed `VersionDiff`.
 
 ### 11.3 Operation Semantics
 
@@ -845,7 +845,7 @@ For in-session undo (§6.3), each operation has a typed inverse:
 - `Mask ↔ Unmask`
 - `Drop ↔ Recover`
 - `Pin ↔ Unpin`
-- `Protect ↔ Unprotect`
+- `Protect` inverse: restore the block's prior `PinState` (`Unpinned` or `Pinned`), recorded as a snapshot of the pre-protect pin state on the buffer entry (per the `Reorder` snapshot precedent below), since `Unprotect`'s flat transition to `Unpinned` would otherwise discard a prior `Pinned` state; `Unprotect` inverse: re-apply the recorded `Protected` state
 - `Reorder` inverse: re-apply the prior positions for the blocks the reorder touched (recorded as a snapshot of pre-reorder positions on the buffer entry)
 - `AddToContext ↔ RemoveFromContext` (inverse of add-at-position is remove)
 - `Group ↔ Ungroup` (inverse of creating the group is dissolving it; the group block itself remains in the pool, and a redo of the group restores the same block reference rather than committing a new sibling)
@@ -1014,7 +1014,15 @@ Anchor: `version.snapshots`
 
 A snapshot is a typed, durable, addressable reference to the state of a canonical substrate (registry, settings, world, policy, pricing, routing) at a durable anchor. Snapshots are not stored copies of substrate content; they are identities the ledger, run records, capability invocations, and replay machinery carry to address substrate state for forensic queries and deterministic replay. The snapshot resolves to substrate state through the canonical replay machinery (§15).
 
-Snapshot identity includes the snapshot kind, stable id, anchor, substrate schema/version, and resolver contract. Snapshot ids are unique within the installation and never reassigned.
+Every `Snapshot` carries at minimum:
+
+- `snapshot_id` — globally unique, stable id within the installation; assigned at capture; never reused, never reassigned
+- `snapshot_kind` — the typed substrate class (`Registry`, `Settings`, `World`, `Policy`, `Pricing`, `Routing`, or a registered `Custom { namespace, name }`) per the §14.2 catalogue
+- `anchor` — the durable substrate position the snapshot addresses (§14.3): the capturing commit boundary's `committed_at` plus the corresponding substrate sequence position, up to but not beyond which resolution walks
+- `substrate_schema_version` — the schema version of the addressed substrate, so resolution can interpret substrate state written under an earlier schema
+- `resolver_contract` — the typed reference to the substrate's resolution path (§14.4): which durable event log the resolution walks and the projection it rebuilds
+
+A `Snapshot` stores no copy of substrate content; these fields address substrate state that the resolver (§14.4) reconstructs on demand.
 
 ### 14.2 Closed Canonical Snapshot Catalogue
 
@@ -1146,12 +1154,15 @@ The rerun produces a new run record; if the rerun produces observable side effec
 
 ### 15.5 Replay Identity
 
-Every replay invocation:
+Every replay invocation is recorded as a typed `ReplayRun` record carrying:
 
-- carries a `replay_id` (UUID)
-- records the `replay_source_run_id`, the `replay_mode`, the `replay_initiated_at`, and the `replay_initiated_by`
-- emits a `ReplayStarted` ledger entry (`Custom { namespace: replay, name: started }`); a `ReplayCompleted` entry on completion
-- the new run record (`SimulateDeterministic` and `FullRerun` only) references the replay invocation
+- `replay_id` — UUID; globally unique, stable, never reused
+- `replay_source_run_id` — the source run being replayed
+- `replay_mode` — `Inspect`, `SimulateDeterministic`, or `FullRerun`
+- `replay_initiated_at` — commit timestamp of the replay invocation
+- `replay_initiated_by` — the actor that initiated the replay
+
+The `ReplayRun` emits a `ReplayStarted` ledger entry (`Custom { namespace: replay, name: started }`) at start and a `ReplayCompleted` entry on completion. For `SimulateDeterministic` and `FullRerun`, the new run record the replay produces references the `ReplayRun`. `ledger.replay-semantics` (File 10 §11.4) references this `ReplayRun` record rather than re-cataloguing its fields.
 
 ### 15.6 Replay-Capability Surface
 
@@ -1239,7 +1250,7 @@ The read methods provide deterministic reads of version-graph state. `get_curren
 
 ### 17.4 Label and Bookmark Operations
 
-`label_version` assigns a user-facing label to a `version_id`. The label is mutable (a `version_id` can be relabelled) but the label change is itself a typed event recorded in the ledger (`VersionLabelled { version_id, prior_label, new_label }`). The label appears in tree view, list view, history panel, and comparison board.
+`label_version` assigns a user-facing label to a `version_id`. The label is mutable (a `version_id` can be relabelled) but the label change is itself a typed event recorded in the ledger (`VersionLabelled { version_id, prior_label, new_label }`). The label appears in tree view, list view, history panel, and comparison board. Labelled versions, like bookmarked ones, are exempt from retention-policy pruning (§20.6) regardless of the policy's age or count thresholds.
 
 `bookmark_version` toggles the `bookmarked` flag. Bookmarked versions are exempt from retention-policy pruning (§20) regardless of the policy's age or count thresholds. The bookmark is a typed event (`VersionBookmarked { version_id }`).
 
@@ -1361,7 +1372,7 @@ This preserves local-first ergonomics: a remote sync does not yank the user away
 
 ### 19.5 External Content Sync
 
-Per `infrastructure/sync.md`, binary blobs live outside libsql in a content-addressed external store (`workspaces/<workspace-id>/external/<sha>/<sha>`). On sync pull, blobs fetch on demand at first access (not pre-fetched). Blob fetch failures do not break the conversation — the affected block resolves to its description per `block.block-description` (File 08 §10.5) placeholder rendering, and the user is offered the option to re-fetch.
+Binary blobs live outside libsql in the single content-addressed blob store owned by storage (per `storage.blob-store`, File 20 §6). On sync pull, blobs fetch on demand at first access, not pre-fetched (deferred fetch per File 21). Blob fetch failures do not break the conversation — the affected block resolves to its description per `block.block-description` (File 08 §10.5) placeholder rendering, and the user is offered the option to re-fetch.
 
 ### 19.6 Sync Events
 
@@ -1383,7 +1394,7 @@ Anchor: `version.garbage-collection-pruning`
 
 ### 20.1 Definition
 
-Garbage collection and pruning are user-initiated or settings-driven operations that reduce version-graph storage. They are non-destructive by default per `core.non-destructive-by-default` (File 01 §7.13) — bookmarked versions are exempt; tombstones preserve identity for provenance closure per `artifact.artifact-tombstones` (File 09 §8).
+Garbage collection and pruning are user-initiated or settings-driven operations that reduce version-graph storage. They are non-destructive by default per `core.non-destructive-by-default` (File 01 §7.13) — bookmarked and labelled versions are exempt (§20.6); tombstones preserve identity for provenance closure per `artifact.artifact-tombstones` (File 09 §8).
 
 The canonical mechanisms:
 
@@ -1438,14 +1449,14 @@ The canonical retention-policy enum (per domains/coder/checkpoints-undo.md and `
 
 ```
 RetentionPolicy {
-    KeepAll,                                          // No expiry
-    KeepRecentN { n: u32, exempt_bookmarks: bool },   // Keep N most recent non-bookmarked
-    KeepWithin { duration, exempt_bookmarks: bool },  // Keep versions newer than given duration
-    Custom { policy_id, params },                     // Registered extension
+    KeepAll,                          // No expiry
+    KeepRecentN { n: u32 },           // Keep N most recent non-bookmarked, non-labelled
+    KeepWithin { duration },          // Keep versions newer than the given duration
+    Custom { policy_id, params },     // Registered extension
 }
 ```
 
-`KeepRecentN` and `KeepWithin` apply to non-current, non-bookmarked, non-labelled versions; bookmarked and labelled versions are always exempt regardless of `exempt_bookmarks` (the flag governs only how the policy treats unlabelled non-bookmarked versions). The policy invokes typed cleanup operations for affected versions.
+`KeepRecentN` and `KeepWithin` apply only to non-current, non-bookmarked, non-labelled versions; bookmarked and labelled versions are always exempt. The policy invokes typed cleanup operations for affected versions.
 
 Per File 01 constraint, no time-based pruning fires without explicit user or selected-profile opt-in. Retention execution cadence is a settings/profile concern and is not a correctness condition. Each retention invocation is durably recorded (`RetentionPolicyApplied { conversation_id, policy_id, affected_count, applied_at }`).
 
@@ -1469,7 +1480,7 @@ Anchor: `version.events`
 
 ### 21.1 Canonical Event Vocabulary
 
-Every version-graph operation emits typed events through the canonical bus per `ledger.event-stream` (File 10 §5). The canonical version-graph events (each also a `LedgerEntryKind` per `ledger.entry-kind-catalogue` (File 10 §4.1)):
+Every version-graph operation emits typed events through the canonical bus per `ledger.event-stream` (File 10 §5). This file owns the version-graph event vocabulary (§21.4); `VersionCommitted`, `VersionSwitched`, `PendingOpApplied`, and `BranchCreated` are catalogued directly as ledger entry kinds in `ledger.entry-kind-catalogue` (File 10 §4.1), and the remaining kinds this file owns are persisted through the ledger's extension mechanism per `ledger.execution-ledger` (File 10 §3). The canonical version-graph events:
 
 **Apply and commit:**
 
@@ -1642,5 +1653,3 @@ Later specs must follow these rules:
 - Model strategy, provider, pricing, settings, world, routing, policy, perception, evaluation, and replay specs consume snapshot identities and the File 10 ledger to reconstruct past execution state. File 11 provides the version-graph substrate; those specs own their own replay details.
 - Extensions, plugins, MCP integrations, workflows, automation, quality control, and work surfaces register custom op summaries, context ops, metadata changes, derived-state changes, snapshot kinds, and projections through the File 05 proposal-first mechanism. They must not bypass the versioning operation surface or the File 06 policy layer.
 - UI and customization specs render version timelines, comparison views, history panels, rollback surfaces, inspectors, undo/redo/restore/revert affordances, and fork views from the canonical data contracts here. Presentation can vary freely; the substrate cannot.
-
-Specific integration contracts will be stated in those files when they are written.

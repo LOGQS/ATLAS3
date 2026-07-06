@@ -209,7 +209,7 @@ Each assembly invocation proceeds in this order:
 9. Produce logical cache-marker candidates when the target model/provider supports them.
 10. Emit `AssemblyOutput` and record the snapshot reference required for replay and audit.
 
-Assembly is deterministic for the same durable inputs, settings snapshot, provider/model descriptor, and policy snapshot.
+Assembly is deterministic for the same durable inputs, settings snapshot, provider/model descriptor, and policy snapshot. Full reproducibility is a replay property, not a live guarantee: live retrieval, memory, and world-state inputs are mutable, so exact reconstruction holds only over the outputs captured in the `AssemblySnapshot` (§19), which segregates recorded snapshot inputs from live sources for replay.
 
 ## 7. Current Input and Oversize Handling
 
@@ -290,7 +290,7 @@ The model descriptor must expose enough information for assembly to determine:
 - which request parts count toward which limits
 - whether callable declarations, cached prefixes, images, files, or multimodal payloads have special accounting rules
 
-Assembly may use exact counting, compatible local counting, or conservative estimation. The chosen accuracy class is recorded in `BudgetReport`.
+Assembly may use exact counting, compatible local counting, or conservative estimation, where conservative estimation must never under-count the request size. The chosen accuracy class is recorded in `BudgetReport`.
 
 Token counts must not be stored as unqualified block fields. Any reusable count is keyed by content identity, content version/hash, and tokenizer/counting identity. Counts for pending uncommitted input use content hashes or snapshot references instead of block ids.
 
@@ -394,6 +394,8 @@ Instruction sources may come from user settings, workspace files, project files,
 
 File 12 may index the same file as knowledge for retrieval and provenance. Indexing does not by itself grant instruction authority; instruction inclusion is decided by this file's policy.
 
+Applied instruction presets are matched and rendered here, not stored here. A style template (`workflow.template-family`, File 34 §7.1) is a named format/style instruction fragment; a persona (`plugin.contribution-points`, File 35 §5.2) is a style/instruction preset a plugin contributes. This file owns their application and matching: inclusion policy matches a preset to the invocation, and when its match condition holds the preset participates in `InstructionSources` with policy-resolved authority, source attribution, sensitivity metadata, and budget governance, exactly like any other instruction source, receiving `governing_instruction` authority only when an explicit trusted path grants it. Library membership, parameterization, and promotion stay with their owning files; Memory (`memory.memory-derived-instructions-profiles-skills`, File 14 §14) may learn and propose the underlying style signals but owns no applied-instruction object and no hidden instruction injection.
+
 ## 17. Tool-Surface Coordination
 
 Anchor: `context.tool-surface-coordination`
@@ -425,18 +427,18 @@ Exact declarations, permission tiers, touched-resource expressions, preview beha
 
 ## 19. Events, Ledger, and Snapshots
 
-Context events are `Custom { namespace, name, payload }` extensions registered through File 10 unless a later File 10 revision promotes a cross-cutting kind.
+Context and compaction facts surface through File 10's ledger and event stream. The cross-cutting kinds File 10 has promoted are canonical and must be emitted under their canonical names, not re-registered here:
 
-Expected event families:
+- `ContextPressureObserved` - the durable ledger entry recording observed context pressure (`ledger.entry-kind-catalogue`, File 10 §4.1; per `run.boundary-rule`, File 04 §20.1)
+- `ContextAssembled`, `ContextBudgetWarning`, `CompactionStarted`, and `CompactionCompleted` - the transient stream events for assembly completion, budget warning, and compaction start and completion (`ledger.app-event-catalogue`, File 10 §5.3)
 
-- assembly completed
-- budget warning
-- context pressure observed
+The remaining families stay `Custom { namespace, name, payload }` extensions registered through File 10, promotable to canonical kinds by a later File 10 revision:
+
 - duplicate or overlap detected
-- compaction started, completed, failed, or low-yield
 - continuity summary updated
 - context source externalized, omitted, redacted, dropped, recovered, or recalled
 - cache-marker candidates produced
+- compaction failed or low-yield
 - router context assembled
 
 Durable records must reference `AssemblySnapshot`s rather than storing raw model-request dumps by default. An `AssemblySnapshot` records or references enough to reconstruct what was sent without re-querying any live source:

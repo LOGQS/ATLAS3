@@ -64,8 +64,9 @@ quality-machinery lanes may start (their prerequisites are P6/P9).
 3. **Activation wiring**: routing `primary_surface` → registry resolution → surface defaults feed
    07/13/16/04 composition; opening/focusing never reroutes a run; activation is scope-resolved (no
    single global active surface).
-4. **Rail registry + resolution engine**: structural parse → deterministic match → schema resolution
-   → pre-dispatch transform → route; resolution recorded and linked to downstream facts; the
+4. **Rail registry + resolution engine**: structural parse → deterministic match → pre-dispatch
+   transform → schema resolution → route (argument/content reference expansion runs before the schema
+   check so schema resolution sees the resolved arguments, 26 §4.2); resolution recorded and linked to downstream facts; the
    deterministic-match path skips the router model but never routing/policy/ledger.
 5. **Conversation rail**: the P4 entry matured — pre-dispatch (02 §3.4) + 13's duplicate handling +
    queue-vs-interrupt.

@@ -21,10 +21,10 @@ have real primary artifacts and observability has real load.
   recorded label assignment, no arm/source metadata) (§9); regression detection +
   `RegressionBaseline` compatibility rules + the eval-blind-iteration guard + **the eval-pass
   gate** (a Completion-boundary required validation per-run, or a precondition on
-  install/graduation — consumed by 34 graduation and 35 install) (§10); **judge optimization** —
-  user-gated, cost-previewed, train/validation **split by task** (never by trace), ensemble-behind-
-  a-router as a refinement; **the self-certifying-loop guard** — high-trust gates must trace to a
-  ground-truth anchor, never resting solely on uncalibrated model judges (§11); annotation queues +
+  install/graduation — consumed by 34 graduation and 35 install) + **the self-certifying-loop guard**
+  (high-trust gates must trace to a ground-truth anchor, never resting solely on uncalibrated model
+  judges — §10.4) (§10); **judge optimization** — user-gated, cost-previewed, train/validation
+  **split by task** (never by trace), ensemble-behind-a-router as a refinement (§11); annotation queues +
   `Annotation` records (reasoning required; model-assisted labels reviewed, never silently ground
   truth) (§12); the full closed `EvalFamily` set bound to primary artifacts — the per-phase-seeded
   suites formalized (§8.2); scheduled regression runs as Automations — no separate eval scheduler
@@ -41,7 +41,7 @@ have real primary artifacts and observability has real load.
   **consent is user-only** (no lease/auto-decide/profile/automation grants it), per-category,
   per-device, revocable; anonymization pseudonyms keyed + scoped, never content hashes;
   `DiagnosticBundle` (NOT a PortablePackage) + the optional OTel backend with a no-op fallback (§7);
-  the debug surface — `ATLAS3_DEBUG`-gated, zero overhead inactive, ring buffer with redacted-only
+  the debug surface — `ATLAS_DEBUG`-gated, zero overhead inactive, ring buffer with redacted-only
   search + overflow reporting (§8); observability retention over 20 GC (§9); **the audit boundary**
   — audit never disabled when telemetry is, never synced, surfaced read-only (§10); health
   projections — **observe-only: never blocks/gates/remediates; infers no liveness from missing
@@ -59,7 +59,8 @@ have real primary artifacts and observability has real load.
 
 P13 — the validator/eval foundation + the Inspect engine. P14 — the scheduler (regression
 Automations) + workers to supervise/observe. P15–P17 — the surface corpus + per-surface suites.
-P12 — Observatory rendering. P20 — sink credential patterns. May overlap P19/P20.
+P12 — Observatory rendering. P20 (by reference, soft — not a hard prerequisite) — sink credential
+patterns. May overlap P19/P20.
 
 ## 4. Lanes
 

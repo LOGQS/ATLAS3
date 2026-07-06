@@ -32,7 +32,7 @@ Resolved design:
 - Messages, events, blocks, intent threads, tasks, runs, and versions stay separate primitives.
 - Intent threads preserve continuity without requiring immediate task formalization.
 - Tasks are promoted only when explicit structure improves execution, inspection, automation, or reuse.
-- Pre-dispatch processing is non-destructive and recorded; it does not bypass routing or ledgering.
+- Pre-routing processing is non-destructive and recorded; it does not bypass routing or ledgering.
 
 ## 1. Chosen Model
 
@@ -73,6 +73,10 @@ It provides:
 
 A conversation may be ephemeral (not persisted to history beyond the active session) without changing its active semantics; ephemeral status is a property of the conversation, not a separate kind.
 
+`Conversation`, `IntentThread` (§5), and `Task` (§6) are durable primitives: each has stable identity and a durable lifecycle with a tombstoned end state that remains auditable rather than physically erased. Their source-of-truth persistence families are owned by the storage layer (`storage.durable-substrate` (File 20 §3.3)); this file defines their interaction-level semantics, not their storage schema.
+
+An ephemeral conversation's durable byproducts outlive its presence in ordinary history. Ledger entries, committed blocks, artifacts, and lease records the conversation produced remain persisted and auditable after ephemeral-end; ending an ephemeral conversation tombstones its record and excludes it from ordinary history recall without deleting those byproducts or invalidating references to them.
+
 ### 2.2 Meaning
 
 Conversation is a chronology container, not the full work model.
@@ -86,18 +90,18 @@ One conversation may contain:
 
 Chronology matters, but chronology alone is not enough for continuity ownership.
 
-Important outputs do not live only as transcript content. Significant outputs become artifacts or typed durable objects with their own identity and lifecycle; the transcript may describe, cite, or compose them, but the transcript is not their primary home. Later specs define artifact identity and lifecycle.
+Important outputs do not live only as transcript content. Significant outputs become artifacts or typed durable objects with their own identity and lifecycle; the transcript may describe, cite, or compose them, but the transcript is not their primary home. Artifact identity and lifecycle are defined in `artifact.artifact` (File 09 §3).
 
 ### 2.3 Conversation State
 
 Anchor: `intent.conversation-state`
 
-A conversation has a coarse-grained activity state, computed as a priority-ordered reduction over its active runs:
+A conversation has a coarse-grained activity state, computed as a priority-ordered reduction over its active runs. A run is actively executing when it is making progress and not blocked on user input; a run blocked on explicit user input is active but not actively executing:
 
 - `streaming`: at least one run is producing user-visible output
-- `processing`: at least one run is active but none is producing output
-- `awaiting_user`: every active run is blocked on explicit user input (approval, clarification, elicitation response)
-- `idle`: no active work
+- `processing`: at least one run is actively executing but none is producing user-visible output
+- `awaiting_user`: at least one run is active and every active run is blocked on explicit user input (approval, clarification, elicitation response)
+- `idle`: no active runs
 
 The first matching state wins. A single run blocked on user input while another run is still producing output leaves the conversation in `streaming`; the blocked condition is surfaced on that run's own UI element.
 
@@ -107,7 +111,7 @@ Concurrent system operations are surfaced as orthogonal indicators alongside the
 
 Compaction is non-destructive and may run concurrently with any activity state. Later specs may define additional orthogonal indicators.
 
-Conversation activity state is distinct from per-run execution state; later execution specs define run states.
+Conversation activity state is distinct from per-run execution state; run states are defined in `run.run` (File 04 §2.4).
 
 ## 3. Message
 
@@ -151,11 +155,11 @@ The transcript carries two content shapes:
 - `Message`: durable, addressable, retryable, editable, branchable transcript anchor. User messages and accepted agent turns are messages. Other subsystems link to message identity (memory provenance, evidence, version-graph nodes).
 - `Event`: live coordination marker projected into the conversation surface — streaming partials, hook outputs, parallel-activity summaries, status timelines, dialog requests. Events render inside or alongside the transcript but are not addressable, retryable, or editable as messages are.
 
-Some content lives at the boundary; for example, a tool-use proposal becomes a tool-result-bearing block when the call completes. The typed catalog of message kinds, event kinds, and the promotion rules belong in later block and event specs.
+Some content lives at the boundary; for example, a tool-use proposal becomes a tool-result-bearing block when the call completes. The typed catalog of message kinds is defined in `block.block-kind` (File 08 §3), the typed catalog of event kinds in `ledger.event-stream` (File 10 §5), and the promotion rules between them in those block and event specs.
 
 ### 3.4 Message Submission Lifecycle
 
-Between the user's submission of a message and the routing layer's production of a `RunIntent`, the system may perform pre-dispatch processing on the pending message.
+Between the user's submission of a message and the routing layer's production of a `RunIntent`, the system may perform pre-routing processing on the pending message.
 
 Allowed operations include:
 
@@ -164,7 +168,7 @@ Allowed operations include:
 - non-destructive presentation of resolution choices to the user
 - hook invocation that may modify or annotate the pending message
 
-Pre-dispatch processing is non-destructive, must not mutate prior messages or blocks, and must not bypass routing or execution-ledger recording. Pre-dispatch decisions and their resolutions are recorded in the ledger. Specific behaviors and their defaults belong in later routing, settings, and context-assembly specs.
+Pre-routing processing is non-destructive, must not mutate prior messages or blocks, and must not bypass routing or execution-ledger recording. Pre-routing decisions and their resolutions are recorded in the ledger. Specific behaviors and their defaults belong in later routing, settings, and context-assembly specs.
 
 ## 4. RunIntent
 
@@ -183,7 +187,7 @@ It answers:
 - which capabilities or downstream subsystems are relevant
 - which model/tool strategy should be used
 
-A `RunIntent` may originate from a user message, a retry of a prior request, an edit of a prior message, a continuation of an in-flight run, a child-run request, a scheduled task, an automation, an inbound external event (webhook, watch trigger, OS event), or a user-invoked action. Per-origin routing rules belong in the routing and dispatch spec; every `RunIntent`, regardless of origin, attaches to a primary intent thread under §5.4.
+A `RunIntent` may originate from a user message, a retry of a prior request, an edit of a prior message, a continuation of an in-flight run, a child-run request, a scheduled task, an automation, an inbound external event (webhook, watch trigger, OS event), or a user-invoked action. Per-origin routing rules belong in `routing.trigger-kinds-routing` (File 03 §2.1); every `RunIntent`, regardless of origin, attaches to a primary intent thread under §5.4.
 
 ### 4.2 Source
 
@@ -193,7 +197,7 @@ It is typically produced by the router model, with cheap deterministic checks us
 
 It is not a transcript object, but the UI may surface the routing result, link it to the triggering user message, and allow the user to override it.
 
-Exact routing lifecycle rules, including retry and edit behavior, belong in the router spec. The complete `RunIntent` field schema, lifecycle, and dispatch semantics are defined in the routing and dispatch spec.
+Exact routing lifecycle rules, including retry and edit behavior, belong in the router spec. The complete `RunIntent` field schema, lifecycle, and dispatch semantics are defined in `routing.run-intent` (File 03 §4).
 
 ### 4.3 Fast-Path Rule
 
@@ -237,9 +241,9 @@ It is used to group together work that belongs to the same continuing line, incl
 
 Anchor: `intent.creation`
 
-An intent thread is not required for every message.
+Every dispatched `RunIntent` has exactly one primary intent thread (§5.4). That thread may be created implicitly and cheaply, so no dispatched request lacks an owning work line; explicit, durable formalization of an intent thread is not required for every message.
 
-It should be created or reused by routing/dispatch only when needed, especially when:
+An intent thread should be explicitly created or reused by routing/dispatch only when needed, especially when:
 
 - the request clearly continues existing work
 - the request starts a new parallel work line
@@ -255,7 +259,7 @@ Cheap deterministic attachment should be preferred first.
 
 Model-assisted attachment should be used only when ambiguity is real.
 
-Later router specs may maintain compact per-work-line summaries so continuity attachment stays cheap without replaying raw full history. A per-work-line summary, when present, must preserve enough information to reconstruct continuity attachment without replaying raw history. Required minimum content:
+The context-assembly and compaction layer (`context.continuity-summaries` (File 13 §14)) owns per-work-line summaries; routing consumes a summary for cheap continuity attachment without replaying raw full history rather than maintaining its own. A per-work-line summary, when present, must preserve enough information to reconstruct continuity attachment without replaying raw history. Required minimum content:
 
 - the active goal or current line of work, in the user's words where preserved
 - the relevant prior decisions and their rationale
@@ -382,7 +386,7 @@ The same underlying work may be rendered in many shapes without changing the wor
 - observability trace, status timeline, or version-tree visualizer
 - artifact diff, draft preview, or live render
 
-A presentation surface is a projection over the underlying work, not part of the work model. The set of presentation surfaces must be extensible: new surfaces, new compositions, and user- or extension-supplied views must be addable without changing the work model. Later specs define presentation surfaces, their compositions, and per-profile defaults.
+A presentation surface is a projection over the underlying work, not part of the work model. The set of presentation surfaces must be extensible: new surfaces, new compositions, and user- or extension-supplied views must be addable without changing the work model. Presentation surfaces, their compositions, and per-profile defaults are defined in `ui.presentation-projection` (File 37 §3).
 
 ### 8.2 Conversation-First
 
@@ -440,8 +444,8 @@ Later specs must follow these rules:
 - UI specs must support both conversation-first and richer workspace presentations over the same underlying objects
 - workspace specs must define cross-conversation continuity primitives (memory scope, project scope, automation scope) without redefining `IntentThread`
 - conversation state must remain a coarse-grained projection of underlying runs and explicit pause requests; later specs must not collapse conversation state into per-run execution state
-- settings specs must define which pre-dispatch behaviors are enabled per profile, per workspace, and per conversation
-- ledger specs must record pre-dispatch decisions and their resolutions alongside the eventual `RunIntent` and triggering message
+- settings specs must define which pre-routing behaviors are enabled per profile, per workspace, and per conversation
+- ledger specs must record pre-routing decisions and their resolutions alongside the eventual `RunIntent` and triggering message
 - context-assembly and compaction specs must produce per-work-line summaries that satisfy §5.3's minimum content requirement and must not silently lose any of those fields during compaction
 - task driver transitions must be recorded in the execution ledger and surfaced to the UI; later specs define handoff mechanics
 - storage and event specs must define the identifier schema that satisfies §7.2's ownership-resolution requirement; events that span multiple ownership levels must carry every applicable identifier
