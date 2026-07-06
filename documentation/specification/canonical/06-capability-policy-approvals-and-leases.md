@@ -1068,3 +1068,9 @@ The canonical principles later specs must follow:
 - consume the canonical `capability_class` taxonomy (`InternalAnalysis`, `ActionExternal`, `UserArtifact`, `Unknown`) for capability classification; extension classes register through the same capability-class extension mechanism when such a mechanism exists
 - consume the canonical revocation conditions and re-evaluation triggers; new conditions register through the typed-declaration mechanism with explicit trigger affinity
 - consume the canonical `ApprovalRequest` / `LeaseOption` / `ApprovalResponse` / `BatchApprovalRequest` / `ContradictionResolutionRequest` data contract for any user-facing approval surface; never invent a parallel approval data shape
+
+## 19. Canonical Rule Anchors
+
+Anchor: `policy.canonical-rule-anchors`
+
+Load-bearing rules defined by this file carry stable anchors: `policy.chosen-model`, `policy.boundaries-with-adjacent-layers`, `policy.approval-router`, `policy.internal-composition-policy-inspectors`, `policy.effective-tier-resolution`, `policy.approval-flows`, `policy.batched-approval-flow`, `policy.touched-resource-matching-against-lease-scope`, `policy.permission-floor-typed-confirmation`, `policy.permission-floor`, `policy.denied-carve-out`, `policy.auto-decide-mode`, `policy.source-approval-flow`, `policy.trust-mapping-defaults`, `policy.mid-execution-policy-re-evaluation`, `policy.lease-primitive`, `policy.built-in-reusable-policy-rules`, `policy.persistence`, `policy.approval-policy-templates`, `policy.approval-ui-surface-contract`, `policy.contradiction-checking-across-scope-levels`, `policy.risk-classification-trust-interaction`, `policy.settings-resolution-for-policy`, and `policy.agent-exposure-policy-settings`. Cross-references should prefer the anchor and may cite the section number secondarily. An anchor names exactly one canonical rule and is stable across spec revisions.

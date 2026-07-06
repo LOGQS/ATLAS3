@@ -676,3 +676,9 @@ Later specs must follow these rules:
 - Files 16 and 17 must own model and provider selection for model-mediated processors; perception declares the workload and consumes the selected model/provider, and provider health is referenced, not re-derived.
 - UI specs must render captures and capture indicators as projections, consume the reactive subscription rather than polling, and surface the recording-transparency indicator for continuous capture.
 - The world model, block, ledger, version, capability, policy, tool-surface, execution, and context specs already depend on this layer: perception produces the observations and signals `world.observation-state-update` (File 18 §8) consumes, invokes the `Observation` block path `artifact.observation` (File 09 §13) defines, emits perception-owned custom events through File 10, and supplies the staleness fingerprints `run.call-pipeline` (File 04 §8.2) revalidates.
+
+## 20. Canonical Rule Anchors
+
+Anchor: `perception.canonical-rule-anchors`
+
+Load-bearing rules defined by this file carry stable anchors: `perception.chosen-model`, `perception.boundaries-with-adjacent-layers`, `perception.perception-service`, `perception.sensor`, `perception.tiered-sensing`, `perception.capture-pipeline`, `perception.per-modality-contracts`, `perception.triggers`, `perception.output-contract`, `perception.capture-privacy`, `perception.cost-fidelity`, `perception.robustness`, `perception.exposure`, `perception.capability-surface`, `perception.events`, `perception.persistence`, and `perception.settings`. Cross-references should prefer the anchor and may cite the section number secondarily. An anchor names exactly one canonical rule and is stable across spec revisions.

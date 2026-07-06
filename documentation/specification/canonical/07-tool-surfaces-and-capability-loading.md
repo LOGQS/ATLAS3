@@ -1265,3 +1265,9 @@ The canonical principles later specs must follow:
 - the Packaging, Platform, and Distribution spec (File 43) packages built-in `Capability` declarations including the canonical discovery capabilities (`tool.borrow`, `tool.borrow_persistent`, `tool.search`, `mcp.search`, `tool.inspect`); they ship in every ATLAS3 install as the `Builtin` source
 
 Specific integration contracts will be stated in those files. Until then, the canonical contract here is the load-bearing reference.
+
+## 21. Canonical Rule Anchors
+
+Anchor: `surface.canonical-rule-anchors`
+
+Load-bearing rules defined by this file carry stable anchors: `surface.chosen-model`, `surface.tool-surface`, `surface.required-outputs`, `surface.zone-model`, `surface.loading-semantics`, `surface.subsystem-surface-spec`, `surface.primary-surface-changes`, `surface.routing-influence`, `surface.late-loading-runtime-discovery`, `surface.borrow-grant`, `surface.default-composition-auto-shrink`, `surface.auto-shrink-algorithm`, `surface.auto-shrink-non-destructive`, `surface.visibility-composition-resolution-algorithm`, `surface.tool-surface-capability-policy`, `surface.presentation-in-model-request`, `surface.cache-friendly-ordering`, `surface.presentation-in-user-facing-surfaces`, `surface.inspector-lens`, `surface.surface-relevant-events`, `surface.persistence-reconstruction`, `surface.reconstruction-across-restart`, `surface.reconstruction-across-retry-edit-reroute-branch`, `surface.mcp-plugin-tool-integration`, `surface.tool-choice-mechanics`, `surface.degradation-graceful-absence`, and `surface.settings`. Cross-references should prefer the anchor and may cite the section number secondarily. An anchor names exactly one canonical rule and is stable across spec revisions.

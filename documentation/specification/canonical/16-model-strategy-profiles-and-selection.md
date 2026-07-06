@@ -711,3 +711,9 @@ Later specs must follow these rules:
 - Surface and subsystem specs may declare default `ModelProfile`s and role preferences, but must not implement private model-selection logic.
 - Automation and workflow specs may pin a `ModelProfile`, concrete model, or full selection plan at save time; execution still records the effective selection used at runtime.
 - Evaluation specs should measure model-selection correctness, fallback correctness, cost prediction, cache effectiveness, data-boundary filtering, and role-specific model quality using `ModelSelectionRecord`s as primary artifacts.
+
+## 17. Canonical Rule Anchors
+
+Anchor: `model.canonical-rule-anchors`
+
+Load-bearing rules defined by this file carry stable anchors: `model.model-strategy-layer`, `model.provider-inputs-consumed-by-model-strategy`, `model.model-capability-descriptor`, `model.normalization-refresh`, `model.model-profile`, `model.model-workload-requirements`, `model.model-registry`, `model.model-selection-algorithm`, `model.model-selection-record`, `model.fallback-policy`, `model.behavioral-intent-parameter-resolution`, `model.cost-budget-selection`, `model.cache-semantics`, `model.multi-model-selection-plans`, and `model.settings`. Cross-references should prefer the anchor and may cite the section number secondarily. An anchor names exactly one canonical rule and is stable across spec revisions.

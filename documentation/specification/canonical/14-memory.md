@@ -611,3 +611,9 @@ Later specs must follow these rules:
 - Teacher, Coder, Web, Data Processor, GUI Control, System Agent, automation, workflows, plugins, and MCP integrations may consume and contribute memory only through this substrate.
 - Knowledge and graph specs must own curated reference content and graph projection mechanics while accepting memory-derived source records through the shared indexing pipeline.
 - Evaluation specs should measure memory extraction accuracy, false-memory rate, retrieval relevance, source attribution, conflict handling, expiration behavior, consolidation quality, and natural-but-inspectable use.
+
+## 23. Canonical Rule Anchors
+
+Anchor: `memory.canonical-rule-anchors`
+
+Load-bearing rules defined by this file carry stable anchors: `memory.chosen-model`, `memory.adjacent-boundaries`, `memory.memory-entry`, `memory.kinds-scopes-facets`, `memory.core-memory`, `memory.archival-memory`, `memory.validity-retention-short-term-memory`, `memory.learning-extraction`, `memory.retrieval-use`, `memory.salience-strength`, `memory.provenance-confidence-conflict`, `memory.consolidation`, `memory.natural-use-inspectability`, `memory.memory-derived-instructions-profiles-skills`, `memory.knowledge-base-graph-relationship`, `memory.capability-families`, `memory.events-ledger-background-work`, `memory.privacy-sensitivity-user-control`, `memory.import-export-materialization`, and `memory.settings`. Cross-references should prefer the anchor and may cite the section number secondarily. An anchor names exactly one canonical rule and is stable across spec revisions.

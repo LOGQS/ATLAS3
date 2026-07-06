@@ -656,3 +656,9 @@ Later specs must follow these rules:
 - The **Runtime Infrastructure and Lifecycle** spec orchestrates the workspace startup reconstruction (binding resolution, missing/unbound-workspace surfacing, orphan-worktree quarantine, lazy mirror rebuild) around the storage lifecycle File 20 owns, and invokes this file's reconstruction rather than reimplementing it.
 - The **Evaluation and Benchmarking** spec verifies the materialization round-trip (block→disk→external-edit→sibling-version→disk reproduces the edit), the relocation re-resolution, the worktree create/merge/discard/quarantine lifecycle, and the export/import workspace round-trip, replaying over recorded snapshots and immutable references, not live disk state.
 - The **Packaging, Platform, and Distribution** spec ships the built-in declarations for every canonical workspace and worktree capability, the workspace and worktree event kinds, and the default workspace settings as the `Builtin` source in every install.
+
+## 25. Canonical Rule Anchors
+
+Anchor: `workspace.canonical-rule-anchors`
+
+Load-bearing rules defined by this file carry stable anchors: `workspace.chosen-model`, `workspace.boundaries`, `workspace.workspace`, `workspace.locality`, `workspace.lifecycle`, `workspace.relocation-recovery`, `workspace.conversation-binding`, `workspace.internal-layout`, `workspace.instruction-files`, `workspace.materialization`, `workspace.materialized-path-resolution`, `workspace.disk-sync-loop`, `workspace.atomic-write`, `workspace.mounted-projects`, `workspace.worktree`, `workspace.export-import`, `workspace.storage-accounting`, `workspace.world-integration`, `workspace.capability-surface`, `workspace.events`, `workspace.settings`, and `workspace.persistence-contract`. Cross-references should prefer the anchor and may cite the section number secondarily. An anchor names exactly one canonical rule and is stable across spec revisions.

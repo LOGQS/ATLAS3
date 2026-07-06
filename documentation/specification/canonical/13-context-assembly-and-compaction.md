@@ -541,3 +541,9 @@ Later specs must follow these rules:
 - surface specs must declare their default context and compaction policies without creating private model-request assembly paths
 - automation and workflow specs must reuse the same assembly, compaction, pressure, and snapshot contracts
 - evaluation specs should measure context correctness, continuity preservation, duplicate handling, overflow recovery, cache effectiveness, and compaction quality
+
+## 23. Canonical Rule Anchors
+
+Anchor: `context.canonical-rule-anchors`
+
+Load-bearing rules defined by this file carry stable anchors: `context.chosen-model`, `context.model-request`, `context.authority-classes`, `context.semantic-regions`, `context.context-policies`, `context.router-context-assembly`, `context.assembly-algorithm`, `context.current-input-oversize-handling`, `context.duplicate-overlap-handling`, `context.budget-overflow`, `context.token-counting`, `context.cache-marker-candidates`, `context.compaction`, `context.virtual-paging`, `context.continuity-summaries`, `context.context-pressure`, `context.instruction-sources-workspace-files`, `context.tool-surface-coordination`, `context.capabilities`, `context.assembly-replay-snapshot`, and `context.persistence-settings`. Cross-references should prefer the anchor and may cite the section number secondarily. An anchor names exactly one canonical rule and is stable across spec revisions.

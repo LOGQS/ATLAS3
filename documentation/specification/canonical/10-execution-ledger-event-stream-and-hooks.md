@@ -1698,3 +1698,9 @@ Specific integration contracts:
 - World Model, Settings, Storage, Sync, Security, Sandbox, Process Control, Workspaces, Control Rails, Plugins, MCP integrations, UI, Quality Control, Evaluation, Telemetry, Runtime Infrastructure, and Packaging consume this file's envelope, delivery-class, sensitivity, hook, audit-overlay, replay, and ledger contracts.
 
 Specific integration contracts will be stated in those specs. Until then, the canonical contract here is the load-bearing reference for every spec that touches execution recording, live coordination, or extensibility.
+
+## 20. Canonical Rule Anchors
+
+Anchor: `ledger.canonical-rule-anchors`
+
+Load-bearing rules defined by this file carry stable anchors: `ledger.chosen-model`, `ledger.boundaries-with-adjacent-layers`, `ledger.execution-ledger`, `ledger.cross-references`, `ledger.forgery-guards`, `ledger.entry-kinds`, `ledger.entry-kind-catalogue`, `ledger.custom-kind-registration`, `ledger.event-stream`, `ledger.event-envelope`, `ledger.app-event-catalogue`, `ledger.per-call-model-call-attribution`, `ledger.cost-computation`, `ledger.hook`, `ledger.hook-decision-vocabulary`, `ledger.priority-ordering`, `ledger.authority-classes`, `ledger.hook-registration-discovery`, `ledger.hook-action-vocabulary`, `ledger.sensitivity-aware-persistence-retention`, `ledger.producer-seeded-sensitivity`, `ledger.replay-semantics`, `ledger.streaming-live-partials`, `ledger.subscription-persistence-lifecycle`, `ledger.cancellation-lifecycle-restart`, `ledger.settings`, `ledger.hash-chained-audit-log`, and `ledger.lifecycle-integration`. Cross-references should prefer the anchor and may cite the section number secondarily. An anchor names exactly one canonical rule and is stable across spec revisions.

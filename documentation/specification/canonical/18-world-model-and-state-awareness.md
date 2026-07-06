@@ -640,3 +640,9 @@ Later specs must follow these rules:
 - Security specs must treat `Secret` world facts as safe-description-only and own the credential and trust state the world model references by id.
 - UI specs must render the world model as a projection and contribute to it through self-registration; they must consume the reactive subscription, not poll.
 - Capability, policy, routing, tool-surface, execution, and context specs already depend on this layer (`capability.discovery`, File 05 §15, File 06, `routing.routing-frame` (File 03 §3.1), `surface.visibility-composition-resolution-algorithm` (File 07 §9), `run.minimum-durable-reconstruction` (File 04 §2.6)/`run.call-pipeline` (File 04 §8.2)/`run.pause-resume` (File 04 §17.2), `context.semantic-regions` (File 13 §3)) and must resolve world state for an explicit scope, consume the available-capability list and the world snapshot this file defines, and reference snapshots by `world_snapshot_id`.
+
+## 18. Canonical Rule Anchors
+
+Anchor: `world.canonical-rule-anchors`
+
+Load-bearing rules defined by this file carry stable anchors: `world.chosen-model`, `world.boundaries-with-adjacent-layers`, `world.world-model`, `world.world-entity`, `world.surface-state`, `world.environment-temporal-connection-facts`, `world.durability-tiers`, `world.observation-state-update`, `world.state-aware-capability-availability`, `world.world-snapshot-replay`, `world.exposure-consumption`, `world.state-change-events-reactivity`, `world.capability-surface`, `world.persistence-contract`, and `world.settings`. Cross-references should prefer the anchor and may cite the section number secondarily. An anchor names exactly one canonical rule and is stable across spec revisions.

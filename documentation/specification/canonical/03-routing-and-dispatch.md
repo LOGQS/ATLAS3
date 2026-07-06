@@ -792,3 +792,9 @@ Later specs must follow these rules:
 - capability and plugin specs must support precheck registration through the same hook system the approval router uses (§3.2)
 - storage and ledger specs must record route record content per §3.5: resolved `RunIntent`, `routing_metadata`, applied prechecks, applied pre-routing transformations, and snapshot references
 - evaluation specs must include routing-evals as a first-class evaluation family, with the route record as the eval artefact
+
+## 16. Canonical Rule Anchors
+
+Anchor: `routing.canonical-rule-anchors`
+
+Load-bearing rules defined by this file carry stable anchors: `routing.purpose`, `routing.routing-is-first-class-dispatch-step`, `routing.trigger-kinds-routing`, `routing.dispatch-pipeline`, `routing.routing-frame`, `routing.deterministic-prechecks`, `routing.route-record`, `routing.routing-failure`, `routing.run-intent`, `routing.continuity-attachment`, `routing.routing-summaries`, `routing.model-routing`, `routing.capability-awareness`, `routing.surface-capability-selection`, `routing.tool-surface-strategy`, `routing.fast-path`, `routing.user-visibility-override`, `routing.minimum-visible-information`, `routing.retry-edit-rules`, `routing.edit`, `routing.mid-execution-reroute`, and `routing.settings`. Cross-references should prefer the anchor and may cite the section number secondarily. An anchor names exactly one canonical rule and is stable across spec revisions.

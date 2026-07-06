@@ -452,3 +452,9 @@ Later specs must follow these rules:
 - execution specs must define mid-execution user input handling (interrupt, queue, summarize-and-continue, supersede) with a user-configurable default and per-action override; the chosen behavior must produce a recorded continuity decision that satisfies §5.5
 - settings and UI specs must allow users to customize presentation shape per profile, per workspace, and per conversation, with a profile default that does not lock the user out of switching
 - automation, scheduling, and trigger specs must define how non-user-originated `RunIntent`s attach to intent threads under §5.4
+
+## 11. Canonical Rule Anchors
+
+Anchor: `intent.canonical-rule-anchors`
+
+Load-bearing rules defined by this file carry stable anchors: `intent.chosen-model`, `intent.conversation`, `intent.conversation-state`, `intent.message`, `intent.run-intent`, `intent.intent-thread`, `intent.creation`, `intent.task`, `intent.promotion-rule`, `intent.parallel-work`, and `intent.presentation`. Cross-references should prefer the anchor and may cite the section number secondarily. An anchor names exactly one canonical rule and is stable across spec revisions.

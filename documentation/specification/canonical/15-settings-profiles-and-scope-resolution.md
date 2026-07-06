@@ -599,3 +599,9 @@ Later specs must follow these rules:
 - evaluation and replay specs record effective settings snapshots, including redaction-safe overlay/profile/default source metadata
 - security specs own secret storage internals and secret-reference resolution
 - plugin and extension specs own install/uninstall UX but must preserve the registration, collision, source-approval, and orphaned-value rules in this file
+
+## 22. Canonical Rule Anchors
+
+Anchor: `settings.canonical-rule-anchors`
+
+Load-bearing rules defined by this file carry stable anchors: `settings.chosen-model`, `settings.boundaries-with-adjacent-layers`, `settings.setting-definition`, `settings.types-semantics-constraints`, `settings.scopes-profile-contexts-overlays`, `settings.source-stack-resolution`, `settings.profiles`, `settings.agent-exposure`, `settings.local-toml-overlay`, `settings.secret-boundary`, `settings.definition-evolution-stored-value-normalization`, `settings.bootstrap-boundary`, `settings.settings-over-constants`, `settings.events-snapshots`, `settings.required-operations`, `settings.settings-capabilities`, `settings.logical-persistence`, `settings.locality-sync-export`, and `settings.settings-for-settings-system`. Cross-references should prefer the anchor and may cite the section number secondarily. An anchor names exactly one canonical rule and is stable across spec revisions.

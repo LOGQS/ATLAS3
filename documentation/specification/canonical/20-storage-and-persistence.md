@@ -516,3 +516,9 @@ Later specs must follow these rules:
 - The **Runtime Infrastructure and Lifecycle** spec owns the broader application lifecycle around the storage startup and shutdown phases this file defines; it invokes the storage lifecycle, it does not reimplement it.
 - The **Evaluation and Benchmarking** spec reads the durable substrate and replays over the recorded snapshots this file reconstructs; it re-derives nothing from live mutable sources.
 - Every later spec that produces durable state declares its substrate family, its source-of-truth-versus-projection classification, and its locality, and obeys the canonical-hash, no-unkeyed-scalar, immutable-source-of-truth, and human-governed-schema rules this file fixes.
+
+## 19. Canonical Rule Anchors
+
+Anchor: `storage.canonical-rule-anchors`
+
+Load-bearing rules defined by this file carry stable anchors: `storage.chosen-model`, `storage.three-planes`, `storage.durable-substrate`, `storage.engine-connection-model`, `storage.transactional-guarantees`, `storage.blob-store`, `storage.projection-store`, `storage.physical-layout-locality`, `storage.physical-encoding`, `storage.schema-migration`, `storage.retention-gc-accounting`, `storage.backup-integrity-recovery`, `storage.lifecycle-reconstruction`, `storage.secret-vault-boundary`, `storage.capability-surface`, `storage.settings`, and `storage.consequences`. Cross-references should prefer the anchor and may cite the section number secondarily. An anchor names exactly one canonical rule and is stable across spec revisions.

@@ -790,3 +790,9 @@ Anchor: `retrieval.consequences-for-later-specs`
 Later specs covering context assembly, memory, model strategy, providers, plugins, MCP integrations, web, coder, teacher, data processing, UI presentation, evaluation, telemetry, storage, sync, security, and packaging must consume this retrieval contract instead of defining incompatible search, index, graph, or knowledge primitives.
 
 When a later spec needs new retrieval behavior, it registers an extension through the mechanisms defined here.
+
+## 23. Canonical Rule Anchors
+
+Anchor: `retrieval.canonical-rule-anchors`
+
+Load-bearing rules defined by this file carry stable anchors: `retrieval.core-model`, `retrieval.retrieval-index`, `retrieval.namespaces`, `retrieval.source-records`, `retrieval.chunking-excerpts`, `retrieval.embeddings-model-identity`, `retrieval.query-contract`, `retrieval.retrieval-pipeline`, `retrieval.retrieval-result`, `retrieval.knowledge-base`, `retrieval.sensitivity`, `retrieval.indexing-pipeline`, `retrieval.capability-surface`, `retrieval.ingestion`, `retrieval.workspace-instruction-files-atlas-md`, `retrieval.events-ledger-telemetry`, `retrieval.settings`, `retrieval.maintenance-freshness`, `retrieval.replay-debugging`, and `retrieval.extension-rules`. Cross-references should prefer the anchor and may cite the section number secondarily. An anchor names exactly one canonical rule and is stable across spec revisions.

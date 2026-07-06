@@ -587,3 +587,9 @@ Later specs must follow these rules:
 - The **Telemetry, Logging, and Observability** spec (File 41) consumes portability events as data and builds views as projections. It never makes telemetry a source of truth and never egresses content this file excludes.
 - The **Evaluation and Benchmarking** spec (File 40) verifies package export/import round-trip, import idempotence, interruption safety, tamper rejection, additive sync safety, causal settings conflicts, restore staging, golden canonical-encoding fixtures for package hashes, and replay equivalence over typed package contents. It replays over recorded snapshots and immutable references, not live sync state.
 - Every later spec that produces durable state declares replication eligibility, export inclusion, import handling, dependency declarations, and sensitivity behavior. It obeys no-secret-egress, no-silent-last-write-wins, UUID preservation, content-addressed deduplication, additive sync, typed gaps, and package round-trip rules.
+
+## 19. Canonical Rule Anchors
+
+Anchor: `portability.canonical-rule-anchors`
+
+Load-bearing rules defined by this file carry stable anchors: `portability.chosen-model`, `portability.boundaries-with-adjacent-layers`, `portability.sync-transport`, `portability.local-first`, `portability.what-replicates`, `portability.conflict-resolution`, `portability.blob-replication`, `portability.device-identity`, `portability.cross-installation-identity`, `portability.export-bundle`, `portability.import-pipeline`, `portability.sensitivity-egress`, `portability.backup-restore`, `portability.capability-surface`, `portability.events`, `portability.settings`, and `portability.consequences`. Cross-references should prefer the anchor and may cite the section number secondarily. An anchor names exactly one canonical rule and is stable across spec revisions.
