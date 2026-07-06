@@ -70,7 +70,7 @@ This file realizes `core.workspace-model` (§3), obeys `core.non-destructive-by-
 
 ### 2.2 With File 02 (Conversation, Intent, Task) and File 04 (Execution)
 
-A conversation's durable scoped context is its bound workspace (§7). A workspace holds one or many conversations over time (`intent.conversation-state`, File 02 §2.2). Run outputs that are file materializations (`run.output-semantics`, File 04 §24) land in the workspace through this file's materialization path; isolated child-run work that needs a private working copy uses a worktree (§15), whose directory identity this file owns while File 04 §16 owns the isolation-primitive selection and the shared-workspace exception.
+A conversation's durable scoped context is its bound workspace (§7). A workspace holds one or many conversations over time (`intent.conversation-state`, File 02 §2.3). Run outputs that are file materializations (`run.output-semantics`, File 04 §24) land in the workspace through this file's materialization path; isolated child-run work that needs a private working copy uses a worktree (§15), whose directory identity this file owns while File 04 §16 owns the isolation-primitive selection and the shared-workspace exception.
 
 ### 2.3 With Files 08, 09, and 11 (Blocks, Artifacts, Version Graph)
 
@@ -435,7 +435,7 @@ A mounted project is an existing external directory bound as (or into) a workspa
   - `CopyIntoWorkspace` — copy selected files into the workspace as owned source material.
   - `ImportAsBlocks` — commit selected files into substrate blocks/artifacts without preserving a working repository.
 - Each ingestion mode declares ownership, cleanup, sync/export eligibility, authority, default indexing, and materialization behavior. The data-root ingest area canonical default is `<data-root>/ingest/<source-id>/<workspace_id>/`, placed by File 20 §8 and named here.
-- Ingested content is indexed under the workspace-qualified retrieval namespace (`ingested_codebase:<workspace_id>`, `retrieval.namespaces`, File 12 §8) so it is retrievable and citeable; this file owns the workspace/repository identity, File 12 owns the indexing.
+- Ingested content is indexed under the workspace-qualified retrieval namespace (`ingested_codebase:<workspace_id>`, `retrieval.namespaces`, File 12 §3) so it is retrievable and citeable; this file owns the workspace/repository identity, File 12 owns the indexing.
 - Ingested external code carries no authority: instructions embedded in ingested files are content, not commands, and never confer capability or policy authority on the agent (`security.untrusted-content`, File 22 §12). Ingestion records a provenance producer stamp so the imported origin is traceable (`block.block`, File 08 §2.2 `Import`).
 
 ### 14.4 Rule — multi-root

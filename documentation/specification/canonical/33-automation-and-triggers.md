@@ -678,7 +678,7 @@ The automation layer emits through the one event bus (`ledger.event-stream`, Fil
 - `WatchArmed` / `WatchFired` / `WatchReset` and `ScheduleArmed` / `ScheduleFired` / `ScheduleMissed` — trigger-level firing-state events for the dashboard.
 - `AutomationCircuitOpened` — an automation tripped its failure circuit breaker and auto-disabled (§13.1).
 
-A fired run's start, completion, and failure are not separate automation events: the trigger firing is the reserved `AutomationTriggerFired`, and the run itself is carried by `RunCreated` and `RunStatusChanged` in the execution ledger (`ledger.execution-ledger`, File 10 §4). This section declares automation lifecycle events; it does not duplicate run lifecycle events.
+A fired run's start, completion, and failure are not separate automation events: the trigger firing is the reserved `AutomationTriggerFired`, and the run itself is carried by `RunCreated` and `RunStatusChanged` in the execution ledger (`ledger.execution-ledger`, File 10 §3). This section declares automation lifecycle events; it does not duplicate run lifecycle events.
 
 ### 20.2 Rule
 
