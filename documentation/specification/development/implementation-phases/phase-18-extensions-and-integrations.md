@@ -46,7 +46,8 @@ tested property.
   `HttpEndpoint` backends + closed auth/body/pagination sets + OAuth user-delegated flow; definitions
   load **after the vault**; literal secrets where refs belong are refused (§11); **the webhook
   receiver** → File 33 `Webhook` triggers with auth/freshness/idempotency, bound to a 42-owned
-  dynamically-allocated loopback listener after the IPC layer; localhost default, remote bind explicit (§13); remote workflow node
+  dynamically-allocated loopback listener brought up with connector loading, independent of the
+  frontend IPC bridge; localhost default, remote bind explicit (§13); remote workflow node
   kinds + retrieval adapters (§14); `mcp.*`/`connector.*` capabilities — `mcp.search` mechanics
   discharge the P6-reserved id (§16). Connector definitions are device-local and never sync;
   configuring elsewhere is a fresh local configure-and-approve (§17).

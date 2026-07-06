@@ -841,10 +841,13 @@ Rules:
 - Failing tests, skipped checks, and unverified claims are reported honestly.
 - Substantial diffs get independent review: no instance grades its own work, and findings are
   adjudicated against the owning authority (the canonical specs and this file), never accepted or
-  dismissed at face value. Changes in the durable-state, canonical-encoding, identity, parsing, or
-  security-boundary class get a different-system review pass wherever a second capable system exists;
-  where none does, its absence is flagged and tracked. The discipline is category-level and names no
-  specific tool.
+  dismissed at face value. For the durable-state, canonical-encoding, identity, parsing, or
+  security-boundary change class, independent delegated review is mandatory before commit: same-system
+  self-review is insufficient there, and same-system convergence is not equivalent to independent
+  evidence. Such changes get a different-system review pass wherever a second capable system exists;
+  where none does, its absence is a flagged and tracked gap, never silently treated as a pass. Batched
+  different-system checkpoints complement this per-change review but do not substitute for it. The
+  discipline is category-level and names no specific tool.
 - Parallel agents use isolated worktrees or branches; one writer owns a file path at a time.
 - Agents stage specific files, not broad `git add -A` sweeps.
 - Agents do not push, publish, install/update dependencies, modify CI workflows, modify git config,
@@ -929,8 +932,9 @@ A mergeable change is done only when all applicable items are true:
   specs.
 - Fresh verification evidence is recorded.
 - Substantial diffs received independent review, with no instance grading its own work and findings
-  adjudicated against the owning authority; a change in the durable-state, canonical-encoding,
-  identity, parsing, or security-boundary class received a different-system review pass where a
+  adjudicated against the owning authority; for the durable-state, canonical-encoding, identity,
+  parsing, or security-boundary class this delegated review is mandatory pre-commit (same-system
+  self-review does not satisfy it), and the change received a different-system review pass where a
   second capable system exists, its absence flagged and tracked otherwise.
 
 ## 26. Recurring Cadence

@@ -102,7 +102,8 @@ Cross-phase overlap: P8's sandbox-core lane may start in parallel (its prerequis
   Fatal→Transient, never exceeds cap, never blocks indefinitely, never switches `(provider, model)`
   (§11.5); stream-terminal invariant + mid-stream errors surfaced never swallowed (§9.2);
   header-reconciliation authoritative, windows keyed by `(scope, window, dimension)` with
-  `window_started_at` the anchored start value (clock-skew-immune) (§13.5/§13.7); **replay never re-queries a count endpoint** (§17.8); `TokenUsageRecord` carries no
+  `window_started_at` an anchored start value never re-keyed from a clock — roll decisions read a
+  monotonic baseline (§13.3/§13.5/§13.7); **replay never re-queries a count endpoint** (§17.8); `TokenUsageRecord` carries no
   `cost_cents`/combined-total/resolved-credentials (§18.2); cost `Unknown` never coerced to 0
   (§19.4); adapter scrub validated at registration (§23.4); credentials resolve at point of use and
   never appear in any adapter struct/ledger/event/log/error trace; **no provider constants above the

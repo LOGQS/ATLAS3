@@ -53,9 +53,12 @@ prerequisites).
 
 1. **RendererRegistry**: kind→component dispatch (BlockKind/ArtifactKind/ObservationKind/PanelKind/
    AppEvent/media); registration through the proposal-first path; renderer trust ≠ content trust;
-   the typed placeholder fallback; **a contributed renderer never shadows a canonical baseline
-   renderer** — a contribution registered for a kind that has a baseline cannot override it (37 §3.3);
-   renderer choices are per-kind implementations behind the registry, not canonical library commitments.
+   the typed placeholder fallback; **the bounded anti-shadowing policy** — the baseline-only sensitive
+   family (approval/elicitation dialogs, tool-call/tool-result, masked-secret, trust/provenance
+   indicators) is never overridable by a surface/rail/plugin contribution; other canonical content
+   kinds are overridable but a shadowing override is surfaced to the user and applied only with
+   consent, never silently, and `Custom` kinds register/override freely within their namespace
+   (37 §3.3); renderer choices are per-kind implementations behind the registry, not canonical library commitments.
 2. **Shell + layout**: regions (command rail, focus surface, inspector dock, execution console,
    conversation view, status, notifications); the default conversation-first preset; progressive
    disclosure as the staging axis; per-region auto-reveal configurable with badge-only selectable.
@@ -87,8 +90,10 @@ prerequisites).
 - **a11y verified, not assumed** (§14.2): automated checks on every surface/dialog/state including
   loading/empty/error; keyboard-only and screen-reader E2E paths; focus restoration; drag/drop
   alternatives.
-- Placeholder fallback + **baseline-renderer anti-shadowing** — a contributed renderer cannot
-  override a canonical baseline renderer for its kind (§3.3); token-discipline lint (§16.5); i18n
+- Placeholder fallback + **baseline-only anti-shadowing** — a source-approved contribution can never
+  shadow the sensitive baseline family (approval/elicitation, tool-call/tool-result, masked-secret,
+  trust/provenance); a shadow over an overridable canonical content kind requires explicit consent and
+  is never silent; `Custom` kinds are free (§3.3); token-discipline lint (§16.5); i18n
   key-coverage + hardcoded-literal lint, missing keys visible in dev (§15).
 - Streaming: partial→committed without remount/flicker; **a streamed partial is never persisted as
   truth**; reconnection rebuilds views from substrate + ledger and marks unreconstructable gaps

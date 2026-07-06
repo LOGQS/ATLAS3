@@ -56,9 +56,9 @@ The signing/provenance job is its own thin lane once the build job exists.
    tasks written in Rust behave identically on all three OSes — no cross-platform shell divergence,
    nothing extra to install) wired to `fmt`, `lint`, `test`, `docs`, `gen-check`,
    `banned-patterns`, `conformance-check` — with `typecheck` as an inner-loop-only leg (a fast local
-   `cargo check` for development feedback; the full compile under `test` is the authoritative
-   type-correctness gate, so `typecheck` is not a gate leg CI runs). CI calls the same entry points
-   (CI/local parity).
+   `cargo check` for development feedback; the `lint` leg's clippy `-D warnings` over `--all-targets`
+   plus the full compile under `test` are the authoritative type-correctness gate, so `typecheck` is
+   not a separate gate leg CI runs). CI calls the same entry points (CI/local parity).
 4. **CI (GitHub Actions)** — 3-OS matrix from the first commit (compile + test + lint per OS);
    banned-pattern greps (invariants doc §28, `devproc.banned-patterns` — checks vacuous until code
    exists are registered as no-ops); gitleaks; cargo-deny (licenses + advisories); coverage capture with ratchet baseline;
@@ -112,7 +112,8 @@ The signing/provenance job is its own thin lane once the build job exists.
   conformance-matrix usage doc; key-custody/rotation doc.
 - **CI/local commands**: `fmt`, `lint`, `test`, `docs`, `gen-check`, `banned-patterns`,
   `conformance-check`, `build-artifact`, `verify-signature`; `typecheck` as an inner-loop-only local
-  leg (not a CI gate — `test`'s compile is the authoritative type check).
+  leg (not a CI gate — clippy `-D warnings` over `--all-targets` and `test`'s compile are the
+  authoritative type check).
 
 ## 8. Exit criteria
 
