@@ -562,6 +562,7 @@ Domain-specific workspace, source-control, browser, perception, system-watch, me
 - `BackgroundWorkerHeartbeat` — periodic worker health signal
 - `BackgroundWorkerFailed` — a background worker failed (per §17.2); payload includes the worker identity, the typed failure, and the triggered recovery action
 - `LedgerCommitRejected` — a commit-time forgery guard or validation rule rejected an entry; payload includes the proposed entry's fields (with sensitivity redaction) and the rejection reason
+- `LedgerCorrection` — an observable correction committed as a new entry superseding a prior one (per §3.3 `supersedes`); the prior entry remains in the pool and forensic queries see both
 
 **System change, settings, audit integrity, and replay:**
 
