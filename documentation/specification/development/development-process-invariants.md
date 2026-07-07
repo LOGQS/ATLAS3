@@ -954,6 +954,8 @@ Recurring work prevents drift:
   package integrity checks, update/rollback checks, and local performance sign-off.
 - When a rule is violated twice: add an automated guard.
 
+- **Doc-truthfulness census (phase boundary).** Grep production sources for deferral/enforcement claim patterns (`not yet|unbuilt|deferred|lands with|will be|to be wired|follow-up|aspirational|P\d+|guaranteed|enforced by|already <verb> by`) and verify ONLY the cross-file subclass: a comment claiming behavior owned by a DIFFERENT file/module than the one making it. Same-file deferrals adjacent to their implementing degrade/placeholder are structurally self-verifying and pass on that coupling. Three census sweeps (2026-07) proved the cross-file subclass is where staleness lives; a stale claim is reworded to current truth in the same pass, never left as debt.
+
 ## 27. Initial Development Profile
 
 Anchor: `devproc.initial-profile`
