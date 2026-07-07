@@ -394,14 +394,18 @@ def check_anchor_ref_and_triple(corpus):
     for f in corpus.files:
         for line_no, anchor, cited_file, sections in iter_refs(f):
             target = corpus.by_num.get(cited_file)
-            # (a) section existence. A trailing section in a compound citation
-            # ("File 04 §14, §9.5") may be a self-reference to the citing file's
-            # own section rather than a further section of the cited file, so a
-            # section that resolves in EITHER file is accepted; only a section
-            # that exists in neither is a dangling reference.
+            # (a) section existence. The PRIMARY section of a citation must resolve
+            # in the cited file — accepting a citing-file match there silently
+            # passes stale targets whenever the citing file happens to share the
+            # number (Codex checkpoint 2026-07-07, MAJOR). Only TRAILING sections
+            # in a compound citation ("File 04 §14, §9.5") may be self-references
+            # to the citing file's own sections.
             if target is not None:
-                for sec in sections:
-                    if sec not in target.heading_nums and sec not in f.heading_nums:
+                for i, sec in enumerate(sections):
+                    in_target = sec in target.heading_nums
+                    in_self = sec in f.heading_nums
+                    ok = in_target or (i > 0 and in_self)
+                    if not ok:
                         ref_findings.append(Finding(
                             f.name, line_no, "ANCHOR-REF", "ERROR",
                             f"section §{sec} not found in File {cited_file}",
