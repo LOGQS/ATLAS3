@@ -675,10 +675,11 @@ The automation layer emits through the one event bus (`ledger.event-stream`, Fil
 - `WebhookReceived` and `OsEventReceived` (reserved, File 10 §4) — inbound external triggers.
 - `AutomationCreated` / `AutomationUpdated` / `AutomationEnabled` / `AutomationDisabled` / `AutomationDeleted` — definition lifecycle.
 - `AutomationRunSkipped` / `AutomationRunParked` — fire-level facts, carrying the gate or approval reason for a fire a gate blocked or a fire that parked for a human decision.
+- `AutomationFireRunBound` — a fire-level progress/idempotency fact binding one `fire_id` to one allocated `run_id`; it may precede `RunCreated`, does not assert that the run exists or started, and a second run id for the same fire is a conflict.
 - `WatchArmed` / `WatchFired` / `WatchReset` and `ScheduleArmed` / `ScheduleFired` / `ScheduleMissed` — trigger-level firing-state events for the dashboard.
 - `AutomationCircuitOpened` — an automation tripped its failure circuit breaker and auto-disabled (§13.1).
 
-A fired run's start, completion, and failure are not separate automation events: the trigger firing is the reserved `AutomationTriggerFired`, and the run itself is carried by `RunCreated` and `RunStatusChanged` in the execution ledger (`ledger.execution-ledger`, File 10 §3). This section declares automation lifecycle events; it does not duplicate run lifecycle events.
+A fired run's start, completion, and failure are not separate automation events: the trigger firing is the reserved `AutomationTriggerFired`, and the run itself is carried by `RunCreated` and `RunStatusChanged` in the execution ledger (`ledger.execution-ledger`, File 10 §3). This section declares automation lifecycle events and fire-level facts; it does not duplicate run lifecycle events — a binding fact such as `AutomationFireRunBound` records the fire-to-run allocation, not the run's start, completion, or failure, so it is a progress/idempotency record rather than a run lifecycle event.
 
 ### 20.2 Rule
 
