@@ -175,7 +175,7 @@ Every block declares its `kind` at creation. The canonical closed catalogue:
 **Coordination kinds:**
 
 - `Group` — a `Composed` block whose only purpose is to group children into a unit (user-defined groups, automatic groups for parallel calls, comparison-board groupings)
-- `Consolidation` — a summary block produced by compaction that consolidates several prior blocks into a condensed view; references the consolidated blocks via the `consolidates` edge
+- `Consolidation` — a `Composed` summary block produced by compaction that consolidates several prior blocks into a condensed view; its summary parts are its children, while the consolidated source blocks are referenced via the `consolidates` edge and are never contained as children
 - `ContextNotice` — a committed guardrail, hook, or system notice retained for audit, replay, or user inspection. Hook-injected guardrails, model-request transformations, and transient assembly content are `Event`s or request-assembly facts by default; they become blocks only when deliberately committed.
 
 **Extension:**
@@ -237,7 +237,7 @@ Anchor: `block.block-content`
 
 Every block carries content as one of three discriminated variants. The variant is chosen by the producer at commit time and is fixed:
 
-- `Inline { text }` — the block's content is a UTF-8 string carried directly in the block record. Used for short content where the cost of indirection exceeds the cost of inline storage (text fragments, structured JSON payloads under the inline-size threshold, tool arguments, citations, descriptions)
+- `Inline { text }` — the block's content is a UTF-8 string carried directly in the block record. Used for short content where the cost of indirection exceeds the cost of inline storage (text fragments, structured JSON payloads at or below the inline-size threshold, tool arguments, citations, descriptions)
 - `External { storage_ref, size_bytes, content_type, external_content_hash }` — the block's content lives outside the block record at a registered storage reference; the block stores only the reference. Used for large content (file attachments above the inline threshold, screenshot images, archive blobs, generated artifacts). The `storage_ref` names resolver kind, scope, identity, size, content type, and integrity hash where available. A remote URL is a citation/source reference unless the content has been captured into durable storage.
 - `Composed { children_block_ids }` — the block has no content of its own; its content is the ordered concatenation (in the structural sense, not necessarily textual concatenation) of its children. `Composed` blocks are the canonical mechanism for representing structured-content blocks built from typed sub-parts: a `MessageAssistant` composed of text + tool calls + tool results, a `MessageUser` composed of text + attachments + mentions, an `Artifact` group composed of multiple file revisions
 
@@ -245,7 +245,7 @@ Every block carries content as one of three discriminated variants. The variant 
 
 Anchor: `block.inline-size-threshold`
 
-The inline-size threshold is a settings dimension (§14). Block kinds whose declared `allowed_content_variants` include both `Inline` and `External` use the threshold to decide: content below the threshold is `Inline`, content at or above is `External`. The decision is made at commit time and is fixed for the block's lifetime; a block that was committed as `Inline` does not get re-encoded to `External` if the threshold later changes.
+The inline-size threshold is a settings dimension (§14), a positive byte count (settings validation rejects zero). Block kinds whose declared `allowed_content_variants` include both `Inline` and `External` use the threshold to decide: content whose UTF-8 byte length is at most the threshold is `Inline`; content whose byte length exceeds the threshold is `External`. The decision is made at commit time and is fixed for the block's lifetime; a block that was committed as `Inline` does not get re-encoded to `External` if the threshold later changes.
 
 ### 4.3 Composition Resolution
 
