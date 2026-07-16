@@ -264,13 +264,14 @@ It is short-lived as a dispatch object, but its result is durably recorded.
 - `capability_families`
 - `execution_entry`
 - `model_route`
+- `initial_model_selection_record_id`
 - `tool_surface_strategy`
 - `fast_path`
 - `precheck_results`
 - `routing_metadata`
 - `reasoning_summary`
 
-`primary_surface` is optional: a request with no single primary work surface omits it (§4.3). `model_route` may be null when the route enters no model-bound step, such as the safe-default route produced under a routing failure (§3.6).
+`primary_surface` is optional: a request with no single primary work surface omits it (§4.3). `model_route` may be null when the route enters no model-bound step, such as the safe-default route produced under a routing failure (§3.6); the valid pairings of `model_route` and `initial_model_selection_record_id` are fixed by the four-state invariant (§4.3).
 
 ### 4.3 Field Meanings
 
@@ -347,7 +348,7 @@ Allowed values:
 
 `model_route`
 
-The chosen model strategy for the request. May be null when the route enters no model-bound step — for example, a safe-default route produced under a routing failure (§3.6) whose provider could not be resolved, left for downstream fallback resolution.
+The `ModelRoute` chosen for the request: the effective execution result naming the model strategy the initial model-bound step runs under. May be null when the route enters no model-bound step — for example, a safe-default route produced under a routing failure (§3.6) whose provider could not be resolved, left for downstream fallback resolution.
 
 When present, it must include:
 
@@ -355,9 +356,19 @@ When present, it must include:
 - `resolved_provider_id`
 - `resolved_model_id`
 - `fallback_policy_id`
-- `selection_record_id`
 
-`selection_record_id` references the model-strategy selection record for the initial model-bound step. Later model-bound steps inside the same run may produce their own selection records without mutating this route field.
+`ModelRoute` is the effective execution result only. It does not carry the selection-record reference: the record that explains the decision is referenced by the sibling `initial_model_selection_record_id`, never by the route. A `ModelRoute` produced in memory is paired with its record as a `ResolvedModelSelection { route, selection_record_id }` (`model.model-selection-algorithm`, File 16 §7.2); routing records the pair by placing the route in `model_route` and the record reference in `initial_model_selection_record_id`.
+
+`initial_model_selection_record_id`
+
+References the `ModelSelectionRecord` (`model.model-selection-record`, File 16 §8) produced when model selection was invoked for the initial model-bound step. It is the sole identity channel for that decision: the route does not carry it and the human-readable `reasoning_summary` never encodes it. Later model-bound steps inside the same run produce their own selection records, reached forward through their durable model-call-start facts (`ledger.entry-kinds`, File 10 §4.2), not through this field.
+
+`model_route` and `initial_model_selection_record_id` are constrained by a four-state invariant; no other combination is valid, and a `RunIntent` violating it is rejected rather than materialized or recorded:
+
+- **Selected** — `model_route` present, `initial_model_selection_record_id` present: selection ran and returned a route; the route is the effective result and the record explains it.
+- **NoModel** — `model_route` null, `initial_model_selection_record_id` present: selection ran and returned a typed no-model result (`NoModelAvailable`, `model.model-selection-algorithm`, File 16 §7.2, §7.6); the record explains why no route was produced.
+- **selection-never-invoked** — `model_route` null, `initial_model_selection_record_id` null: the route entered no model-bound step (for example a safe-default route under a routing failure, §3.6), so selection was never called.
+- **INVALID** — `model_route` present, `initial_model_selection_record_id` null: a route without its originating selection record is a forgery tell.
 
 `tool_surface_strategy`
 
@@ -385,7 +396,7 @@ Observability fields for the routing decision: the source of the decision (one o
 
 `reasoning_summary`
 
-A short natural-language explanation of the routing decision — why this work line, surface, capability set, and model route were chosen. It is the short routing explanation surfaced in the UI (§10.2). It is distinct from a routing summary (§6): the `reasoning_summary` explains one routing decision for inspection, while a routing summary is a compact router-side continuity aid for future routing.
+A short natural-language explanation of the routing decision — why this work line, surface, capability set, and model route were chosen. It is a human explanation field, not an identity channel: it carries no record reference, and the model-selection decision it describes is referenced only by `initial_model_selection_record_id`. It is the short routing explanation surfaced in the UI (§10.2). It is distinct from a routing summary (§6): the `reasoning_summary` explains one routing decision for inspection, while a routing summary is a compact router-side continuity aid for future routing.
 
 ### 4.4 What `RunIntent` Does Not Contain
 

@@ -409,9 +409,9 @@ Each selection invocation consumes:
 
 Selection returns either:
 
-- `SelectedModel { profile_id, provider_id, model_id, fallback_policy_id, selection_record_id }`
-- `ModelSelectionPlan { selections, topology_hint, selection_record_id }`
-- `NoModelAvailable { reasons, recovery_options, selection_record_id }`
+- `ResolvedModelSelection { route, selection_record_id }` — the in-memory pairing of the effective `ModelRoute` (`routing.run-intent`, File 03 §4.3: `profile_id`, `resolved_provider_id`, `resolved_model_id`, `fallback_policy_id`) with the `ModelSelectionRecord` that produced it. The `ModelRoute` carries no record reference; the record rides this resolver return, not the route. A caller recording it into a `RunIntent` places the route in `model_route` and the record in `initial_model_selection_record_id`.
+- `ModelSelectionPlan { selections, topology_hint, selection_record_id }` — each entry of `selections` is a `ResolvedModelSelection`.
+- `NoModelAvailable { reasons, recovery_options, selection_record_id }` — no route is produced and the record explains why; recorded into a `RunIntent` this is the `NoModel` state of the four-state invariant (File 03 §4.3): null `model_route`, present `initial_model_selection_record_id`.
 
 Ordinary requests return one selected model. Explicit comparison, ensemble, best-of-N, arena, critic-selector, or mixture-of-agents work may request a `ModelSelectionPlan`. Each selection inside a plan must satisfy the hard requirements for its role.
 
@@ -485,6 +485,8 @@ It must record:
 - final tie-breaker explanation
 
 The record stores enough to replay and inspect the decision without dumping raw provider/account secrets or full model-request contents. Route records and ledger entries reference the selection record rather than duplicating the full decision.
+
+The record's `parent_run`/`parent_step`/route/model-call references are reverse-only. Per-step forward reachability — resolving a run and step to the selection record chosen for it — rides the durable `ModelCallStarted` model-call-start fact (`ledger.entry-kinds`, File 10 §4.2), which carries the forward `selection_record_id`; the initial route's forward reference is `RunIntent.initial_model_selection_record_id` (`routing.run-intent`, File 03 §4.3). The selection record is never carried by the `ModelRoute` itself.
 
 ## 9. Fallback Policy
 
@@ -702,7 +704,7 @@ Anchor: `model.consequences-for-later-specs`
 Later specs must follow these rules:
 
 - File 17 must expose normalized model descriptors, provider offering projections, provider runtime snapshots, effective pricing/accounting projections, provider health, rate limits, retry semantics, cache accounting, and provider-native parameter serialization without leaking provider-specific mechanics into File 16.
-- File 03 must produce initial model workload requirements and a model route for the first model-bound step; route records should reference the corresponding `ModelSelectionRecord`.
+- File 03 must produce initial model workload requirements and a `ModelRoute` for the first model-bound step; the `RunIntent` references the corresponding `ModelSelectionRecord` through `initial_model_selection_record_id` (`routing.run-intent`, File 03 §4.3), not through the route, which carries no record reference.
 - File 04 must allow model selection to be invoked per model-bound step, must record selection records and fallback attempts, and must treat multi-model plans as explicit execution structure.
 - File 07 must consume native callable support and parser-fallback support without treating tool-surface visibility as model-selection authority.
 - File 10 must record selection, fallback, model-call attribution, provider/runtime snapshot references, and cache/usage attribution through durable ledger/event records.

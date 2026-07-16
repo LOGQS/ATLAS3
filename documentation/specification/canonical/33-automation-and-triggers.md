@@ -264,10 +264,29 @@ An `Automation` carries:
 
 ### 6.3 Pin-at-Save-Time
 
-- An `Automation`'s `task_template` is a saved execution template (`run.execution-structure`, File 04 §5.3's "automation run using a saved execution template") captured at save time. It pins the fields that routing would otherwise compute at fire time, so a later run is reproducible and not subject to drift: the primary surface and the recorded `surface_contract_version` (`worksurface.consequences-for-later-specs`, File 25), the `tool_surface_strategy` (`surface.presentation-in-user-facing-surfaces`, File 07 §12), the model route or profile (`model.model-selection-algorithm`, File 16 §7), the context and compaction policy (`context.context-policies`, File 13 §4), the sandbox profile (`sandbox.contract`, File 23 §3), and the budget (`run.budgets-limits`, File 04 §21).
+- An `Automation`'s `task_template` is a saved execution template (`run.execution-structure`, File 04 §5.3's "automation run using a saved execution template") captured at save time. It pins the fields that routing would otherwise compute at fire time, so a later run is reproducible and not subject to drift: the primary surface and the recorded `surface_contract_version` (`worksurface.consequences-for-later-specs`, File 25), the `tool_surface_strategy` (`surface.presentation-in-user-facing-surfaces`, File 07 §12), the pinned model selection as a `PinnedModelSelection` (§6.3.1), the context and compaction policy (`context.context-policies`, File 13 §4), the sandbox profile (`sandbox.contract`, File 23 §3), and the budget (`run.budgets-limits`, File 04 §21).
 - At fire time, the trigger produces a `RouteRequest` carrying the pinned template; routing respects the pinned fields and fills only the unpinned ones (`routing.trigger-kinds-routing`, File 03 §2.1). This is the single realization, for all surfaces, of the "pin the surface and its policies at save time the way routing does" rule that each per-surface spec defers here.
 - Pinning is a snapshot for reproducibility, not an authority freeze. At fire time, the current capability registry, source trust, policy templates, leases, sandbox availability, model/provider availability, settings overlays, and security rules revalidate the pinned template. Later stricter policy wins. A pinned value may prevent silent rebinding, but it cannot preserve authority the user or policy revoked. Editing the automation re-pins; enabling after material policy drift may require review.
 - A floating workflow reference (`CurrentActive`/`LatestCompatible`) is additionally revalidated at fire time for effect-envelope drift (File 34 §5.2): the runtime records the resolved workflow version and a drift notice when it differs from the save-time resolution, and recomputes the resolved workflow's declared effect envelope. When the resolved envelope exceeds the scope this automation was pre-authorized under (§11.2), the fire records the `EffectEnvelopeDrift` fact and parks for user review (§11.3), never running under stale authorization.
+
+#### 6.3.1 `PinnedModelSelection`
+
+A `PinnedModelSelection` is the constraint shape a saved template pins in place of a resolved model route. It records *what* was pinned, not an effective execution result: a `ModelRoute` (`routing.run-intent`, File 03 §4.3) is the effective result routing produces, and a `ResolvedModelSelection` (`model.model-selection-algorithm`, File 16 §7.2) is the in-memory pairing of a route with its selection record — a `PinnedModelSelection` is neither, but the saved constraint that model selection re-resolves into a route at fire time.
+
+It carries:
+
+- `provider_id` — optional
+- `model_id` — optional
+- `profile_id` — optional
+- `fallback_policy_id` — optional
+- `origin_selection_record_id` — provenance-only lineage: the `ModelSelectionRecord` (`model.model-selection-record`, File 16 §8) the pin was captured from, recorded for audit and never used as a live route reference or an identity channel
+
+Its invariants:
+
+- a `profile_id` or a `model_id` must be present; a pin that constrains neither is invalid.
+- `provider_id` is never present without `model_id`.
+
+At fire time the pinned selection is re-resolved through model selection (`model.model-selection-algorithm`, File 16 §7) into an effective `ModelRoute` under current availability, policy, and budget, exactly as any other pinned field is revalidated (§6.3): a pin cannot preserve a route the current registry, trust state, or policy no longer permits.
 
 ### 6.4 Identity, Versioning, and Source
 

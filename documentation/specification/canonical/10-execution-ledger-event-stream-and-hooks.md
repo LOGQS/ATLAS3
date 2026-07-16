@@ -400,7 +400,7 @@ Every ledger entry declares its `kind` at commit. The canonical closed catalogue
 
 **Model calls (per `run.execution-ledger`, File 04 §23.1):**
 
-- `ModelCallStarted` — provider call initiated; payload includes provider id, model id, tokenizer id, role, request fingerprint, and cache markers used
+- `ModelCallStarted` — provider call initiated; payload includes provider id, model id, tokenizer id, role, request fingerprint, cache markers used, and the forward `selection_record_id` reference to the `ModelSelectionRecord` this call was selected under (`model.model-selection-record`, File 16 §8)
 - `ModelCallCompleted` — provider returned; payload includes the full `TokenUsageRecord` (§6.2), the stop reason, the parsed `ParsedResponse` reference. Cost is a projection over the `TokenUsageRecord` (§6.4), not a stored payload field
 - `ModelCallStreamingDelta` — provider streamed a chunk; payload includes delta size, accumulated counts, partial-block handle (aggregated per §12.3)
 - `ModelCallFailed` — provider returned an error; payload includes the typed `ProviderError` (File 17 §10), retry classification (`retryable`, `rate_limited`, `fatal`), and `retry_after_ms` if provider-supplied
@@ -587,6 +587,7 @@ The catalogue above is not free-form. The following composition rules apply:
 
 - every capability-invocation kind (`ToolCallProposed`, `ToolCallExecuted`, `ToolCallCompleted`, `ToolCallFailed`, `ToolCallDenied`) shares a single `invocation_id` cross-reference so the full pipeline is correlatable
 - every model-call kind (`ModelCallStarted`, `ModelCallCompleted`, `ModelCallStreamingDelta`, `ModelCallFailed`, `ModelCallCancelled`) shares a single `request_id`; exactly one of the completed, failed, or cancelled terminal kinds may commit for that request
+- the `ModelCallStarted` entry carries the forward `selection_record_id` reference to its `ModelSelectionRecord` (`model.model-selection-record`, File 16 §8). This forward reference is load-bearing: the record's own `parent_run`/`parent_step` linkage is reverse-only, so a per-step selection record is reachable forward from its run and step only through the durable model-call-start fact; the store's by-id interface cannot otherwise resolve a step to the record selected for it. The initial route's forward reference is instead `RunIntent.initial_model_selection_record_id` (`routing.run-intent`, File 03 §4.3)
 - every block-commit kind (`BlockCommitted`) references the produced `block_id` and the `invocation_id` that produced it (when produced by a capability)
 - every artifact-event kind references the `artifact_id` and the `artifact_version_block_id` it operates on
 - every hook-decision kind (`HookDecisionRecorded`, `HookTimedOut`, `HookHandlerError`) references the originating `event_id` and the `subscription_id`
