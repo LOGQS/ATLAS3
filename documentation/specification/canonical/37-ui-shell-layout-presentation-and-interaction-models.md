@@ -327,7 +327,7 @@ Conversation presentation is the rendering of the conversation as a transcript v
 
 ### 8.3 Conversation Activity State
 
-The shell renders `intent.conversation-state` (File 02 §2.3)'s coarse activity state — `streaming`, `processing`, `awaiting_user`, `idle` — as a projection over the conversation's active runs, with the first-matching-state priority that section fixes, plus the orthogonal `compacting` indicator and any later orthogonal indicators. A single run blocked on user input while another streams leaves the conversation `streaming` and surfaces the blocked condition on that run's own element (File 02 §2.3). The UI renders this projection; it does not collapse conversation state into per-run execution state, and it assumes no single active stream per conversation (`intent.explicit-rejections`, File 02 §9).
+The shell renders `intent.conversation-state` (File 02 §2.3)'s coarse activity state — `streaming`, `processing`, `awaiting_user`, `idle` — as a projection over the conversation's active runs, with the first-matching-state priority that section fixes, plus the orthogonal `compacting` and `paused` indicators (a paused conversation is `idle` plus `paused`, never bare `idle`) and any later orthogonal indicators. A single run blocked on user input while another streams leaves the conversation `streaming` and surfaces the blocked condition on that run's own element (File 02 §2.3). The UI renders this projection; it does not collapse conversation state into per-run execution state, and it assumes no single active stream per conversation (`intent.explicit-rejections`, File 02 §9).
 
 ### 8.4 The Input Composer
 

@@ -363,11 +363,11 @@ A mutating system operation records a change as: the durable ledger entry the pi
 
 ### 9.3 Reversibility and the Reversal Declaration
 
-Every mutating system capability declares a reversibility class as capability metadata (`artifact.capability-metadata-declarations`, File 09 §16.2; `capability.execution-semantic-fields`, File 05 §3.6):
+Every mutating system capability declares its reversibility through the canonical `reversibility_class` metadata field (`artifact.capability-metadata-declarations`, File 09 §16.2; `capability.execution-semantic-fields`, File 05 §3.6, whose closed values are `none`, `compensable`, and `reversible`). This surface additionally declares WHICH reversal mechanism realizes a non-`none` class — a surface-local reversal-strategy annotation layered over the canonical field, never a replacement vocabulary for it:
 
-- **`Reversible`** — the operation declares an inverse capability and the before state needed to apply it (a configuration write declares the configuration delete or the prior-value write; a service stop declares the service start; an adapter disable declares the adapter enable). The reversal is the inverse capability plus the captured before state.
-- **`ReversibleWithSnapshot`** — the operation is reversible only by restoring a captured snapshot (a registry-tree change, a backup-restore), so the before-state `Observation` or a content-addressed backup is the reversal's required input.
-- **`Irreversible`** — the operation cannot be undone (process termination, a destructive format, an unrecoverable delete). It declares `Irreversible`, carries the `Denied`-floor typed-confirmation gate (§11.3), and records no reversal.
+- **Inverse-capability reversal** (canonical class `compensable`, or `reversible` for a self-symmetric operation) — the operation declares an inverse capability and the before state needed to apply it (a configuration write declares the configuration delete or the prior-value write; a service stop declares the service start; an adapter disable declares the adapter enable). The reversal is the inverse capability plus the captured before state.
+- **Snapshot-restore reversal** (canonical class `compensable` — the compensating action is the restore) — the operation is reversible only by restoring a captured snapshot (a registry-tree change, a backup-restore), so the before-state `Observation` or a content-addressed backup is the reversal's required input.
+- **No reversal** (canonical class `none`) — the operation cannot be undone (process termination, a destructive format, an unrecoverable delete). It declares `none`, carries the `Denied`-floor typed-confirmation gate (§11.3), and records no reversal.
 
 A workspace-file mutation is not reversed through this model: it is a sibling-block version, and its reversal is a version switch (`version.version-switching`, File 11 §8), the version graph being the single file-history mechanism (`workspace.materialization`, File 24).
 

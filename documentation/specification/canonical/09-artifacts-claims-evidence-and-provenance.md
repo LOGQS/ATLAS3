@@ -787,7 +787,7 @@ A URL-only citation is a durable reference, not durable source content. Evidence
 - `DocumentBlockSpan` — a reference to a block within a document already present in the block pool (e.g., a previously-captured `BrowserExtract` artifact's section); `reference_value` is a `block_id` plus optional span
 - `FileRange` — a reference to a range within a workspace file; `reference_value` is `(file_path, range_kind, range_value)` where `range_kind` is one of `LineRange`, `ByteRange`, `CharacterRange`
 - `PriorBlock` — a reference to any block in the pool by `block_id`
-- `McpResource` — a reference to an MCP server resource by `(server_id, resource_uri)`
+- `McpResource` — a reference to an MCP server resource by `(connector_id, resource_uri)` (`connector_id` per `integration.connector`, File 36 §3.1)
 - `MemoryRecord` — a reference to a memory record (a `MemoryEntry` per File 14) by `(memory_id, recalled_block_id)`, where `memory_id` is the stable entity id and `recalled_block_id` pins the specific `Memory`-kind block recalled (the entry's active block may advance across revisions, so the citation records the block actually recalled)
 - `KnowledgeEntry` — a reference to a File 12 knowledge-base entry by its stable id
 - `Repository` — a reference to a code repository commit or path (`repo_url`, `commit_hash`, optional `path`)

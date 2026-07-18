@@ -1154,7 +1154,7 @@ It records:
 
 The list above is a minimum, not an exhaustive schema. The ledger must record full-granularity timestamps on every entry and any additional execution-relevant attribution the storage spec requires (request ids, trace context, attempt counters, classification metadata) without forcing the canonical to enumerate exhaustively. The storage spec extends the schema; this file specifies the minimum that execution reasoning depends on.
 
-The ledger enforces a forgery guard at status transition: a run cannot terminate as `completed` if it has no recorded capability executions, no committed artifact revisions, and no model-step outputs beyond plain text — when the run contract required action. The forgery guard is the storage-side counterpart to §22's run-completion contract.
+The ledger enforces a forgery guard at status transition: a run cannot terminate as `completed` if it has no recorded capability executions, no committed artifact revisions, no model-step outputs beyond plain text, and no committed workflow-node output block — when the run contract required action. The forgery guard is the storage-side counterpart to §22's run-completion contract, over the same four evidence kinds.
 
 ### 23.2 Event Stream
 

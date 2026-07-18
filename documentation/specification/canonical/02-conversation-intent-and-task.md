@@ -96,18 +96,19 @@ Important outputs do not live only as transcript content. Significant outputs be
 
 Anchor: `intent.conversation-state`
 
-A conversation has a coarse-grained activity state, computed as a priority-ordered reduction over its active runs. A run is actively executing when it is making progress and not blocked on user input; a run blocked on explicit user input is active but not actively executing:
+A conversation has a coarse-grained activity state, computed as a priority-ordered reduction over its active runs. The active set is fixed against the `run.run` status set (File 04 §2.4): `pending`, `running`, `awaiting_user`, and `cancelling` runs are active; a `paused` run is excluded from the active set — an explicit pause is projected by the `paused` indicator below, never as activity; terminal runs (`completed`, `failed`, `cancelled`, `superseded`) are not active. A run is actively executing when it is making progress and not blocked on user input; a run blocked on explicit user input is active but not actively executing:
 
 - `streaming`: at least one run is producing user-visible output
-- `processing`: at least one run is actively executing but none is producing user-visible output
+- `processing`: at least one active run is not blocked on explicit user input, and none is producing user-visible output — an actively executing `running` run, a queued `pending` run, and a winding-down `cancelling` run all land here
 - `awaiting_user`: at least one run is active and every active run is blocked on explicit user input (approval, clarification, elicitation response)
 - `idle`: no active runs
 
-The first matching state wins. A single run blocked on user input while another run is still producing output leaves the conversation in `streaming`; the blocked condition is surfaced on that run's own UI element.
+The first matching state wins, and the reduction is total over the File 04 §2.4 status set: every non-terminal status contributes to exactly one of the clauses above (a status File 04 later adds must be classified here in the same revision). A single run blocked on user input while another run is still producing output leaves the conversation in `streaming`; the blocked condition is surfaced on that run's own UI element.
 
-Concurrent system operations are surfaced as orthogonal indicators alongside the activity state. The required indicator is:
+Concurrent system operations are surfaced as orthogonal indicators alongside the activity state. The required indicators are:
 
 - `compacting`: a continuity-summary or context-compaction operation is in flight
+- `paused`: at least one of the conversation's runs is explicitly paused (`run.run`, File 04 §2.4) — the projection of explicit pause requests this section's consequence rule requires; paused runs are excluded from the activity reduction, so without this indicator a paused conversation would be indistinguishable from `idle`
 
 Compaction is non-destructive and may run concurrently with any activity state. Later specs may define additional orthogonal indicators.
 

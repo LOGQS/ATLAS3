@@ -28,7 +28,7 @@ This file defines:
 - the persistence contract — what is durable, what is computed, what is reconstructable, plus the deterministic reconstruction guarantee across restart, retry, edit, reroute, branch, and child-run
 - the cross-device sync contract — version-tree-aware merge with no last-write-wins, both-children-survive sibling resolution, and the per-device materialized-view pointer
 - garbage collection and pruning — the closed canonical retention policy set, typed tombstone / compaction / payload-deletion operations, and the user-controlled storage-reclamation surface from `core.non-destructive-by-default` (File 01 §7.13)
-- the canonical version-graph event vocabulary on the unified event bus (per `ledger.event-stream`, File 10 §5) — `PendingOpApplied`, `VersionCommitted`, `VersionSwitched`, `BranchCreated`, `VersionLabelled`, `VersionTombstoned`, `VersionRangeCompacted`, `VersionPayloadHardDeleted`, `MaterializedViewRebuilt`, `MaterializedViewIntegrityViolated`
+- the canonical version-graph event vocabulary on the unified event bus (per `ledger.event-stream`, File 10 §5) — `PendingOpApplied`, `VersionCommitted`, `VersionSwitched`, `VersionBranchCreated`, `VersionLabelled`, `VersionTombstoned`, `VersionRangeCompacted`, `VersionPayloadHardDeleted`, `MaterializedViewRebuilt`, `MaterializedViewIntegrityViolated`
 - the settings dimensions every mechanism in this file exposes, with the agent-exposure rules per `policy.agent-exposure-policy-settings` (File 06 §16.4)
 - the closed set of explicit rejections covering parallel checkpoint systems, mutable diffs, time-based pruning, snapshot-as-full-model-request-audit, version-as-storage-shape, and forgery
 - the canonical contract every later spec consumes when it produces a versioned artefact, declares a snapshot identity, builds a derived projection, queries history, or replays an execution
@@ -115,7 +115,7 @@ File 02 establishes that a conversation versioning unit operates at the conversa
 
 ### 2.3 With File 03 (Routing and Dispatch)
 
-`routing.route-record` (File 03 §3.5) specifies the `Route Record` as a durable record produced at routing time. The Route Record carries `routing_snapshot_id` (which resolves to the routing-table state at routing time per §13 below), `policy_snapshot_id`, `settings_snapshot_id`, `world_snapshot_id`, and `registry_snapshot_id`. The route record itself becomes part of the version graph through the `RouterEmission` block producer per `block.block` (File 08 §2.2); replay reads the route record's snapshot references to reconstruct the routing inputs deterministically.
+`routing.route-record` (File 03 §3.5) specifies the `Route Record` as a durable record produced at routing time. The Route Record carries `routing_snapshot_id` (which resolves to the routing-table state at routing time per §14 below), `policy_snapshot_id`, `settings_snapshot_id`, `world_snapshot_id`, and `registry_snapshot_id`. The route record itself becomes part of the version graph through the `RouterEmission` block producer per `block.block` (File 08 §2.2); replay reads the route record's snapshot references to reconstruct the routing inputs deterministically.
 
 ### 2.4 With File 04 (Execution and Run Model)
 
@@ -129,7 +129,7 @@ File 02 establishes that a conversation versioning unit operates at the conversa
 
 ### 2.5 With File 05 (Capability Contracts and Registry)
 
-`capability.replay-class` (File 05 §7.3) declares the per-capability `replay_class` (`deterministic_replayable`, `snapshot_replayable`, `effect_replayable_with_policy`, `not_replayable`). This file consumes the replay class in §14 to select the appropriate replay mode for each invocation in a run being replayed.
+`capability.replay-class` (File 05 §7.3) declares the per-capability `replay_class` (`deterministic_replayable`, `snapshot_replayable`, `effect_replayable_with_policy`, `not_replayable`). This file consumes the replay class in §15 to select the appropriate replay mode for each invocation in a run being replayed.
 
 `capability.registered-capability` (File 05 §10) records the registered-capability runtime state. A `registry_snapshot_id` resolves to the registered-capability set at the named version, including `enabled` flags, `availability_status`, `resolved_backend_binding`, `trust_state`, `active_aliases`, and the registered declaration version. The snapshot is derivable from the durable substrate (the canonical capability declarations plus the recorded registry-state mutation events with their typed timestamps) per `ledger.replay-semantics` (File 10 §11).
 
@@ -159,7 +159,7 @@ File 08 owns the block pool, the `BlockKind` catalogue, the `BlockEdge` catalogu
 
 ### 2.10 With File 10 (Execution Ledger, Event Stream, and Hooks)
 
-`ledger.execution-ledger` (File 10 §3) specifies the durable `ExecutionLedger`; this file's version-graph commits become ledger entries (`VersionCommitted`, `VersionSwitched`, `BranchCreated`, `PendingOpApplied`, `VersionLabelled`, `VersionTombstoned`, `VersionRangeCompacted`, `VersionPayloadHardDeleted`, `MaterializedViewRebuilt`, `MaterializedViewIntegrityViolated`) and flow through the canonical event bus with the canonical envelope. `ledger.replay-semantics` (File 10 §11) establishes the three replay modes; this file specifies the version-graph data each mode consumes.
+`ledger.execution-ledger` (File 10 §3) specifies the durable `ExecutionLedger`; this file's version-graph commits become ledger entries (`VersionCommitted`, `VersionSwitched`, `VersionBranchCreated`, `PendingOpApplied`, `VersionLabelled`, `VersionTombstoned`, `VersionRangeCompacted`, `VersionPayloadHardDeleted`, `MaterializedViewRebuilt`, `MaterializedViewIntegrityViolated`, and the remaining §21.1 kinds — all catalogued first-party in File 10 §4.1) and flow through the canonical event bus with the canonical envelope. `ledger.replay-semantics` (File 10 §11) establishes the three replay modes; this file specifies the version-graph data each mode consumes.
 
 `ledger.forgery-guards` (File 10 §3.7)'s forgery guards do not apply to version-graph commits in addition to the existing guards — version-graph commits are themselves the carriers of the consequential transitions, and the ledger's existing rules (status-transition forgery, unkeyed-scalar rejection, sensitivity-aware persistence) govern them at the ledger commit boundary.
 
@@ -210,7 +210,7 @@ A `ContextVersion`:
 - carries one immutable typed `VersionDiff` (§4) describing the net change from its parent
 - declares one `VersionOpSummary` (§5.2) identifying the commit-trigger kind
 - carries an optional user-assigned `label` for surface display and named-bookmark reference
-- carries the typed snapshot references (`registry_snapshot_id`, `settings_snapshot_id`, `world_snapshot_id`, `policy_snapshot_id`, `pricing_snapshot_id`, `routing_snapshot_id`, others §13) anchored at the commit time, when the corresponding substrate was consulted
+- carries the typed snapshot references (`registry_snapshot_id`, `settings_snapshot_id`, `world_snapshot_id`, `policy_snapshot_id`, `pricing_snapshot_id`, `routing_snapshot_id`, others §14) anchored at the commit time, when the corresponding substrate was consulted
 - carries the `producer` reference (matching `block.block` (File 08 §2.2)'s `producer` enum) — the actor that committed the version
 - is durable across process restart, conversation archival, projection rebuild, schema migration, and version-graph compaction
 - is addressable across every layer: the execution ledger references `version_id` per `ledger.cross-references` (File 10 §3.6); the materialized view consumes `version_id` per §7; the artifact entity's `current_version_block_id` denormalised pointer resolves through `version_id` per `artifact.artifact` (File 09 §3.2); the surface composition record references the `version_id` at which the surface was consumed per `surface.persistence-reconstruction` (File 07 §14)
@@ -238,7 +238,7 @@ Every `ContextVersion` carries at minimum:
 - `diff` — `VersionDiff` payload (§4)
 - `label` — optional `String`; user-assigned name; mutable through the `label_version` operation (§17.4), not through diff updates
 - `bookmarked` — `bool`; user-marked retention preference exempting the version from garbage-collection retention policies (§20); mutable through the `bookmark_version` operation
-- `snapshot_refs` — typed map of snapshot identities the version anchors (§13): `registry_snapshot_id`, `settings_snapshot_id`, `world_snapshot_id`, `policy_snapshot_id`, `pricing_snapshot_id`, `routing_snapshot_id`, plus registered extension keys; entries unused for a given commit are absent rather than null-padded
+- `snapshot_refs` — typed map of snapshot identities the version anchors (§14): `registry_snapshot_id`, `settings_snapshot_id`, `world_snapshot_id`, `policy_snapshot_id`, `pricing_snapshot_id`, `routing_snapshot_id`, plus registered extension keys; entries unused for a given commit are absent rather than null-padded
 - `version_schema_version` — version of the canonical row shape, so File 20 can normalise supported earlier shapes during registration
 - `diff_hash` — SHA-256 over the canonical serialised `VersionDiff` payload; supports materialized-view integrity verification (§7.6) and forgery guards (§19.5)
 - `expected_view_hash` — optional SHA-256 over the canonical serialised materialized view at this version, used as an integrity sentinel for path-walk verification (§7.6 and §8.4); present when the storage layer chose to record it; absent versions are still valid
@@ -252,7 +252,7 @@ A `version_id` is:
 - globally unique within the ATLAS3 installation
 - assigned at commit time
 - never reused, never reassigned, never mutated
-- the canonical cross-layer reference: ledger entries (per `ledger.cross-references`, File 10 §3.6's `version_id` cross-reference key), block-pool queries (per `block.what-is-computed`, File 08 §13.2's per-version lifecycle map keying), artifact-entity surface resolution (per `artifact.per-version-vs-per-entity-derivation`, File 09 §5.4), tool-surface reconstruction (per `surface.reconstruction-across-retry-edit-reroute-branch`, File 07 §14.3), replay invocations (§15 of this file), forensic queries (§16), and cross-conversation forks (§9.3)
+- the canonical cross-layer reference: ledger entries (per `ledger.cross-references`, File 10 §3.6's `version_id` cross-reference key), block-pool queries (per `block.what-is-computed`, File 08 §13.2's per-version lifecycle map keying), artifact-entity surface resolution (per `artifact.per-version-vs-per-entity-derivation`, File 09 §5.4), tool-surface reconstruction (per `surface.reconstruction-across-retry-edit-reroute-branch`, File 07 §14.3), replay invocations (§15 of this file), forensic queries (the §15 `Inspect` mode through the §17 service surface), and cross-conversation forks (§9.3)
 - a format-agnostic identifier — any identifier with the required uniqueness and stability properties is acceptable, and the storage spec picks the wire format (`storage.durable-substrate`, File 20 §3.4; `core.canonical-encoding`, File 01 §6.15)
 
 A version's identity is independent of its content. Two versions with identical `VersionDiff` content have different `version_id`s. Deduplication is not required and is explicitly not attempted; equal-content versions are addressable separately and can carry independent labels, bookmarks, and produced-by attributions.
@@ -665,7 +665,7 @@ The mechanics:
 4. If `version_id_X` already has a child `version_id_Z` (from before the switch), then `version_id_Y` becomes its sibling: both `version_id_Z` and `version_id_Y` have `parent_version_id = version_id_X`.
 5. The conversation's `current_version_id` advances to `version_id_Y`. `version_id_Z` and its descendants remain reachable through the version tree.
 
-Branching is the natural consequence of switching plus committing. The user does not invoke a separate "branch" operation. The canonical event emitted is `BranchCreated { conversation_id, branched_from_version_id, new_branch_root_version_id }` whenever a commit creates a new branch (not when it merely extends the existing leaf).
+Branching is the natural consequence of switching plus committing. The user does not invoke a separate "branch" operation. The canonical event emitted is `VersionBranchCreated { conversation_id, branched_from_version_id, new_branch_root_version_id }` whenever a commit creates a new branch (not when it merely extends the existing leaf).
 
 Branch labels: branches may be labelled at the branch-root version (per §17.4 `label_version`) so users can refer to them by name. Surface displays may show branches as sibling lines emanating from their shared parent.
 
@@ -1480,7 +1480,7 @@ Anchor: `version.events`
 
 ### 21.1 Canonical Event Vocabulary
 
-Every version-graph operation emits typed events through the canonical bus per `ledger.event-stream` (File 10 §5). This file owns the version-graph event vocabulary (§21.4); `VersionCommitted`, `VersionSwitched`, `PendingOpApplied`, and `BranchCreated` are catalogued directly as ledger entry kinds in `ledger.entry-kind-catalogue` (File 10 §4.1), and the remaining kinds this file owns are persisted through the ledger's extension mechanism per `ledger.execution-ledger` (File 10 §3). The canonical version-graph events:
+Every version-graph operation emits typed events through the canonical bus per `ledger.event-stream` (File 10 §5). This file owns the version-graph event vocabulary (§21.4), and EVERY kind below is catalogued by name as a first-party ledger entry kind in `ledger.entry-kind-catalogue` (File 10 §4.1) with this section owning each exact payload field set — never routed through the `Custom` extension mechanism, which File 10 §4.1 forbids as a fallback for first-party canonical kinds. The version-graph branch event is `VersionBranchCreated`, a distinct kind from the run-level `BranchCreated` (`run.branch`, File 04 §19.3) — two different facts under two names. The canonical version-graph events:
 
 **Apply and commit:**
 
@@ -1492,7 +1492,7 @@ Every version-graph operation emits typed events through the canonical bus per `
 **Switching and branching:**
 
 - `VersionSwitched { conversation_id, from_version_id, to_version_id, path_length, rebuilt_from_action_log }` — active version changed
-- `BranchCreated { conversation_id, branched_from_version_id, new_branch_root_version_id }` — new branch from a non-leaf parent
+- `VersionBranchCreated { conversation_id, branched_from_version_id, new_branch_root_version_id }` — new branch from a non-leaf parent
 - `ConversationForked { source_conversation_id, source_version_id, new_conversation_id }` — fork operation
 
 **Labels and bookmarks:**
@@ -1529,7 +1529,7 @@ Version-graph events default to `Public` sensitivity per `ledger.producer-seeded
 Per `ledger.hook-decision-vocabulary` (File 10 §7.2) and `cross-cutting/events.md`, blocking hooks may subscribe to:
 
 - `VersionCommitted` — for validators that want to review a commit before it lands (and potentially reject); the canonical commit-validation pattern
-- `BranchCreated` — for tooling that wants to react to new branches (e.g., automated comparison runs)
+- `VersionBranchCreated` — for tooling that wants to react to new branches (e.g., automated comparison runs)
 - `VersionTombstoned`, `VersionRangeCompacted`, and `VersionPayloadHardDeleted` — for audit-required policies before cleanup
 
 Blocking hook decisions follow the canonical typed decision vocabulary per `ledger.hook-decision-vocabulary` (File 10 §7.2) (`Continue`, `Substitute`, `Block`, `RedirectSuggestion`); the hook's `priority` and `authority_class` are subject to the canonical policy per `ledger.priority-ordering` (File 10 §7.3) and `ledger.authority-classes` (File 10 §7.4).

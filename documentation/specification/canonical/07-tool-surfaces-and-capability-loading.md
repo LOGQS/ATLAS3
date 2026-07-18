@@ -13,7 +13,7 @@ This file defines:
 - the loading semantics for each zone — what callable declarations are exposed to a model, what metadata is rendered into user-facing surfaces, and what is hidden until explicitly requested
 - the per-subsystem default surface contract (`SubsystemSurfaceSpec`) that every work surface and substrate service that owns capabilities must declare
 - the runtime composition algorithm that produces the effective surface from registered state, routing inputs, settings, active borrow grants, world-model state, and context budget
-- the late-loading capabilities (`tool.borrow`, `tool.search`, `mcp.search`, `tool.inspect`) as first-class registered capabilities and their scoping rules
+- the late-loading capabilities (`tool.borrow`, `tool.borrow_persistent`, `tool.search`, `mcp.search`, `tool.inspect`) as first-class registered capabilities and their scoping rules
 - auto-shrink behavior under context pressure: priority order, deterministic mechanics, user visibility and override
 - the unified invocation-path contract — model request, command palette, keyboard shortcut, voice, automation trigger, external protocol — all sourced from one `CapabilityDeclaration`
 - the surface-relevant event vocabulary emitted into the execution ledger and event stream
@@ -391,9 +391,9 @@ The discovery capabilities carry the following declarations (per `capability.dec
 - `touched_resources`: `{ class: capability-registry, access: read }` — reads registry state to rank matches; no external effects
 - result: ranked list of capability metadata (name, family, short_description, source, current zone, declared tier)
 
-`mcp.search(query, server_id, top_k)`:
+`mcp.search(query, connector_id, top_k)`:
 
-- same as `tool.search` (including `touched_resources`: `{ class: capability-registry, access: read }`) but filtered to MCP-sourced capabilities; optional server_id narrows to a specific connected server
+- same as `tool.search` (including `touched_resources`: `{ class: capability-registry, access: read }`) but filtered to MCP-sourced capabilities; optional connector_id (the connector's registry-assigned stable slug, `integration.connector`, File 36 §3.1) narrows to a specific connected server
 - result: same shape as `tool.search` plus the MCP-server identity per match
 
 `tool.inspect(capability_id)`:
@@ -465,7 +465,7 @@ The default composition for a fresh `Run`:
 5. Exclude every capability in `forbidden_capability_ids` from any zone except the inspector (where it appears with a `Forbidden` indicator)
 6. For `supporting_surfaces` from `RunIntent` (§6.1): promote their `primary_capability_ids` into the current surface's `Borrowable` zone
 7. Apply `tool_surface_strategy` adjustments per §5.3
-8. Apply the resolved settings snapshot (per §12.1 and §18) — per-capability zone overrides, per-family zone overrides, always-load and never-load marks
+8. Apply the resolved settings snapshot (per §12.1 and §18) — per-capability zone overrides, per-family zone overrides, always-load marks, and never-load marks (ModelAgent-lens-scoped, §18.1)
 9. Apply active `BorrowGrant`s — grants promote their target capabilities to `Primary` for the scope
 10. Evaluate `enabled` flag — capabilities disabled at any active scope move to `Disabled`
 11. Evaluate availability — capabilities whose `availability_status` is not `Available` move to `Unavailable` regardless of prior zone
@@ -494,7 +494,7 @@ When the assembled tool surface's estimated token cost exceeds the configured su
 
 **Step F — emit a typed warning to the user surface** and to the next model request that the tool surface has been heavily shrunk; the model may proactively borrow specific capabilities it needs, and the user may relax the budget through settings or close other context consumers (compaction, attachments, history).
 
-Auto-shrink never moves anything pinned by the user (per §12 always-load marks). It never demotes the discovery capabilities (`tool.borrow`, `tool.search`, `mcp.search`, `tool.inspect`) below `Borrowable`. It records every demotion in `auto_shrink_record` (per §2.3) so the user can inspect what was shrunk and why.
+Auto-shrink never moves anything pinned by the user (per §12 always-load marks). It never demotes the discovery capabilities (`tool.borrow`, `tool.borrow_persistent`, `tool.search`, `mcp.search`, `tool.inspect`) below `Borrowable`. It records every demotion in `auto_shrink_record` (per §2.3) so the user can inspect what was shrunk and why.
 
 If pinned `Primary` entries still exceed the provider or model limit after every legal shrink step, composition returns `ToolSurfaceOverflow` instead of demoting pinned capabilities or sending an invalid model request. The error names the pinned entries, estimated size, active limit, and recovery options: choose a larger-context model, unpin tools, move some tools to `Borrowable`, or rely on search/borrow.
 
@@ -570,7 +570,7 @@ Step 6 — Apply the resolved settings snapshot (per §18):
   - per-family zone override: applies to all capabilities in the family.
   - per-source zone override: applies to all capabilities from the source.
   - per-capability always-load mark: pin to Primary.
-  - per-capability never-load mark: clamp to Disabled.
+  - per-capability never-load mark: clamp to Disabled for the ModelAgent lens (§18.1 — the palette lens is untouched; palette hiding is the separate never-show mark).
   - per-capability never-show mark: hide from palette lens.
 Step 7 — Apply active BorrowGrants:
   For each active BorrowGrant whose scope includes the current scope_context:
@@ -715,7 +715,7 @@ Tool surface content occupies a deterministic position in the assembled model re
 - The `Primary` entries render first as provider-native callable declarations where the provider supports them
 - The `Borrowable` catalog block renders next as model-request text content
 - Optionally, a typed `auto_shrink_record` notice renders after the catalog if shrink occurred
-- The discovery capabilities (`tool.borrow`, `tool.search`, `mcp.search`, `tool.inspect`) render alongside other `Primary` entries — they are first-class registered capabilities, not a separate hint section
+- The discovery capabilities (`tool.borrow`, `tool.borrow_persistent`, `tool.search`, `mcp.search`, `tool.inspect`) render alongside other `Primary` entries — they are first-class registered capabilities, not a separate hint section
 
 The position is stable across turns. Two consecutive turns with the same `ResolvedToolSurface` produce byte-identical surface content up to the moment the conversation history changes, enabling provider cache reuse where the provider supports it.
 
@@ -781,7 +781,7 @@ Anchor: `surface.cache-friendly-ordering`
 
 Within `Primary`, capabilities are rendered in a deterministic order:
 
-1. Discovery capabilities (`tool.borrow`, `tool.search`, `mcp.search`, `tool.inspect`) first — they are always present in `Primary` (unless explicitly demoted by settings) and their stable position makes them part of the cached prefix
+1. Discovery capabilities (`tool.borrow`, `tool.borrow_persistent`, `tool.search`, `mcp.search`, `tool.inspect`) first — they are always present in `Primary` (unless explicitly demoted by settings) and their stable position makes them part of the cached prefix
 2. Capabilities from the active `SubsystemSurfaceSpec.primary_capability_ids` in their declared order
 3. Capabilities promoted from `supporting_surfaces` in their respective subsystem order
 4. Capabilities promoted by `tool_surface_strategy` in the order specified in `routing_metadata`
@@ -1165,7 +1165,7 @@ Dimensions:
 - `surface.policy_blocked_visible` — show capabilities currently blocked by policy
 - `surface.borrow_grant_default_scope` — default scope for `tool.borrow` (typically `run`)
 - `surface.cross_surface_borrow_enabled` — whether the model can borrow capabilities outside the active `SubsystemSurfaceSpec` (default true; some safety-conscious workspaces may disable)
-- `surface.discovery_capabilities_zone` — zone for `tool.borrow`, `tool.search`, `mcp.search`, `tool.inspect` (default `Primary`)
+- `surface.discovery_capabilities_zone` — zone for `tool.borrow`, `tool.borrow_persistent`, `tool.search`, `mcp.search`, `tool.inspect` (default `Primary`)
 - `surface.mcp_default_zone` — default zone for newly registered MCP-sourced capabilities (default `Borrowable`)
 - `surface.plugin_default_zone` — default zone for newly registered plugin-sourced capabilities (default `Borrowable`)
 - `surface.model_request_order_strategy` — `cache_friendly` (default; preserves request prefix where supported) | `alphabetical` | `frequency_based`
@@ -1247,7 +1247,7 @@ The canonical principles later specs must follow:
 - consume the surface-vs-policy boundary (§10) — File 07 surfaces never grant invocation authority; capability invocations always pass through File 06 policy; the surface composition records visibility decisions, the policy layer records authority decisions, both flow through the ledger
 - consume the auto-shrink mechanic (§8) as a deterministic, non-destructive, always-recorded token-budget mechanism; later specs may extend the priority order through the canonical settings dimension but may not introduce hidden shrink mechanisms
 - consume the persistence contract (§14) — `ToolSurface` is computed; durable state lives in the registry, settings, `BorrowGrant` records, and consumed surface snapshots; later specs do not introduce a parallel durable surface store
-- consume the discovery-capabilities ledger discipline — every `tool.borrow`, `tool.search`, `mcp.search`, `tool.inspect` is recorded; later specs that perform discovery-like operations declare new capabilities through the canonical mechanism rather than bypassing the ledger
+- consume the discovery-capabilities ledger discipline — every `tool.borrow`, `tool.borrow_persistent`, `tool.search`, `mcp.search`, `tool.inspect` is recorded; later specs that perform discovery-like operations declare new capabilities through the canonical mechanism rather than bypassing the ledger
 - File 13 consumes the rendered `Primary` and `Borrowable` outputs of the composition algorithm as part of the model request; it does not invent its own surface; it places the surface in the canonical request position (§11.1) and applies cache markers as appropriate
 - File 20 stores `BorrowGrant`s, settings, ledger entries, and consumed surface snapshots per the contracts here; it does not introduce parallel durability paths
 - File 15 implements settings resolution, profile contexts, profile layers, locality, and agent exposure for the dimensions in §18; it does not redefine the dimensions

@@ -149,7 +149,7 @@ Canonical namespace families:
 - `validator:<scope_id>`
 - `evaluator:<scope_id>`
 - `web_cache:<scope_id>`
-- `mcp_resource:<server_id>`
+- `mcp_resource:<connector_id>`
 - `custom:<namespace>:<name>`
 
 The envelope term is `conversation_id`. Legacy conversation-identifier terminology is not canonical.
@@ -424,7 +424,7 @@ Canonical hit kinds:
 
 `kind_payload` is discriminated by `hit_kind`. A `ClaimHit` carries `{ confidence_class, status }` and an `EvidenceHit` carries `{ relation }`, reproducing the typed `ClaimConfidenceClass`, `ClaimStatus`, and `EvidenceRelation` values from File 09 so a consumer ranking or gating on claim confidence, claim status, or evidence relation does not re-resolve them against the source. Hit kinds without typed payload omit the field. A `SourceExcerpt` block (§5.2) surfaces as a `BlockHit`; retrieval defines no separate excerpt hit kind.
 
-A `RedactedHit` is the exception to the required-field rule above: it omits `source_ref`, `provenance`, and `freshness`, and its `hit_id` is a result-local ordinal rather than a value derived from source identity.
+A `RedactedHit` is the exception to the required-field rule above: it omits `source_ref`, `provenance`, `freshness`, `snippet`, and `scores` — the excerpt is exactly what redaction withholds, and a relevance score exceeds §9.3's "existence and a safe reason, and nothing more" — and its `hit_id` is a result-local ordinal rather than a value derived from source identity.
 
 ### 9.3 Redacted Hits
 

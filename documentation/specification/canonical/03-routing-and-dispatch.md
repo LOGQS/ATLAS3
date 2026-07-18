@@ -271,7 +271,7 @@ It is short-lived as a dispatch object, but its result is durably recorded.
 - `routing_metadata`
 - `reasoning_summary`
 
-`primary_surface` is optional: a request with no single primary work surface omits it (§4.3). `model_route` may be null when the route enters no model-bound step, such as the safe-default route produced under a routing failure (§3.6); the valid pairings of `model_route` and `initial_model_selection_record_id` are fixed by the four-state invariant (§4.3).
+`primary_surface` is optional: a request with no single primary work surface omits it (§4.3). `model_route` may be null when the route enters no model-bound step, or when a safe-default route produced under a routing failure (§3.6) defers model selection to downstream fallback; the valid pairings of `model_route` and `initial_model_selection_record_id` are fixed by the four-state invariant (§4.3).
 
 ### 4.3 Field Meanings
 
@@ -348,7 +348,7 @@ Allowed values:
 
 `model_route`
 
-The `ModelRoute` chosen for the request: the effective execution result naming the model strategy the initial model-bound step runs under. May be null when the route enters no model-bound step — for example, a safe-default route produced under a routing failure (§3.6) whose provider could not be resolved, left for downstream fallback resolution.
+The `ModelRoute` chosen for the request: the effective execution result naming the model strategy the initial model-bound step runs under. May be null when the route enters no model-bound step, or when a safe-default route produced under a routing failure (§3.6) could not resolve a provider and defers model selection to downstream fallback — the safe-default's `respond_inline`/`respond_with_tools` entry is itself model-bound; what is absent is the resolved selection, not the step.
 
 When present, it must include:
 
@@ -367,7 +367,7 @@ References the `ModelSelectionRecord` (`model.model-selection-record`, File 16 �
 
 - **Selected** — `model_route` present, `initial_model_selection_record_id` present: selection ran and returned a route; the route is the effective result and the record explains it.
 - **NoModel** — `model_route` null, `initial_model_selection_record_id` present: selection ran and returned a typed no-model result (`NoModelAvailable`, `model.model-selection-algorithm`, File 16 §7.2, §7.6); the record explains why no route was produced.
-- **selection-never-invoked** — `model_route` null, `initial_model_selection_record_id` null: the route entered no model-bound step (for example a safe-default route under a routing failure, §3.6), so selection was never called.
+- **selection-never-invoked** — `model_route` null, `initial_model_selection_record_id` null: selection was never called — either the route genuinely enters no model-bound step, or a safe-default route under a routing failure (§3.6) deferred model selection to downstream fallback (its model-bound entry runs under fallback resolution, so no initial selection record exists).
 - **INVALID** — `model_route` present, `initial_model_selection_record_id` null: a route without its originating selection record is a forgery tell.
 
 `tool_surface_strategy`

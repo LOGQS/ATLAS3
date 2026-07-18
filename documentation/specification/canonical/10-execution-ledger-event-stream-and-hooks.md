@@ -419,6 +419,8 @@ Every ledger entry declares its `kind` at commit. The canonical closed catalogue
 - `VersionCommitted` — version-graph commit; payload includes version id, parent version id, `op_summary`, the compact `VersionDiff`
 - `VersionSwitched` — active version pointer changed; payload includes from-version, to-version, view rebuild outcome
 - `PendingOpApplied` — context operation applied to the materialized view (per `block.block-lifecycle-non-destructive-edits`, File 08 §6); payload includes operation kind, affected block id, pending buffer state
+- `VersionBranchCreated` — new version-graph branch rooted at a non-leaf parent (per `version.events`, File 11 §21.1); payload includes conversation id, branched-from version id, new branch-root version id. Distinct from the run-level `BranchCreated` in the error-and-recovery group below (`run.branch`, File 04 §19.3) — two different facts under two names, never one name with two payloads
+- The remaining version-graph kinds are catalogued here by name, with `version.events` (File 11 §21.1) owning each exact payload field set (where prose differs, §21.1 governs — the same ownership split as the artifact events below): `PendingOpUndone`, `PendingOpsDiscarded`, `ConversationForked`, `VersionLabelled`, `VersionUnlabelled`, `VersionBookmarked`, `VersionUnbookmarked`, `MaterializedViewRebuilt`, `MaterializedViewIntegrityViolated`, `VersionTombstoned`, `VersionRangeCompacted`, `VersionPayloadHardDeleted`, `RetentionPolicyApplied`, `PendingOpsInconsistencyDetected` — first-party canonical kinds, never routed through the `Custom` extension mechanism
 
 **Artifact and entity events (per `artifact.events`, File 09 §20):** File 09 §20.1 owns the exact names and payload field set of each kind below; the bullets summarize what the event records and subset the §20.1 names, not an authoritative name or payload schema (where a bullet's name or prose differs from §20.1, §20.1 governs — these descriptions never rename or widen the §20.1 payload).
 
@@ -861,7 +863,7 @@ Every hook declares:
 - its `hook_category` (`approval`, `validator`, `completion_verification`, `postcondition_check`, `safety_gate`, `transformer`, `formatter`, `enricher`, `localizer`, `observer`, or registered extension)
 - its `authority_class` (`observe_only`, `narrowing_only`, `allow_capable`, `substitute_capable`; per `policy.internal-composition-policy-inspectors` (File 06 §3.3))
 - its `handler` reference (in-process closure, registered capability id, shell-script command, MCP tool reference)
-- its `source` (`Builtin`, `Subsystem { id }`, `Plugin { id, version }`, `McpServer { server_id }`, `Api { api_id }`, `UserDefined { scope }`)
+- its `source` (`Builtin`, `Subsystem { id }`, `Plugin { id, version }`, `McpServer { connector_id }`, `Api { api_id }`, `UserDefined { scope }`)
 - its `enabled` flag (settings-controlled per scope)
 - its `subscription_id` (stable identifier for revocation reference)
 - per-error-class retry behavior overrides
