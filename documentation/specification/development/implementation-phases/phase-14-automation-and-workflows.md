@@ -16,7 +16,8 @@ from each surface's first monitor feature.
 - **File 42 — §6/§7/§8**: `BackgroundWorker` + `WorkerState` + `WorkerSupervisor` +
   `SupervisionPolicy` (restart/backoff/circuit ladder); bounded backpressure-aware resume-first
   `WorkQueue`; the single-armed `RuntimeTimer` — placed at boot step 12 with shutdown drain order.
-  The missed-heartbeat watchdog + remediation (§6.4/§16) → **P21**.
+  The missed-heartbeat watchdog's pure liveness/deadline substrate (§6.4) is P14's, built into the
+  supervision engine; operational remediation (the §6.4 recovery driver + §16) → **P21**.
 - **File 34 — complete core**: the `WorkflowGraph` body grammar — nodes/edges/`EdgeCondition`/
   activation; the closed `NodeKind` set with `Model`/`Tool`/`Branch`/`Merge` first, `Loop`
   (bounded, mandatory max-iterations)/`SubWorkflow` (recursion-guarded, acyclic reference graph)/
