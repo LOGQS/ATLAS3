@@ -377,7 +377,9 @@ The TOML overlay is an optional local explicit layer for power users who want fi
 
 File locations, bootstrap discovery, and platform path rules belong to infrastructure. The settings spec does not hardcode a path or environment-variable name.
 
-Overlay reload is explicit or file-watch/event-driven. No time interval or polling cadence is a correctness condition. Invalid overlay keys or values produce typed diagnostics and do not prevent valid overlay entries from loading.
+Overlay reload is explicit or file-watch/event-driven. No time interval or polling cadence is a correctness condition. Invalid overlay entries are always refused with typed diagnostics; the core device-local setting `settings.local_overlay.invalid_entry_policy` (`skip_and_report` by default, or `reject_file`) controls only whether the other valid entries load or the candidate reload is rejected atomically with the last-known-good overlay retained. The policy is resolved without consulting the candidate overlay itself, and governs only this TOML reload path — never profile or invocation layers.
+
+A refused inline-secret entry may offer two resolution affordances, neither of which weakens the secret boundary: `migrate_to_vault` — a typed-confirmed human action that transfers the value through transient backend secret memory directly into an owner-scoped vault key and returns the safe `vault:<key>` replacement — and bind-to-vault — pointing the entry at an existing vault key, or a new one entered through the normal write-only credential flow, without ingesting the file's literal at all. Atlas never force-accepts the literal and never edits the read-only TOML file; the entry remains refused until the user replaces the literal with the returned reference and scrubs it.
 
 ## 10. Secret Boundary
 
@@ -558,7 +560,7 @@ Anchor: `settings.settings-for-settings-system`
 
 The settings subsystem may declare settings for its own behavior, such as whether the local overlay is enabled, whether settings-resolution metadata is shown by default, import/export preferences, management-surface visibility, and cleanup behavior.
 
-These self-settings are normal `SettingDefinition`s. Their exact keys and default policies are not canonical here. Overlay path discovery remains infrastructure/bootstrap, not an ordinary runtime setting unless a later infrastructure spec deliberately exposes it after boot.
+These self-settings are normal `SettingDefinition`s. Their exact keys and default policies are not canonical here, except where a section of this file deliberately names one (the §9 `settings.local_overlay.invalid_entry_policy`). Overlay path discovery remains infrastructure/bootstrap, not an ordinary runtime setting unless a later infrastructure spec deliberately exposes it after boot.
 
 ## 20. Explicit Rejections
 
