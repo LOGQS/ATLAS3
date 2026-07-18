@@ -457,6 +457,8 @@ Successful changes emit redaction-aware setting events. A setting event must ide
 
 Events must not leak secret material or hidden values to unauthorized consumers.
 
+A same-value re-write is a successful no-op, not a change: it emits no `SettingChanged`. It instead records the distinct `SettingWriteNoOp` diagnostic event (File 10 §4.1), carrying the same identification fields, which no subscription recomposes on. The event exists so a hidden repeat-writer — a polling or cycling defect re-applying an identical value — is visible in the event history rather than silent; a sustained stream of `SettingWriteNoOp` facts is that defect's signature.
+
 ### 14.2 Snapshots
 
 Effective settings snapshots used by runs, routes, evaluations, and replay must capture:

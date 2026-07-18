@@ -573,6 +573,7 @@ Domain-specific workspace, source-control, browser, perception, system-watch, me
 
 - `SystemChangeApplied` / `SystemChangeRolledBack` — a system-state mutation was applied or rolled back (declared by System Agent, runtime infrastructure, or security specs; audit-tier per §16.4)
 - `SettingChanged` — a setting changed (per `run.event-stream`, File 04 §23.2 and File 15); affected subscriptions recompose and affected ledger queries re-evaluate
+- `SettingWriteNoOp` — a successful same-value settings write (a no-op, not a change; File 15 §14.1). A diagnostic fact with no recomposition semantics — no subscription recomposes on it; a sustained stream of these is the visible signature of a repeat-writer defect
 - `SensitivityReclassified` — an entry's sensitivity was reclassified after commit; a sibling entry per §18 that leaves the original entry unmodified
 - `AuditChainTamperDetected` — audit-chain verification found a hash mismatch (per §16.5); payload includes the offending entry's `ledger_entry_id`
 - `ReplayRun` — a replay executed over the ledger (per §11.4); payload includes mode, source run id, comparison outcome
@@ -1524,7 +1525,7 @@ Per `policy.agent-exposure-policy-settings` (File 06 §16.4):
 
 ### 15.4 Settings Changes Emit Events
 
-Per `run.event-stream` (File 04 §23.2) and File 15, every settings change emits `SettingChanged` to the bus. Affected subscriptions recompose on receipt; affected ledger queries re-evaluate.
+Per `run.event-stream` (File 04 §23.2) and File 15, every settings change emits `SettingChanged` to the bus. Affected subscriptions recompose on receipt; affected ledger queries re-evaluate. A same-value write is not a change: it emits `SettingWriteNoOp` instead (File 15 §14.1), which nothing recomposes on.
 
 ### 15.5 Boundary
 
