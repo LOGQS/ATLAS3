@@ -824,7 +824,7 @@ The registry encodes the dependency declaration with its scope. The detailed pre
 
 ### 15.4 Runtime Discovery Capabilities
 
-Discovery is itself a capability surface. The canonical built-in discovery capabilities — the runtime-discovery roster `tool.search`, `tool.borrow`, and `mcp.search` owned by `surface.late-loading-runtime-discovery` (File 07 §7.1), together with the registry-facing `plugin.search_registry` — are first-class registered capabilities. The agent invokes them through the same call pipeline, and their outputs flow as typed blocks that the agent loop consumes.
+Discovery is itself a capability surface. The canonical built-in discovery capabilities — the runtime-discovery roster `tool.borrow`, `tool.borrow_persistent`, `tool.search`, `mcp.search`, and `tool.inspect` owned by `surface.late-loading-runtime-discovery` (File 07 §7.1), together with the registry-facing `plugin.search_registry` — are first-class registered capabilities. The agent invokes them through the same call pipeline, and their outputs flow as typed blocks that the agent loop consumes.
 
 The built-in discovery capability set is canonical; surface tools and presentations may add subsystem-specific or family-specific discovery shortcuts. Discovery capabilities themselves declare `ReadOnly` permission tiers and declare the registry projections they read.
 

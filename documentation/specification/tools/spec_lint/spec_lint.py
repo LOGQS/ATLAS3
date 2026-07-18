@@ -558,6 +558,133 @@ def check_closed_catalogue(corpus):
 
 
 # --------------------------------------------------------------------------- #
+# Check 4b: KIND-CONCORDANCE   (event-vocabulary sections vs the File 10 catalogue)
+# --------------------------------------------------------------------------- #
+# Added after the 2026-07-18 external-review batch: File 11 §21.1 declared ten+
+# first-party version-graph kinds while routing most through "the extension
+# mechanism" -- a phrasing neither CLOSED-CATALOGUE citation form matched, so
+# six kinds were absent from the File 10 §4.1 catalogue for months. This check
+# mechanizes the repaired invariant: every kind an owning file's canonical
+# event-vocabulary section declares must appear BY NAME in the File 10
+# catalogue (File 10 §4.1's own rule: absence is a catalogue defect, never a
+# signal to fall back to `Custom`).
+
+# (file_num, section_num, stop_headings) of sections whose `- `Name { ... }``
+# bullets declare first-party canonical kinds. Extend as files gain event
+# vocabularies; a section routing kinds through a granted Custom namespace
+# (e.g. File 33 §20.1's explicit grant) does NOT belong here.
+KIND_VOCABULARY_SECTIONS = (
+    ("11", "21.1", {"21.2"}),
+)
+
+RE_EVENT_BULLET = re.compile(r"^\s*-\s+`([A-Z][A-Za-z0-9]+)\s*[{`]")
+
+
+def check_kind_concordance(corpus):
+    findings = []
+    f10 = corpus.by_num.get("10")
+    if f10 is None:
+        return findings
+    entry_members, _ = _catalogue_members(f10, "4.1", {"4.2"})
+    trans_members, _ = _catalogue_members(f10, "5.3", {"5.4"})
+    catalogue = entry_members | trans_members
+    if not catalogue:
+        return findings
+    for file_num, section, stop in KIND_VOCABULARY_SECTIONS:
+        spec = corpus.by_num.get(file_num)
+        if spec is None:
+            continue
+        span = _region(spec, section, stop)
+        if span is None:
+            findings.append(Finding(
+                spec.name, 1, "KIND-CONCORDANCE", "WARN",
+                f"registered event-vocabulary section §{section} not found",
+            ))
+            continue
+        start, end = span
+        for i in range(start, end):
+            m = RE_EVENT_BULLET.match(spec.lines[i])
+            if m and m.group(1) not in catalogue:
+                findings.append(Finding(
+                    spec.name, i + 1, "KIND-CONCORDANCE", "WARN",
+                    f"`{m.group(1)}` is declared in the §{section} event "
+                    f"vocabulary but absent from the File 10 "
+                    f"LedgerEntryKind/AppEvent catalogue",
+                ))
+    return findings
+
+
+# --------------------------------------------------------------------------- #
+# Check 4c: RESTATEMENT-CONCORDANCE   (single-owner sets restated across files)
+# --------------------------------------------------------------------------- #
+# The other half of the 2026-07-18 batch's defect class: a single-owner
+# definition restated with a member silently dropped or a superseded local
+# vocabulary substituted. Each rule below encodes one repaired instance as a
+# standing guard; all are phrase-triggered so untouched prose never fires.
+
+# Superseded File 32 reversal-class vocabulary: `reversibility_class`'s closed
+# values are `none`/`compensable`/`reversible` (File 04 §8.2, mirrored File 05
+# §3.6); the old surface-local enum names must not reappear as its values.
+RE_REVERSIBILITY_SUPERSEDED = re.compile(
+    r"`(Reversible|ReversibleWithSnapshot|Irreversible)`"
+)
+
+# The File 07 §7.1 discovery-capability set (five members). A line enumerating
+# three or more of them AND claiming roster-hood (a discovery/late-loading/
+# roster cue) is a restatement and must carry all five; an explicitly partial
+# example ("for example", "e.g.") is not a roster claim. Tuned against the
+# 2026-07-18 sweep: mechanism narratives (File 07 §3.1 zone escape paths,
+# File 04 §21's exemplified list) must not fire; the File 05/25/28 roster
+# claims must.
+DISCOVERY_SET = (
+    "`tool.borrow`", "`tool.borrow_persistent`", "`tool.search`",
+    "`mcp.search`", "`tool.inspect`",
+)
+RE_DISCOVERY_CUE = re.compile(r"discovery|late-loading|roster", re.IGNORECASE)
+RE_PARTIAL_EXAMPLE = re.compile(r"for example|e\.g\.")
+
+# The completion forgery-guard evidence set (File 04 §22, four kinds). A
+# restatement is recognized by the specific enumeration form (the lead phrase
+# plus the artifact-revision item) and must name the fourth kind; a broader
+# compression ("no committed outputs", File 40 §9) subsumes it and is exempt.
+FORGERY_LEAD = "no recorded capability executions"
+FORGERY_ARTIFACT_ITEM = "no committed artifact revisions"
+FORGERY_FOURTH = "workflow-node output"
+
+
+def check_restatement_concordance(corpus):
+    findings = []
+    for f in corpus.files:
+        for i, line in enumerate(f.lines, 1):
+            if "reversibility_class" in line:
+                for m in RE_REVERSIBILITY_SUPERSEDED.finditer(line):
+                    findings.append(Finding(
+                        f.name, i, "RESTATEMENT-CONCORDANCE", "WARN",
+                        f"`{m.group(1)}` is superseded reversal vocabulary; "
+                        f"`reversibility_class` values are `none`/"
+                        f"`compensable`/`reversible` (File 04 §8.2)",
+                    ))
+            present = sum(1 for t in DISCOVERY_SET if t in line)
+            if (3 <= present < len(DISCOVERY_SET)
+                    and RE_DISCOVERY_CUE.search(line)
+                    and not RE_PARTIAL_EXAMPLE.search(line)):
+                missing = [t for t in DISCOVERY_SET if t not in line]
+                findings.append(Finding(
+                    f.name, i, "RESTATEMENT-CONCORDANCE", "WARN",
+                    f"discovery-capability roster restatement omits "
+                    f"{', '.join(missing)} (File 07 §7.1 declares five)",
+                ))
+            if (FORGERY_LEAD in line and FORGERY_ARTIFACT_ITEM in line
+                    and FORGERY_FOURTH not in line):
+                findings.append(Finding(
+                    f.name, i, "RESTATEMENT-CONCORDANCE", "WARN",
+                    "forgery-guard evidence restatement omits the committed "
+                    "workflow-node output block (File 04 §22 names four kinds)",
+                ))
+    return findings
+
+
+# --------------------------------------------------------------------------- #
 # Check 5: DUP-LIST   (tier ladder + discovery roster)
 # --------------------------------------------------------------------------- #
 
@@ -916,6 +1043,7 @@ def run_fix_anchors_index(corpus):
 
 ALL_CHECKS = [
     "ANCHOR-REGISTRY", "ANCHOR-REF", "TRIPLE", "CLOSED-CATALOGUE",
+    "KIND-CONCORDANCE", "RESTATEMENT-CONCORDANCE",
     "DUP-LIST", "SOURCES-PATH", "SETTINGS-KEY", "BANNED-VOCAB", "ANCHORS-INDEX",
 ]
 
@@ -960,6 +1088,8 @@ def run_all_checks(corpus, strict=False):
     findings += ref
     findings += triple
     findings += check_closed_catalogue(corpus)
+    findings += check_kind_concordance(corpus)
+    findings += check_restatement_concordance(corpus)
     findings += check_dup_list(corpus)
     findings += check_sources_path(corpus)
     findings += check_settings_key(corpus)
