@@ -686,7 +686,7 @@ Every event is an `AppEvent` variant. The closed canonical catalogue is the same
 - `EventBufferOverflow` — a subscriber's bounded buffer overflowed; the subscriber transitions to `degraded` state
 - `Ping` / `Pong` — heartbeat events for cross-tab or remote subscribers
 - `GatewayBridgeMessage` — transport-neutral gateway-bridge wire message for remote subscribers (for systems exposing the bus over network transports)
-- `Heartbeat` — periodic liveness signal from a background worker
+- `Heartbeat` — periodic liveness signal from a background worker; the transient stream sibling of the durable `BackgroundWorkerHeartbeat` ledger entry kind (§4.1) — one durable/transient pair, not two independent signals
 
 All `LedgerEntryKind` variants from §4 are also `AppEvent` variants; the consequential events fan out to both the bus (live coordination) and the ledger (durable record).
 
