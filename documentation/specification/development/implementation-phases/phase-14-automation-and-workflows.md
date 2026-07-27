@@ -132,7 +132,9 @@ a short joint design note before the lanes split.
   approvals park through policy, input through elicitation; sibling versions on concurrent edits.
 - 42: worker restart never double-executes a committed side effect (idempotency-keyed/
   completion-marker-guarded); accepted consequential work never discarded by queue overflow —
-  overflow observable; timers tested with the injected clock.
+  overflow observable; timers tested with the injected clock; the missed-heartbeat path proven
+  with the injected clock — heartbeat deadline elapses → `Stalled` → force-terminate →
+  supervision-policy fold (restart-with-backoff or circuit-open).
 - Workflow DAG renderer performance: a File 40 `Latency` suite covers representative node counts and
   edge shapes on all three desktop platform webview realizations; DOM/SVG-heavy rendering is
   acceptable only while it meets the declared interaction budget.
