@@ -1573,7 +1573,7 @@ The canonical operation classes that participate in the audit log:
 - every source approval / denial (`SourceRegistrationApproved`, `SourceRegistrationDenied`, `SourceRegistrationDeferred`)
 - every credential or secret operation (File 22 registers the entries)
 - every system-state mutation declared by System Agent, runtime infrastructure, or security specs
-- every hard delete (`BlockHardDeleted`, `ArtifactHardDeleted`, `LeaseHardDeleted`, `CapabilityHardDeleted`)
+- every hard delete (`BlockHardDeleted`, `VersionPayloadHardDeleted`, `ArtifactVersionHardDeleted`, `ArtifactHardDeleted`, `LeaseHardDeleted`, `CapabilityHardDeleted`)
 - every `DeniedFloorOverridden` (the typed-confirmation override path through `Denied`)
 - every `RunCompletionForgeryAttempted`
 - every hook authority-class change
