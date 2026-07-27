@@ -139,7 +139,7 @@ File 05 owns the `CapabilityDeclaration`, the `RegisteredCapability`, and the `C
 
 `block.block-lifecycle-non-destructive-edits` (File 08 §6) owns block lifecycle (`Raw`, `Active`, `Masked`, `Dropped`, `Recovered`) and `PinState` as derived per-`ContextVersion` view-state; this file specifies the `BlockLifecycleChanged` and `BlockPinChanged` events emitted when explicit operations transition view state, and the ledger entries that record them.
 
-`block.hard-delete` (File 08 §6.6) owns the hard-delete contract; this file specifies the `BlockHardDeleted` event and ledger entry, including the deleting actor, the deletion reason, the orphaned-references set, and the composition-materialization outcome.
+`block.hard-delete` (File 08 §6.6) owns the hard-delete contract; this file specifies the `BlockHardDeleted` event and ledger entry, including the deleting actor, the deletion reason, the orphaned-references set, and the per-parent preservation-disposition outcome (File 08 §6.6).
 
 ### 2.6 With File 09 (Artifacts, Claims, Evidence, and Provenance)
 

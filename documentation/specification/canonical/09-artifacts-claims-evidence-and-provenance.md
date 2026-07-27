@@ -488,7 +488,7 @@ Anchor: `artifact.artifact-tombstones`
 Hard deletion of an artifact version follows `block.hard-delete` (File 08 §6.6)'s hard-delete contract for the underlying `Artifact`-kind block. File 09 specifies the entity-record consequences:
 
 - `artifact.hard_delete_version(version_id)` is a `UserApproval`-tier capability with `permission_floor: Denied` and a policy template that requires denied-override via typed confirmation. Discarded or only-version state may change preview text and warnings, but never lowers the floor.
-- the version-block is hard-deleted per `block.hard-delete` (File 08 §6.6) (composition-materialization preserves composed parents; tombstone retains identity)
+- the version-block is hard-deleted per `block.hard-delete` (File 08 §6.6) (a live composed parent follows §6.6's disposition-bound preservation plan — currently fail-closed unsupported; tombstone retains identity)
 - the `ArtifactVersion` metadata record transitions to a tombstone shape (below); the row is retained
 - if the deleted version was the artifact's `current_version_block_id`, the entity transitions to the most recent non-deleted version; if no non-deleted version remains, the entity becomes orphaned and is marked for explicit user resolution (rename, hard-delete the entity itself, or commit a fresh version)
 - `artifact.hard_delete_entity(artifact_id)` is a separate capability with `permission_floor: Denied` requiring typed-confirmation; it tombstones every version and the entity record
