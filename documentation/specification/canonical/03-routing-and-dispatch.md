@@ -271,7 +271,7 @@ It is short-lived as a dispatch object, but its result is durably recorded.
 - `routing_metadata`
 - `reasoning_summary`
 
-`primary_surface` is optional: a request with no single primary work surface omits it (§4.3). `model_route` may be null when the route enters no model-bound step, or when a safe-default route produced under a routing failure (§3.6) defers model selection to downstream fallback; the valid pairings of `model_route` and `initial_model_selection_record_id` are fixed by the four-state invariant (§4.3).
+`primary_surface` is optional: a request with no single primary work surface omits it (§4.3). `model_route` may be null when the route enters no model-bound step, or when a safe-default route produced under a routing failure (§3.6) defers model selection to downstream fallback; the valid pairings of `model_route` and `initial_model_selection_record_id` are fixed by the three-shape invariant (§4.3).
 
 ### 4.3 Field Meanings
 
@@ -363,12 +363,13 @@ When present, it must include:
 
 References the `ModelSelectionRecord` (`model.model-selection-record`, File 16 §8) produced when model selection was invoked for the initial model-bound step. It is the sole identity channel for that decision: the route does not carry it and the human-readable `reasoning_summary` never encodes it. Later model-bound steps inside the same run produce their own selection records, reached forward through their durable model-call-start facts (`ledger.entry-kinds`, File 10 §4.2), not through this field.
 
-`model_route` and `initial_model_selection_record_id` are constrained by a four-state invariant; no other combination is valid, and a `RunIntent` violating it is rejected rather than materialized or recorded:
+`model_route` and `initial_model_selection_record_id` are constrained by a three-shape invariant: of the four combinations the two nullable fields admit, exactly three are valid, and a `RunIntent` carrying the fourth is rejected rather than materialized or recorded:
 
-- **Selected** — `model_route` present, `initial_model_selection_record_id` present: selection ran and returned a route; the route is the effective result and the record explains it.
-- **NoModel** — `model_route` null, `initial_model_selection_record_id` present: selection ran and returned a typed no-model result (`NoModelAvailable`, `model.model-selection-algorithm`, File 16 §7.2, §7.6); the record explains why no route was produced.
+- **selected** — `model_route` present, `initial_model_selection_record_id` present: selection ran and returned a route; the route is the effective result and the record explains it.
+- **no-model** — `model_route` null, `initial_model_selection_record_id` present: selection ran and returned a typed no-model result (`NoModelAvailable`, `model.model-selection-algorithm`, File 16 §7.2, §7.6); the record explains why no route was produced.
 - **selection-never-invoked** — `model_route` null, `initial_model_selection_record_id` null: selection was never called — either the route genuinely enters no model-bound step, or a safe-default route under a routing failure (§3.6) deferred model selection to downstream fallback (its model-bound entry runs under fallback resolution, so no initial selection record exists).
-- **INVALID** — `model_route` present, `initial_model_selection_record_id` null: a route without its originating selection record is a forgery tell.
+
+The fourth combination — `model_route` present, `initial_model_selection_record_id` null — is never a shape a recorded `RunIntent` can hold: a route without its originating selection record is a forgery tell.
 
 `tool_surface_strategy`
 

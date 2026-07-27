@@ -411,7 +411,7 @@ Selection returns either:
 
 - `ResolvedModelSelection { route, selection_record_id }` — the in-memory pairing of the effective `ModelRoute` (`routing.run-intent`, File 03 §4.3: `profile_id`, `resolved_provider_id`, `resolved_model_id`, `fallback_policy_id`) with the `ModelSelectionRecord` that produced it. The `ModelRoute` carries no record reference; the record rides this resolver return, not the route. A caller recording it into a `RunIntent` places the route in `model_route` and the record in `initial_model_selection_record_id`.
 - `ModelSelectionPlan { selections, topology_hint, selection_record_id }` — each entry of `selections` is a `ResolvedModelSelection`.
-- `NoModelAvailable { reasons, recovery_options, selection_record_id }` — no route is produced and the record explains why; recorded into a `RunIntent` this is the `NoModel` state of the four-state invariant (File 03 §4.3): null `model_route`, present `initial_model_selection_record_id`.
+- `NoModelAvailable { reasons, recovery_options, selection_record_id }` — no route is produced and the record explains why; recorded into a `RunIntent` this is the no-model shape of the three-shape invariant (File 03 §4.3): null `model_route`, present `initial_model_selection_record_id`.
 
 Ordinary requests return one selected model. Explicit comparison, ensemble, best-of-N, arena, critic-selector, or mixture-of-agents work may request a `ModelSelectionPlan`. Each selection inside a plan must satisfy the hard requirements for its role.
 
