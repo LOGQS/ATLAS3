@@ -77,8 +77,10 @@ guard engine is built now against the contract *type*).
    `pending_ops` on `ConversationVersionState` (survives restart); commit-at-boundary; `context_view`
    registered with the P2 orchestrator (O(1) reads, O(path) rebuild); `expected_view_hash`
    verification + rebuild-on-mismatch; switch path-walk; branch-on-commit-after-switch; derived
-   lifecycle/pin maps; ContextOps + undo inverses + merge rules; hard delete with tombstone +
-   `materialized_by` fallback; snapshot reference catalogue + deterministic resolution (resolvers
+   lifecycle/pin maps; ContextOps + undo inverses + merge rules; hard delete with tombstone — a
+   live-`Composed`-parent target fails closed as typed `Unsupported` per File 08 §6.6's parked
+   disposition plan (the carrier kinds are catalogue-registered; the disposition workflow is not
+   scheduled here); snapshot reference catalogue + deterministic resolution (resolvers
    stubbed per-substrate, never falling back to current state).
 6. **Audit overlay**: per-device hash chain (entry_hash formula 10 §16.2), genesis at first boot,
    verify-at-startup, never-syncs.
