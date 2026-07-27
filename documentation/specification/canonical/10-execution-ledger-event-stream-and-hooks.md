@@ -139,7 +139,7 @@ File 05 owns the `CapabilityDeclaration`, the `RegisteredCapability`, and the `C
 
 `block.block-lifecycle-non-destructive-edits` (File 08 §6) owns block lifecycle (`Raw`, `Active`, `Masked`, `Dropped`, `Recovered`) and `PinState` as derived per-`ContextVersion` view-state; this file specifies the `BlockLifecycleChanged` and `BlockPinChanged` events emitted when explicit operations transition view state, and the ledger entries that record them.
 
-`block.hard-delete` (File 08 §6.6) owns the hard-delete contract; this file specifies the `BlockHardDeleted` event and ledger entry, including the deleting actor, the deletion reason, the orphaned-references set, and the per-parent preservation-disposition outcome (File 08 §6.6).
+`block.hard-delete` (File 08 §6.6) owns the hard-delete contract; this file specifies the `BlockHardDeleted` event and ledger entry, including the deleting actor, the deletion reason, the orphaned-references set, and the per-parent disposition outcome (File 08 §6.6).
 
 ### 2.6 With File 09 (Artifacts, Claims, Evidence, and Provenance)
 
@@ -415,7 +415,7 @@ Every ledger entry declares its `kind` at commit. The canonical closed catalogue
 - `BlockLifecycleChanged` — explicit `Mask`, `Drop`, `Recover` operation (per `block.mask-drop-recover`, File 08 §6.3); payload includes block id, from-state, to-state, version it applies to
 - `BlockPinChanged` — explicit `Pin`, `Unpin`, `Protect`, `Unprotect` operation (per `block.pin-protect`, File 08 §6.4)
 - `BlockGrouped` / `BlockUngrouped` — `Group`-kind block created or dissolved (per `block.group-ungroup`, File 08 §6.5)
-- `BlockHardDeleted` — physical destruction (per `block.hard-delete`, File 08 §6.6); payload includes deleting actor, deletion reason, tombstone reference, materialization-fallback outcome
+- `BlockHardDeleted` — physical destruction (per `block.hard-delete`, File 08 §6.6); payload includes deleting actor, deletion reason, tombstone reference, and the per-parent disposition outcome
 - `VersionCommitted` — version-graph commit; payload includes version id, parent version id, `op_summary`, the compact `VersionDiff`
 - `VersionSwitched` — active version pointer changed; payload includes from-version, to-version, view rebuild outcome
 - `PendingOpApplied` — context operation applied to the materialized view (per `block.block-lifecycle-non-destructive-edits`, File 08 §6); payload includes operation kind, affected block id, pending buffer state
