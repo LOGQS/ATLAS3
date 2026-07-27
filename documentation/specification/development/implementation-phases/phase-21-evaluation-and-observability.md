@@ -49,11 +49,14 @@ have real primary artifacts and observability has real load.
   one path, no parallel instrumentation registry (§12); `observability.*` capabilities (§13). The
   two named hooks (`logging.audit_recorder` −100, `telemetry.metrics_collector` observe-only) get
   their full behavior.
-- **File 42 — §16**: operational health + `RemediationPolicy` — the operate side: **the
-  missed-heartbeat watchdog** (the flagged periodic exception 41 declines), liveness classification,
-  automatic remediation limited to declared idempotent runtime mechanics; anything crossing a
-  policy/security/user-data/credential boundary passes the capability+policy path with typed
-  confirmation — never a privileged side door; degraded-mode operation first-class.
+- **File 42 — §16**: operational health + `RemediationPolicy` — the operate side: generalized
+  health assessment over the substrate's typed facts (worker, provider, connector, storage,
+  sidecar) driving route-around, degradation, and user surfacing; the worker-local path — §6.4
+  watchdog deadline → `Stalled` → §6.5 restart/backoff/circuit — ships in P14's supervision
+  engine and is invoked here, never re-owned; automatic remediation limited to declared
+  idempotent runtime mechanics; anything crossing a policy/security/user-data/credential boundary
+  passes the capability+policy path with typed confirmation — never a privileged side door;
+  degraded-mode operation first-class.
 
 ## 3. Prerequisites
 
@@ -66,7 +69,7 @@ patterns. May overlap P19/P20.
 
 (a) Replay completion + comparisons + regression/gates; (b) judge pipeline + annotations;
 (c) traces/metrics/logs + the Observatory; (d) sinks/consent/debug surface; (e) 42 §16
-watchdog/remediation. (a)→(b); (c)/(d) independent; (e) joins (c) at the health seam.
+health/remediation. (a)→(b); (c)/(d) independent; (e) joins (c) at the health seam.
 
 ## 5. Build plan
 
@@ -89,7 +92,9 @@ watchdog/remediation. (a)→(b); (c)/(d) independent; (e) joins (c) at the healt
    governance; the OTel adapter as a replaceable backend.
 7. **Observatory + debug surface**: panes over existing projections; the reconstruction pane = File
    11 forensic queries; ring buffer + debug toggles.
-8. **42 §16**: the watchdog + supervision-integrated remediation; worker/lifecycle facts flow 42→41.
+8. **42 §16**: operational-health orchestration over P14's supervision engine — route-around,
+   degrade, and surface plus the policy-bound cross-boundary path; the §6.5 worker restart arm is
+   already built; worker/lifecycle facts flow 42→41.
 
 ## 6. Test obligations & acceptance evidence
 
@@ -124,7 +129,7 @@ watchdog/remediation. (a)→(b); (c)/(d) independent; (e) joins (c) at the healt
 - **Closed-set pinning**: EvalFamily, comparison shapes, `Annotation` roles, `LogLevel`, span
   status, metric kinds, accuracy/authority classes, `WorkerState`/`RemediationPolicy` shapes.
 - Conformance matrix gains: 40 remaining + 41 + 42 §16 anchors; the P13 replay-mode and P14
-  watchdog stub rows close.
+  42 §16 remediation-deferral rows close.
 
 ## 7. Artifacts, docs & CI surface
 
@@ -138,7 +143,7 @@ watchdog/remediation. (a)→(b); (c)/(d) independent; (e) joins (c) at the healt
   doc; the degraded-mode doc.
 - **CI/local commands**: `eval-run --suite <set>` extended; the replay-equivalence (full),
   blind-comparator, self-certifying-guard, observe-only, redaction-before-write, consent-user-only,
-  and watchdog/remediation suites as named CI jobs; the **recurring regression Automation**
+  and health/remediation suites as named CI jobs; the **recurring regression Automation**
   (settings-configured cadence) becomes a standing scheduled job.
 
 ## 8. Exit criteria

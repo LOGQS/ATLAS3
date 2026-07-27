@@ -149,7 +149,7 @@ closing phase; nothing is reported complete prematurely.
 | Settings locality declared (P4) | P20 enforcement | 15 §18 / 21 §5 |
 | Workspace export/import deferred (P9) | P20 `PortablePackage` | 24 §16 |
 | Eval families seeded per producer (P13+) | P21 full family set + gates | 40 §8.2 |
-| Missed-heartbeat watchdog absent (P14 workers) | P21 42 §16 remediation | 41↔42 observe/operate seam |
+| 42 §16 health orchestration absent (P14 builds the watchdog + §6.5 supervision) | P21 route-around/degrade/surface | 41↔42 observe/operate seam |
 | Update relaunch absent (P4 runtime) | P22 staged-update handoff | 42 §18 / 43 §11 |
 
 ## 6. Cross-phase rules (binding for every phase)

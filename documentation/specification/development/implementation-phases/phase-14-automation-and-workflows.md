@@ -15,9 +15,11 @@ from each surface's first monitor feature.
 
 - **File 42 — §6/§7/§8**: `BackgroundWorker` + `WorkerState` + `WorkerSupervisor` +
   `SupervisionPolicy` (restart/backoff/circuit ladder); bounded backpressure-aware resume-first
-  `WorkQueue`; the single-armed `RuntimeTimer` — placed at boot step 12 with shutdown drain order.
-  The missed-heartbeat watchdog's pure liveness/deadline substrate (§6.4) is P14's, built into the
-  supervision engine; operational remediation (the §6.4 recovery driver + §16) → **P21**.
+  `WorkQueue`; the single-armed `RuntimeTimer` — placed at boot step 13 with shutdown drain order.
+  The missed-heartbeat watchdog is P14's in full: the §6.4 deadline substrate and the §6.5
+  supervisor response to `Stalled` (restart/backoff/circuit) both ship in the supervision engine;
+  the generalized §16 operational-health orchestration (route-around, degrade, surface — across
+  providers, connectors, storage, and sidecars) → **P21**.
 - **File 34 — complete core**: the `WorkflowGraph` body grammar — nodes/edges/`EdgeCondition`/
   activation; the closed `NodeKind` set with `Model`/`Tool`/`Branch`/`Merge` first, `Loop`
   (bounded, mandatory max-iterations)/`SubWorkflow` (recursion-guarded, acyclic reference graph)/
@@ -68,7 +70,7 @@ a short joint design note before the lanes split.
 
 1. **Worker substrate** (42 §6–§8): registration declaration (owner/liveness-signal/supervision/
    reconstruction-source/shutdown-order/idempotency-marker); supervisor ladder; bounded queues;
-   single-armed timers; boot step 12 + drain order.
+   single-armed timers; boot step 13 + drain order.
 2. **WorkflowGraph + library**: the grammar + structural validator (acyclic, bounded loops,
    resolvable refs, parseable constraints, envelope-understatement rejection); parameter slots;
    library persistence over `dag_configs`/`dag_presets`; the adapter-capability invocation path;
@@ -83,7 +85,7 @@ a short joint design note before the lanes split.
    busy-poll) → fire → eligibility gates (blocked fires recorded with gate + reason, never silently
    dropped) → atomic claim by `fire_id` → RouteRequest with `trigger_kind: automation` → run in the
    validated target conversation with intent-thread attachment; missed-fire reconciliation at
-   startup under the cold-start guard (joins boot step 13); firing state reconstructed from
+   startup under the cold-start guard (joins boot step 12); firing state reconstructed from
    definitions, never persisted.
 5. **Non-interactive posture**: park-and-notify through the elicitation rail; pre-authorized scope
    via leases with the lease-dependency projection (a later gate failure records the specific

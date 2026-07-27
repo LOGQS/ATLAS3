@@ -104,7 +104,7 @@ phase realizes the implementation behind the unchanged seam.
 | P11 Voice rail gated off | P17 | ✓ P17 §5.10 |
 | P13 eval families seeded per producer | P21 full set + gates | ✓ P21 §2 |
 | P14 graduation (34) / P18 install (35) eval-pass gating (40 §10.4) | P21 | ✓ P21 §2 + §5.3 (the eval-pass gate is realized at P21 and wired into 34 graduation + 35 install; P14/P18 build their primitives ungated, P21 adds the gate) |
-| P14 watchdog absent | P21 (42 §16) | ✓ P21 §2 |
+| P14 42 §16 health orchestration deferred (watchdog + §6.5 supervision built) | P21 (42 §16) | ✓ P21 §2 |
 | P14 macro recording mechanics | P15 (Web) / P17 (GUI) | ✓ P15 §2, P17 §2 |
 | P19 first-paint cache mechanism | P22 (43 §10.3) | ✓ P22 §2; P19 matrix row marked partial (Finding 4) |
 | P4 runtime update-relaunch absent | P22 (42 §18) | ✓ P22 §2 |

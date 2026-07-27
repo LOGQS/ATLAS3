@@ -38,7 +38,7 @@ phase adds breadth against a proven spine.
   (model-mediated off); budgets, opt-in (§21); **termination + the deterministic completion-forgery
   floor integrated end-to-end** (§22); ledger/event/commit/hook integration (§23); restart
   orphan reconciliation — `process_restart_orphan`, never auto-resume (§17.3, completing boot step
-  13). Closes `SimulateDeterministic`/`FullRerun` re-execution data paths against recorded inputs
+  12). Closes `SimulateDeterministic`/`FullRerun` re-execution data paths against recorded inputs
   (engine orchestration → P13/P21). Child-run isolation primitives (§16) → **P8/P9** (worktrees).
 - **File 13 — read side**: `ContextAssemblyService` as the single model-request path from day one
   (§1); AssemblyParts + per-part authority/sensitivity (§2); semantic regions (§3); `ContextPolicy`
@@ -86,7 +86,7 @@ assembler; (d) tool-surface composition. (c) and (d) are independent of (a) and 
 6. **DAG executor**: parallel topologies under concurrency tags; resource-scope serialization
    (string-level until P8's canonical-path keying); no silent last-write-wins; sibling-abort vs
    continue per declaration.
-7. **Restart**: orphan-run reconciliation completes boot step 13; retry/edit/reroute as version
+7. **Restart**: orphan-run reconciliation completes boot step 12; retry/edit/reroute as version
    branches.
 
 ## 6. Test obligations & acceptance evidence
