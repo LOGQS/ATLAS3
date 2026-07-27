@@ -590,8 +590,8 @@ Implementation rules:
 - A canonical/closed wire format's decoder rejects every representation its encoder would not produce —
   the one-value/one-encoding property is enforced on input, not only output. Reject non-minimal
   varints, out-of-order or duplicate set elements / map keys, duplicate struct fields, out-of-order
-  struct fields (schema-aware record readers reject fields not presented in schema-declared order —
-  owner-ruled 2026-07-18; foreign bytes cross trust boundaries before any hash check, e.g. import
+  struct fields (schema-aware record readers reject fields not presented in schema-declared order;
+  foreign bytes cross trust boundaries before any hash check, e.g. import
   paths, so alternate encodings must die at the reader), and over-width
   scalars (never silently truncate). Otherwise decode-then-rehash, signature verification, and dedup can
   be fooled by an alternate encoding of the same value. A release build must enforce this with real
