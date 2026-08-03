@@ -619,7 +619,7 @@ A `Lease` must carry at minimum:
 - `lease_id` — stable identifier for revocation reference
 - `capability_match` — the capability identity pattern the lease applies to: exact `(id, version)`, exact id with version-pinning policy (`latest`, `compatible`, `pinned`), capability family glob, or a registered match expression
 - `scope` — one of `single_proposal`, `run`, `intent_thread`, `task`, `conversation`, `workspace`, `global`, `reusable_policy_rule` (per `run.approval-during-execution`, File 04 §11)
-- `invoker_kind` — optional constraint over the invoker class (`user_direct`, `model_agent`, `automation`, `scheduled_trigger`, `plugin_runtime`, `mcp_external`, `subagent`, `system_internal`)
+- `invoker_kind` — optional constraint over the invoker class (`user_direct`, `model_agent`, `automation`, `plugin_runtime`, `mcp_external`, `subagent`, `system_internal`). The class names the invocation PRINCIPAL, never the trigger kind: every autonomous automation fire — Schedule, Event, WorldCondition, Webhook, or autonomous Custom — carries the one class its executing body's source-derived principal maps to (`automation.identity-versioning-source`, File 33 §6.4); there is no per-trigger-kind invoker class, because lease matching is exact equality and a class split would let a deny lease keyed to one class silently miss fires of the other. An allow-capable lease (`AlwaysAllow`, `NarrowedAllow`) whose `invoker_kind` constraint is `automation` must also bind the automation identity in `invoker_context` — a class-wide autonomous allow is rejected at grant time; an `AlwaysDeny` may match the class alone.
 - `invoker_context` — optional matching data for source id, run id, parent run id, automation id, plugin id, external client id, and surface id when applicable
 - `decision` — one of `AlwaysAllow`, `NarrowedAllow { constraints }`, `AlwaysDeny`
 - `inherited_constraints` — typed constraints over touched resources (per §6) and other call shape (argument-shape match, idempotency requirement, max invocations within scope, expiry deadline if any)
@@ -673,6 +673,8 @@ Built-in default rules include:
 - `shell.exec` network-fetch patterns after a recent `web.fetch` denial in the same run (the "fetch fallback ban" pattern) → `AlwaysDeny` when configured at `Forbidden`; `UserConfirmed` (escalate to ask-user) when set to that mode; `Allowed` (no rule) when off
 
 Built-in rules are user-customizable: the user may disable, narrow, widen, replace, or restore them through settings. Disabling or widening a rule that protects an irreversible operation is itself a typed-confirmation flow per §7. The ledger records both the system default and the user override that changed effective behavior.
+
+The agent-scoped rules above ("invoked by an agent") key on `invoker_kind: model_agent`, and that class follows the executing BODY's source-derived principal (`automation.identity-versioning-source`, File 33 §6.4) — a graduated-from-run (model-authored) workflow body remains `model_agent` no matter what fired it, including a scheduled or event-fired automation wrapping it. Deriving the principal from the live caller instead would let a model-authored body launder past these denies by riding a user-approved automation; no other mechanism in the resolution path checks body authorship (trust narrowing evaluates the invoked capability's registered trust, not the workflow body's source).
 
 ### 11.6 Persistence
 

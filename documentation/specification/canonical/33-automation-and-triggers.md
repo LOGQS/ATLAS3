@@ -292,6 +292,7 @@ At fire time the pinned selection is re-resolved through model selection (`model
 
 - An `Automation`'s durable definition is a versioned entity over the registered `Custom { namespace: "automation", name: "definition" }` block/entity kind. File 33 owns the entity semantics; File 08 owns custom-kind registration and validation. Edits produce sibling versions, history is inspectable, and the definition is reconstructable. No private automation table is introduced.
 - Automations have a source taxonomy mirroring capabilities (`capability.sourcing`, File 05 §9): built-in, user-defined, plugin-bundled (`unit14-systems.md` D14.SP.1/D14.SP.5 per-profile and plugin-bundled workflows), and graduated-from-run. Plugin-bundled and otherwise externally-sourced automations register through the proposal-first source-approval path (`policy.source-approval-flow`, File 06 §9) and carry the trust state their source confers.
+- The source decides the invocation PRINCIPAL an autonomous fire carries into policy (`invoker_kind`, File 06 §11.2): a graduated-from-run body executes as `model_agent`, a plugin-bundled body as `plugin_runtime`, a user-defined or built-in body as `automation` — for every trigger kind alike (Schedule, Event, WorldCondition, Webhook, autonomous Custom; the trigger kind is fire provenance carried on the fired-trigger frame, §2.3, never a principal). A child workflow invoked within the fire takes the MORE RESTRICTIVE of the inherited parent principal and its own source-derived principal, the source-derived one winning ties — authority is never laundered upward through a wrapping automation or a parent body.
 
 ### 6.5 Rule
 
@@ -309,7 +310,7 @@ Anchor: `automation.manual`
 
 ### 7.1 Run-Now
 
-Every `Automation`, regardless of its declared triggers, is invocable through a manual run-now path: the command rail, a slash command, a menu, an automation-dashboard control, or the `automation.run_now` capability (§19). A user-initiated run-now is attributed to `user_direct` and can resolve approvals interactively. A model, plugin, external protocol, or automation invoking run-now is attributed to its actual invoker kind and follows the non-interactive posture when no human is present. Run-now is the execution path for manual test fires.
+Every `Automation`, regardless of its declared triggers, is invocable through a manual run-now path: the command rail, a slash command, a menu, an automation-dashboard control, or the `automation.run_now` capability (§19). A user-initiated run-now is attributed to `user_direct` and can resolve approvals interactively. A model, plugin, external protocol, or automation invoking run-now is attributed to its actual invoker kind and follows the non-interactive posture when no human is present. An AUTONOMOUS fire — any trigger kind firing without a human invoker — is attributed per the §6.4 source-derived principal rule; there is no separate invoker class per trigger kind. Run-now is the execution path for manual test fires.
 
 ### 7.2 The `Manual`-Only Automation
 
