@@ -413,7 +413,7 @@ Every ledger entry declares its `kind` at commit. The canonical closed catalogue
 **Block and version-graph events:**
 
 - `BlockCommitted` — block committed at a canonical boundary (per `block.commit-boundary-set`, File 08 §7.6); payload includes block id, kind, content variant, content hash, sensitivity, scope, producer
-- `BlockLifecycleChanged` — explicit `Mask`, `Drop`, `Recover` operation (per `block.mask-drop-recover`, File 08 §6.3); payload includes block id, from-state, to-state, version it applies to
+- `BlockLifecycleChanged` — every explicit §6.7-table transition: `Mask`, `Drop`, `Recover`, `Unmask`, re-inclusion, and mark-clearing (per `block.mask-drop-recover` and `block.lifecycle-transition-rules`, File 08 §6.3/§6.7); payload includes block id, from-state, to-state, version it applies to
 - `BlockPinChanged` — explicit `Pin`, `Unpin`, `Protect`, `Unprotect` operation (per `block.pin-protect`, File 08 §6.4)
 - `BlockGrouped` / `BlockUngrouped` — `Group`-kind block created or dissolved (per `block.group-ungroup`, File 08 §6.5)
 - `BlockHardDeleted` — physical destruction (per `block.hard-delete`, File 08 §6.6); payload includes deleting actor, deletion reason, tombstone reference, and the per-parent disposition outcome

@@ -887,7 +887,7 @@ Operations are subject to the canonical capability policy (per File 06):
 
 - every agent-invoked `ContextOp` flows through a registered capability and the File 04 execution pipeline; agents do not mutate version history through side channels
 - ordinary view mutations (`Mask`, `Drop`, `Pin`, `Reorder`, `AddToContext`, `RemoveFromContext`) are `WorkspaceWrite` unless narrowed by policy
-- `HardDeleteBlock` has `permission_floor: Denied` and requires typed-confirmation (per `policy.permission-floor-typed-confirmation`, File 06 §7)
+- `HardDeleteBlock` has `permission_floor: Denied`, with typed-confirmation required exactly per File 08 §6.6's four-clause predicate (a `Composed` parent, a non-superseded `supersedes` chain, an `Evidence` chain, or membership in any non-current version) — File 08 owns the condition; this bullet does not restate it as unconditional
 - `ApplySensitivityOverride` that lowers sensitivity has `permission_floor: Denied` and requires typed-confirmation
 - `PromoteScope { target_scope: global }` is `UserApproval` tier or stricter because it broadens visibility to all workspaces
 - destructive or broadening operations (`HardDeleteBlock`, sensitivity lowering, global scope promotion, version tombstoning, version payload deletion, retention application) are user-confirmed or policy-denied by default
@@ -1441,7 +1441,7 @@ This constraint exists because compaction merges sequential diffs into one compo
 
 ### 20.5 `hard_delete_version_payload`
 
-`hard_delete_version_payload(version_id, payload_scope)` physically removes selected payload data from version records or related substrate entries after typed confirmation and closure checks. If descendants or provenance queries lose reconstructability, the operation records a typed provenance gap. This is the explicit destructive path; it must never be invoked silently by retention policy.
+`hard_delete_version_payload(version_id, payload_scope)` physically removes selected payload data from version records or related substrate entries after typed confirmation and closure checks. The `payload_scope` grammar EXCLUDES the block pool: this operation never destroys a block's stored content — block payload destruction happens only through `block.hard-delete` (File 08 §6.6), the same exclusion §20.2 states for tombstoning. If descendants or provenance queries lose reconstructability, the operation records a typed provenance gap. This is the explicit destructive path; it must never be invoked silently by retention policy.
 
 ### 20.6 Retention Policies
 
