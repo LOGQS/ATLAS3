@@ -102,7 +102,7 @@ A `Workspace` is a durable scoped context for files, execution, settings, histor
 
 ### 3.2 Purpose
 
-Every prior file uses `workspace` as a scope label (`block.block-scope` File 08 §11, `policy.lease-primitive` File 06 §11, `ledger.execution-ledger` File 10 §3.5, `world.world-entity` File 18 §4.2, `MemoryScope::Workspace` File 14, `KnowledgeScope::Workspace` File 12) and as a foreign key (`workspace_id` on memory, knowledge, retrieval, log, and artifact records), yet none defines what the identifier resolves to. A durable `WorkspaceRecord` gives that identifier a single owner, a lifecycle, and a relocation-safe identity, so a moved or renamed directory does not orphan everything keyed to it.
+Every prior file uses `workspace` as a scope label (`block.block-scope` File 08 §11, `policy.lease-primitive` File 06 §11, `ledger.execution-ledger` File 10 §3.5, `world.world-entity` File 18 §4.2, `MemoryScope::Workspace` File 14, `KnowledgeScope::Workspace` File 12) and as a foreign key (`workspace_id` on memory, knowledge, retrieval, log, and artifact records; `ScopeAnchor::Workspace` on `workspace`-scoped blocks, `block.block-model` File 08 §2.2), yet none defines what the identifier resolves to. A durable `WorkspaceRecord` gives that identifier a single owner, a lifecycle, and a relocation-safe identity, so a moved or renamed directory does not orphan everything keyed to it.
 
 ### 3.3 The `WorkspaceRecord`
 
@@ -239,7 +239,7 @@ The conversation–workspace binding is the association between a conversation a
 
 ### 7.2 Rule
 
-- Every conversation binds to exactly one workspace at a time; that workspace is the conversation's durable scoped context for storage, execution, settings, and materialization (`intent.conversation`, File 02 §2.1). A conversation may rebind to a different workspace over its life (`intent.conversation`, File 02 §2.2 — "one or many workspaces over time").
+- Every conversation binds to exactly one workspace at a time; that workspace is the conversation's durable scoped context for storage, execution, settings, and materialization (`intent.conversation`, File 02 §2.1). A conversation may rebind to a different workspace over its life (`intent.conversation`, File 02 §2.2 — "one or many workspaces over time"). Rebinding never moves already-committed `workspace`-scoped blocks: their workspace membership is the durable `scope_anchor` fixed at commit (`block.block-model`, File 08 §2.2), not a projection of the conversation's current binding.
 - A workspace binds zero or more conversations. The single-conversation case (one workspace per conversation) and the project case (many conversations sharing one workspace) are both valid; which is the default is a setting (§21).
 - The `workspace` scope label (`block.block-scope`, File 08 §11) is the broadest-but-one visibility scope: a `workspace`-scoped block, lease, ledger entry, memory entry, or world entity is visible across the conversations bound to the workspace and narrower than `global`. This file is the owner of what that label resolves to; it does not redefine the scope ordering, which File 08 fixes.
 - Cross-workspace access (a capability call whose resolved touched resource lies in another workspace) is not silently allowed: it escalates the effective permission tier (`PathAwareWorkspaceResolver` pattern, `capability.touched-resources` File 05 §6) and requires `UserApproval` regardless of the file's relative location, with the approval surfacing which other workspace is targeted (§19).

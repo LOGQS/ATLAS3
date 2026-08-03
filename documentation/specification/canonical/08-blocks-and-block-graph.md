@@ -114,6 +114,7 @@ Every block must carry at minimum:
 - `default_sensitivity` — `Public` | `Sensitive` | `Secret` (§9); fixed at creation, with per-field overrides expressible through `sensitivity_field_map`
 - `description` — short structured natural-language description emitted by the producer at commit time (§10)
 - `scope` — broadest visibility scope (§11): `run` | `intent_thread` | `task` | `conversation` | `workspace` | `global` | `reusable_policy_rule`
+- `scope_anchor` — `Option<ScopeAnchor>`, the typed durable anchor for scopes the record's other fields cannot anchor authoritatively: `Workspace(workspace_id)` | `IntentThread(intent_thread_id)` | `Task(task_id)`. Fixed at commit. An anchor supplies a fact the record cannot already carry — never a duplicate of one it does: `run` anchors through `origin_run_id`, `conversation` through `conversation_id`, `global` and `reusable_policy_rule` are self-anchoring visibility classes, and an `intent_thread`/`task` block committed under a run derives its anchor from the run's immutable thread/task binding (File 04 — a run's ownership never rebinds). `workspace` always requires the explicit anchor, because the conversation→workspace binding is mutable (File 24 §7.2) and a visibility property that silently moved when an unrelated binding changed would be a nothing-silent violation. Rule 11 (§8.2) states the exact requirement matrix
 
 For `Composed` content, the ordered child list lives only inside `BlockContent.Composed { children_block_ids }`. Storage may index that list for query performance, but the canonical source of truth is the content payload, not a duplicate top-level field. Every other field is derived (lifecycle, pin state, sequence within a version), computed (token counts per tokenizer), or owned by adjacent layers (event linkage by the ledger spec, version membership by the version graph spec).
 
@@ -569,7 +570,7 @@ Before a block is admitted to the pool, the block commit validator runs:
 8. **Sensitivity validation**: `default_sensitivity` is one of the canonical values; the per-field map (if present) references valid field paths; composed blocks must not underreport the maximum effective sensitivity of their children unless a policy-approved typed-confirmation override applies
 9. **Description validation**: `description` is non-empty for kinds that require it (all canonical kinds; custom kinds may opt out only when their declaration specifies)
 10. **Hash validation**: the content hash is computable from the content, variant discriminator, and `block_schema_version`, and matches the supplied `content_hash`
-11. **Scope validation**: the declared `scope` is one of the canonical values and is compatible with the producer (a `run`-scoped block must have an `origin_run_id`; a `workspace`-scoped block must have a workspace context)
+11. **Scope validation**: the declared `scope` is one of the canonical values, and `scope_anchor` satisfies the exact matrix — `run` → anchor `None` with `origin_run_id` present; `conversation` → anchor `None` with `conversation_id` present; `workspace` → anchor exactly `Some(Workspace(_))`; `intent_thread`/`task` with `origin_run_id` present → anchor `None` (the run's immutable binding resolves and is validated); `intent_thread`/`task` with `origin_run_id` null → anchor exactly `Some(IntentThread(_))`/`Some(Task(_))`; `global`/`reusable_policy_rule` → anchor `None`. A supplied anchor where derivation is available is rejected — neither value wins over the other; the commit fails typed
 
 A failed validation produces a typed `BlockCommitRejected` error per `run.denial-is-in-band` (File 04 §8.3)'s in-band denial. The producer (a capability handler, the executor, a subsystem) receives the typed error and may retry with corrected input, escalate, or abort.
 
@@ -760,7 +761,7 @@ The following block-related facts are durable:
 
 - the block pool — every committed block survives process restart, conversation archive, and version-graph operations until explicit hard delete
 - the edge set — every committed edge survives
-- per-block metadata — `block_id`, `kind`, `content`, `parent_block_id`, `producer`, `origin_run_id`, `conversation_id`, `created_at`, `block_schema_version`, `content_hash`, `source_attribution`, `default_sensitivity`, `sensitivity_field_map`, `description`, `scope`
+- per-block metadata — `block_id`, `kind`, `content`, `parent_block_id`, `producer`, `origin_run_id`, `conversation_id`, `created_at`, `block_schema_version`, `content_hash`, `source_attribution`, `default_sensitivity`, `sensitivity_field_map`, `description`, `scope`, `scope_anchor`
 - the version graph — version nodes, lifecycle action logs, pin maps; survives restart
 - block-related events recorded in the ledger — every block commit, every lifecycle transition, every edge commit produces a ledger entry
 
