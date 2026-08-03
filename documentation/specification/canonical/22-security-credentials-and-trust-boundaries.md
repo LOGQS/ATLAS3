@@ -119,7 +119,7 @@ File 17 §23.6 applies the backend secret boundary at the provider layer (`provi
 
 ### 2.8 With File 23 (Sandbox, Process Control, and Isolation)
 
-The boundary is sharp. File 23 owns process spawning, sandbox scopes, the filesystem and network enforcement primitives, resource isolation, killability, and the elevated-helper process mechanics. This file owns the trust decision that selects how strictly to sandbox an untrusted source, the egress-destination policy the network enforcement consults, the secret/credential rules across process boundaries, and the privilege-separation pairing credential. This file states the trust boundary and the policy; File 23 enforces the containment.
+The boundary is sharp. File 23 owns process spawning, sandbox scopes, the filesystem and network enforcement primitives, resource isolation, killability, and the elevated-helper process mechanics. This file owns the trust CLASS and its changes (§9) — the input the sandboxing decision consumes; the trust-to-tier mapping itself and the tier selection are File 23 §4.3's (its table discharges the mapping this sentence previously left unowned). This file also owns the egress-destination policy the network enforcement consults, the secret/credential rules across process boundaries, and the privilege-separation pairing credential. This file states the trust boundary and the policy; File 23 enforces the containment.
 
 ### 2.9 Boundary
 
