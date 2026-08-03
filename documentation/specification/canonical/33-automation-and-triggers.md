@@ -606,7 +606,7 @@ Anchor: `automation.observability`
 
 ### 17.1 Runs as Ledger Records
 
-An automation run is an ordinary `Run` recorded in the execution ledger (`ledger.execution-ledger`, File 10) with `producer` `Automation { automation_id, trigger_id, fire_id }` (`ledger.entry-kind-catalogue`, File 10 §4). Run history — past fires, their outcomes, their durations, their produced artifacts — is a projection over the ledger; there is no parallel automation-run table. A skipped, duplicate, queued, or parked fire is recorded with its reason (§8.1, §11.3, §12.2).
+An automation run is an ordinary `Run` recorded in the execution ledger (`ledger.execution-ledger`, File 10) with `producer` `Automation { trigger_id }` (`ledger.execution-ledger`, File 10 §3.2) and the `automation_id` + `fire_id` canonical cross-reference keys required on every automation-originated entry and propagated across the fired run's entries (`ledger.cross-references`, File 10 §3.6). Run history — past fires, their outcomes, their durations, their produced artifacts — is a projection over those keys; there is no parallel automation-run table. A skipped, duplicate, queued, or parked fire is recorded with its reason (§8.1, §11.3, §12.2).
 
 ### 17.2 Derived Automation State
 
