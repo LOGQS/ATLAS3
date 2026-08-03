@@ -548,9 +548,21 @@ Every transport-level retry obeys:
 
 - the `retryable` field on the call's `ErrorClassification` is authoritative
 - when `retry_after_ms` is provider-suggested, the runtime waits at least that long
-- when no provider-suggested delay exists, the runtime computes the next delay through a typed strategy (`ExponentialBackoff { initial_ms, multiplier, cap_ms, jitter_pct }`, `Fixed { delay_ms }`, `DecorrelatedJitter { initial_ms, cap_ms }`, or `Custom { namespace, name }`)
+- when no provider-suggested delay exists, the runtime computes the next delay through a typed strategy (`ExponentialBackoff { initial_ms, multiplier, cap_ms, jitter_milliunits }`, `Fixed { delay_ms }`, `DecorrelatedJitter { initial_ms, cap_ms }`, or `Custom { namespace, name }`), sampled per §11.2.1
 - the per-error-class retry cap is configurable through settings per §24
 - the active retry strategy and per-error-class caps are inspectable and recorded on the `ModelCallStarted` ledger entry for replay
+
+### 11.2.1 Delay Sampling
+
+The delay a typed strategy computes is sampled under one shared contract — stated here for the transport consumer and mirrored for worker supervision at `runtime.background-workers` (File 42 §6.5.1); File 36 §7's connector retries reuse this section by reference.
+
+- **Band first, draw second.** A strategy defines, per attempt, a closed inclusive integer delay band in milliseconds; the band is computed and capped first, then the delay is drawn uniformly over it, free of modulo bias — never draw-then-clamp, which concentrates probability mass on the band edge and re-synchronizes exactly the retries jitter exists to spread. Equal endpoints are a degenerate band: the delay is that value and no randomness is drawn. The randomness source is an injected runtime seam, never a process-global.
+- **`ExponentialBackoff`.** base = min(initial_ms · multiplier^(n−1), cap_ms) for 1-based attempt n, saturating; the cap applies to the base, before jitter. Jitter is downward-only: the band is [base − span, base] with span = ⌊base · jitter_milliunits / 1000⌋ evaluated at non-overflowing width — every computed delay is at most cap_ms by construction, the §11.5 finite ceiling with no second clamp. `jitter_milliunits` is a parts-per-thousand fixed-point integer (0..=1000) per `core.canonical-encoding` (File 01 §6.15) — canonical encodings carry no floating point; a percentage is a display projection. `Fixed { delay_ms }` carries no jitter field and is never jittered.
+- **`DecorrelatedJitter`.** A `previous` delay initialized to initial_ms at the start of one logical call's attempt sequence and never carried across calls. Each draw is uniform over [low, high] with low = min(initial_ms, cap_ms) and high = max(low, min(3 · previous, cap_ms)); `previous` then becomes the delay actually used. The growth factor 3 is the variant's definition, not a setting. The normalization is mandatory — never an empty or inverted band; initial_ms > cap_ms degenerates to [cap_ms, cap_ms] with a typed configuration diagnostic at resolution, once.
+- **`Custom { namespace, name }`.** A registered custom strategy must declare its closed per-attempt delay band and honor §11.5's finite configurable ceiling; a strategy that cannot state its band is not admissible.
+- **Randomness-source failure.** On a failed draw the band's upper endpoint is used — never the floor or midpoint (a degraded draw loses spread but never retries sooner than the policy intended) — typed and surfaced, never silent.
+- **Totality.** All delay arithmetic is unsigned 64-bit milliseconds, saturating or wide, never wrapping or panicking; every path ends at min(…, cap_ms), and intermediate saturation yields cap_ms without a diagnostic — the declared ceiling, so the recorded value stays true. The delay is computed once per attempt: the recorded value and the armed wait are one value.
+- **Direction asymmetry.** Jitter applied to an honored external hint (`retry_after_ms` above — the runtime waits at least that long; the §13.6 probe margin) only ever adds; self-computed backoff jitters downward.
 
 ### 11.3 Strategies by Error Class
 
