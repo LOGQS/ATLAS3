@@ -406,7 +406,7 @@ Perception emits the output; deliberate observation commits pass through File 04
 
 ### 9.2 `PerceptionSignal`
 
-A `PerceptionSignal` is a typed transient signal carrying the affected source identity, the change kind, a compact structured payload (identifiers and short summaries, not resource bodies), the sensitivity, and the `capture_context`. Signals conform to the signal vocabulary `world.observation-state-update` (File 18 §8.2) consumes. A signal is a live coordination message: it is not, by itself, durably recorded (the world model decides, `world.durability-tiers`, File 18 §7).
+A `PerceptionSignal` is a typed transient signal carrying the affected source identity, the change kind, a compact structured payload (identifiers and short summaries, not resource bodies), the sensitivity, and the `capture_context`. Signals conform to the signal vocabulary `world.observation-state-update` (File 18 §8.2) consumes. A signal is a live coordination message: it is not, by itself, durably recorded (the world model decides, `world.durability-tiers`, File 18 §7). Where a detected change feeds an automation `Event` trigger (`automation.event-and-webhook-triggers`, File 33 §5.1), the change is COMMITTED as a durable observation-change event carrying the source identity, the change kind, and the diff/change identity (File 28 §12.2's detected-change-is-a-durable-fact is the exemplar) — the transient signal alone never fires an automation, because an automation fire needs the durable identity deduplication and `fire_id` derivation stand on.
 
 ### 9.3 The `Observed` Capture and the Staleness Fingerprint
 
