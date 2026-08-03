@@ -1037,7 +1037,7 @@ File 09 declares the following canonical entity-level capabilities. Each is a bu
 - `artifact.commit_version(artifact_id, content, derivation_summary?, title_update?, description_update?, tags_update?)` — subsequent version commit; `WorkspaceWrite` tier; produces a new `Artifact`-kind block linked by `supersedes` and updates the entity's `current_version_block_id`
 - `artifact.set_review_state(artifact_id, version_id, new_state)` — explicit review state mutation; `WorkspaceWrite` tier; emits `ArtifactReviewStateChanged` event
 - `artifact.update_materialization_policy(artifact_id, new_policy)` — `WorkspaceWrite` tier when narrowing materialization; `UserApproval` when broadening (e.g., `None` → `InWorkspace` materializes file content to disk)
-- `artifact.promote_scope(artifact_id, new_scope)` — explicit scope promotion; tier scales with target scope per `block.scope-promotion` (File 08 §11.2) (workspace and below: `WorkspaceWrite`; `global` and `reusable_policy_rule`: `UserApproval`)
+- `artifact.promote_scope(artifact_id, new_scope)` — explicit scope promotion; tier scales with target scope per `block.scope-promotion` (File 08 §11.2) (workspace and below: `WorkspaceWrite`; `global` and `reusable_policy_rule`: `UserApproval`). A `reusable_policy_rule` target routes through §11.2's dedicated kind- and schema-validating admission even under this command name — the tier here is the approval cost, not a containment edge
 - `artifact.archive(artifact_id)` — `WorkspaceWrite` tier; transitions artifact lifecycle to `Archived`
 - `artifact.restore(artifact_id)` — `WorkspaceWrite` tier; transitions out of `Archived` or `Discarded`
 - `artifact.discard(artifact_id)` — `WorkspaceWrite` tier; transitions to `Discarded`

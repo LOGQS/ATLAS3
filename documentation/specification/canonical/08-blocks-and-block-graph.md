@@ -680,6 +680,12 @@ Every block has a `scope` denoting the broadest context within which the block i
 - `global` — the block is visible across workspaces; reserved for global memory entries, global settings blocks, and equivalent
 - `reusable_policy_rule` — matches the lease scope from `policy.lease-primitive` (File 06 §11); reserved for blocks that express reusable policy or workflow templates
 
+The scopes form the VISIBILITY-CONTAINMENT partial order this file owns and File 24 §7.2 defers to:
+
+`run < task < intent_thread < conversation < workspace < global`
+
+with one context-dependent edge — `run < task` holds only when the run belongs to the task; a run without a task relates directly to its intent thread — and `task < intent_thread` because a `Task` is a promoted structured work object INSIDE an intent thread (`intent.task`, File 02 §6.1): the runs advancing one task are a subset of the runs sharing its thread. `reusable_policy_rule` is INCOMPARABLE with this chain (and with `global`): it is a reserved template class, not a wider visibility, and admission into it is the dedicated policy-rule/template transition of §11.2, never a step along this order. `single_proposal` is a lease-only scope (File 06 §11.2) and is not a block scope. This relation is NOT File 06 §6.4's lease-selection tie-break ladder — that ladder picks one lease among matches and stays File 06's; this relation decides visibility containment, promotion admissibility (§11.2), and cross-scope reference semantics (§11.3).
+
 The scope is declared at commit by the producer. Scope determines:
 
 - which surfaces and runs can address the block by id
@@ -691,7 +697,7 @@ The scope is declared at commit by the producer. Scope determines:
 
 Anchor: `block.scope-promotion`
 
-A block may be promoted to a broader scope through an explicit operation (a user pins a `run`-scoped observation into `conversation` scope; an agent promotes a `task`-scoped plan into `workspace` scope). Promotion creates a new immutable block or reference record at the broader scope, linked to the original by `promotes_scope_of` or `scope_projection_of`. The original remains valid at the original scope. `supersedes` is reserved for content/version replacement, not visibility broadening.
+A block may be promoted to a broader scope through an explicit operation (a user pins a `run`-scoped observation into `conversation` scope; an agent promotes a `task`-scoped plan into `workspace` scope). Promotion is ADMISSIBLE exactly when the target scope is strictly above the source in the §11.1 visibility-containment order — a move that does not broaden along that order is rejected, never silently reinterpreted. `reusable_policy_rule` is never reached by this generic promotion: admission into it is a dedicated policy-rule/template transition that validates the block KIND and its registered policy/workflow schema before creating the promoted block or reference (an arbitrary observation, message, dataset, or artifact cannot become executable policy by a visibility move — the kind-laundering guard), even where a promote-scope command is the exposed surface (`artifact.canonical-operations`, File 09 §16). Promotion creates a new immutable block or reference record at the broader scope, linked to the original by `promotes_scope_of` or `scope_projection_of`. The original remains valid at the original scope. `supersedes` is reserved for content/version replacement, not visibility broadening.
 
 Scope demotion (moving to a narrower scope) is not permitted as a direct operation; a workspace block whose content is later judged conversation-specific is left at the workspace scope. The retrieval and surface layers may filter it out of broader contexts, but the block's declared scope is fixed at commit.
 

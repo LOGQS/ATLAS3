@@ -294,6 +294,8 @@ Anchor: `intent.task`
 
 It exists when the work benefits from explicit structure.
 
+Containment is one-directional and load-bearing: every task lives inside exactly one intent thread, no task spans threads, and the runs advancing one task are a subset of the runs sharing its thread — so `task` is the NARROWER scope wherever the two are ordered (`block.block-scope`, File 08 §11.1 owns the visibility-containment order that consumes this fact).
+
 ### 6.2 Minimum Fields
 
 A task must carry at least:

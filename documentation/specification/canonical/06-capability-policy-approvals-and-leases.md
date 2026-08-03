@@ -366,7 +366,7 @@ A lease applies only when every resolved touched resource is contained within th
 
 When multiple leases match a proposed call, the policy layer selects the active lease by:
 
-1. Narrower scope wins. The scope ordering is `single_proposal < run < intent_thread < task < conversation < workspace < global < reusable_policy_rule`. A lease at `conversation` scope wins over one at `workspace` scope for the same capability and constraints.
+1. Narrower scope wins. The selection ordering is `single_proposal < run < task < intent_thread < conversation < workspace < global < reusable_policy_rule` (`task` before `intent_thread`: a task lives inside its thread — `intent.task`, File 02 §6.1 — so a task-scoped lease is the more specific grant this rule exists to prefer). A lease at `conversation` scope wins over one at `workspace` scope for the same capability and constraints. This ladder is the lease-selection TIE-BREAK, total by construction because selection must pick exactly one; it is not the block visibility-containment relation, which is File 08 §11.1's partial order (there `reusable_policy_rule` is incomparable rather than broadest — its last place here orders lease precedence only).
 2. Among same-scope matches, `AlwaysDeny` wins over `AlwaysAllow`. This is the deny-wins rule.
 3. Among same-scope, same-decision matches, the most-recently-granted lease wins.
 
