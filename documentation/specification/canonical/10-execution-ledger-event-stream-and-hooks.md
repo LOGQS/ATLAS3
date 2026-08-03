@@ -960,7 +960,7 @@ Hooks fall into canonical categories that share defaults:
 - **Surface mutation observers** (per `surface.surface-relevant-events`, File 07 §13): subscribe to surface-relevant events to react to capability registration, availability changes, source connections. Non-blocking, `observe_only`.
 - **Entity event observers** (per `artifact.events`, File 09 §20): subscribe to artifact / claim / evidence / observation events for memory promotion, knowledge-base curation, or downstream analysis. Non-blocking, `observe_only`.
 - **Streaming UI observers**: subscribe to `MessageChunk`, `StreamProgressBatch`, `BlockCommitted` to update the streaming UI. Non-blocking, `observe_only`.
-- **Background workers**: memory consolidator, SRS scheduler, system audit writer, data lineage tracker, watch poller, scheduled task runner. Each spawns and subscribes to its triggering events. Non-blocking, `observe_only`.
+- **Background workers**: the memory consolidator, the system audit writer, the data lineage tracker, and the one `Scheduler` with its watch-poller fallback lane (File 33 §9). Each spawns and subscribes to its triggering events. Non-blocking, `observe_only`. Spaced-repetition review-due and scheduled-task concerns are AUTOMATIONS over the one `Scheduler` (File 33 §16.1), never sibling scheduler workers.
 
 Each category has settings-driven defaults (priority, timeout, fail-direction, authority) that subscribers may override within their authority envelope. The categories are conventional groupings; the canonical rule is that every hook declares its own typed parameters.
 
@@ -983,7 +983,7 @@ The system ships with built-in hooks registered at startup:
 - the canonical completion-verification deterministic floor (`runtime.completion_forgery_guard`) on `RunStatusChanged { to: Completed }`, blocking, narrowing
 - the memory consolidator background worker (`memory.consolidator`) on `AgentTurnCompleted` and scheduled triggers, non-blocking
 - the data lineage tracker (`data.lineage_tracker`) on `BlockCommitted` for blocks with certain kinds, non-blocking
-- the watch poller (`scheduler.watch_poller`) on watchdog ticks, non-blocking
+- the watch poller (`scheduler.watch_poller`) — the flagged capture-on-interval fallback lane only, for sources emitting no change events (File 33 §4.2, §9.3); watches are event-first, non-blocking
 
 The full set is declared in built-in capability declarations (per File 05) and registered during startup phase 1 (per `capability.startup-registration`, File 05 §16.1).
 
