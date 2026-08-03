@@ -469,6 +469,7 @@ When auto-decide is active for a proposed call:
 - the classifier model-request template is registry-managed and inspectable; the user can view, customize, or replace the template for any capability or family through settings
 - per-call cost is one extra model invocation per proposed call when active; settings let users limit cost (e.g., enable auto-decide only for `ReadOnly` capabilities, or only when the model-strategy layer has a low-cost classifier available)
 - auto-decide is per scope: the user may enable it globally, per workspace, per conversation, per capability, or per family
+- in a NON-INTERACTIVE automation context, a policy-mediated allow proceeds only under the automation's typed `permit_resolved_allow` opt-in (`automation.non-interactive-safety`, File 33 §11.3 — default park; never for a fire whose trigger carried untrusted external payload); a policy-mediated deny is honored unattended
 
 ### 8.5 Boundary
 

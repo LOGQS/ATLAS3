@@ -453,9 +453,10 @@ Non-interactive execution safety is the posture under which a trigger-originated
 
 ### 11.3 The Park-and-Notify Posture
 
-- When a fired run reaches a capability call that resolves to anything other than direct-allow or direct-deny — an `ask-user` outcome with no covering lease, a typed-confirmation requirement, or a `Denied`-floor capability — the run does not proceed and does not auto-approve. It enters a parked state, emits an elicitation through the elicitation rail (`controlrail.elicitation`, File 26 §13) and a notification, and waits. The user resolves the elicitation later; the run resumes from the parked point with the user's decision injected. There is no timeout-based auto-resolution: a parked run waits indefinitely (subject to the user cancelling it) rather than silently proceeding or silently failing.
+- When a fired run reaches a capability call whose resolution would GRANT authority beyond the pre-authorized scope without a human — an `ask-user` outcome with no covering lease, a typed-confirmation requirement, a `Denied`-floor capability, or a model-mediated allow (File 06 §4.3, absent the typed opt-in below) — the run does not proceed and does not auto-approve. It enters a parked state, emits an elicitation through the elicitation rail (`controlrail.elicitation`, File 26 §13) and a notification, and waits. The user resolves the elicitation later; the run resumes from the parked point with the user's decision injected. There is no timeout-based auto-resolution: a parked run waits indefinitely (subject to the user cancelling it) rather than silently proceeding or silently failing. A direct-deny — and a model-mediated DENY — is honored unattended: it is authority-reducing, produces the typed in-band denial, and parking it would make the user adjudicate something policy already refused.
 - Typed-confirmation and `Denied`-floor capabilities are never lifted by a lease, by `auto-decide`, or by an unattended context (`policy.permission-floor-typed-confirmation`, File 06 §7; `policy.denied-carve-out`, File 06 §7.4). A non-interactive context is strictly weaker in authority than an interactive one, never stronger (`controlrail.trigger-rail`, File 26 §11.2). This is the canonical realization of the System Agent's stronger-not-weaker posture (File 32 §12) for all surfaces.
 - An automation may be configured, per its `policy`, to fail or skip a fire that would need a human decision instead of parking — for a true fire-and-forget automation that should never accumulate parked runs. The default is park-and-notify.
+- An automation may additionally opt in, per its `policy`, to `unattended_auto_decide: permit_resolved_allow` — default OFF (park) — under which a high-confidence, terminal model-mediated ALLOW (File 06 §8) continues unattended. The opt-in admits the mediated-allow outcome ONLY and inherits every File 06 §8.4 property (never lifts `permission_floor`, never bypasses `Denied`, never lifts typed-confirmation; `PolicyDecisionMade` + `AutoDecideClassification` still recorded, the resolved policy/template version audit-visible). It is mechanically INAPPLICABLE to any fire whose trigger carried untrusted external payload — a `Webhook`, an external `Event`, or a `Custom` trigger over an external substrate — which is §5.4's no-escalation rule made structural: attacker-influenceable content never reaches a classifier whose verdict could grant unattended authority.
 
 ### 11.4 Mid-Run Intervention
 
@@ -465,6 +466,7 @@ A parked or running automation accepts mid-run intervention through the steering
 
 - An automation run executes only within its pre-authorized capability scope; a call needing a human decision parks and notifies, it never auto-approves.
 - Typed-confirmation and `Denied`-floor capabilities never execute unattended; the non-interactive context is never stronger than the interactive one.
+- A model-mediated DENY is honored unattended; a model-mediated ALLOW parks unless the automation carries the typed `permit_resolved_allow` opt-in, which is never applicable to a fire whose trigger carried untrusted external payload.
 - A parked run waits without timeout-based auto-resolution; the default posture is park-and-notify, with fail/skip a per-automation option.
 
 ### 11.6 Boundary
@@ -725,7 +727,7 @@ Automation behavior is configurable through `settings.setting-definition` (File 
 - the per-automation `rate_limit` (minimum interval, per-window cap) and the global automation budget (maximum concurrent runs, maximum fire rate), and the cold-start guard bound;
 - the recursive-trigger cycle-guard depth and re-entry window;
 - the default `failure_handling` (max attempts, backoff selection over the canonical strategies, circuit-breaker threshold, recovery triggers, probe policy, and cooldown safety bound), per automation and globally;
-- the non-interactive posture default (park-and-notify versus fail/skip) and the notification channels for completion, failure, and parked-needing-approval;
+- the non-interactive posture default (park-and-notify versus fail/skip), the `unattended_auto_decide` opt-in default (`park` unless a scope explicitly selects `permit_resolved_allow`, §11.3), and the notification channels for completion, failure, and parked-needing-approval;
 - the agent self-scheduling bounds (maximum active agent-created automations, minimum recurring interval) and the default approval tier for agent-initiated creation;
 - the webhook binding policy (local-only default, remote opt-in, authentication, freshness, and idempotency requirements);
 - the run-history retention granularity for the automation projection;
