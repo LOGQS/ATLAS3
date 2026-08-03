@@ -433,7 +433,7 @@ Anchor: `block.hard-delete`
 
 Hard deletion is the only operation that physically destroys recoverable block payload storage. It is:
 
-- explicitly user-initiated (no automatic hard delete; compaction never hard-deletes)
+- explicitly user-initiated (no automatic hard delete; compaction, run termination, scope exclusion, `Mask`/`Drop`, and hidden or default retention rules never hard-delete — retention may identify and preview reclamation candidates, but payload destruction happens only through this explicit operation)
 - typed-confirmation required when the block is referenced by a `Composed` parent, by a non-superseded `supersedes` chain, by an `Evidence` chain, or by any version other than the current one (`policy.permission-floor-typed-confirmation`, File 06 §7 typed-confirmation flow)
 - recorded in the execution ledger as a `BlockHardDeleted` event with the deleting actor, the block id, and the references that would be orphaned
 - accompanied by a minimal tombstone retaining `block_id`, deletion time, deletion actor/source, `conversation_id`, `scope`, `parent_block_id`, prior kind if safe, and a sensitivity-safe reason or description. Payload bytes, secret fields, embeddings, indexed text, and external blobs are removed. References resolve to a typed deleted-block placeholder, not an unexplained missing row
@@ -648,7 +648,7 @@ For `Custom` kinds, the kind's registration declares the description template an
 
 Descriptions live on the block, not in a compaction service or in a retrieval index, because:
 
-- compaction algorithms read descriptions, not full content, to decide what to evict or summarize. A description that lives on the block survives compaction itself
+- compaction algorithms read descriptions, not full content, to decide what to `Mask`/`Drop` in the addressed view or summarize (File 13 §12). A description that lives on the block survives compaction itself
 - retrieval uses descriptions for low-cost first-pass filtering; full-content embeddings are computed separately
 - surface presentations render descriptions in collapsed views, list views, and previews
 - inspector lenses (`surface.inspector-lens`, File 07 §12.4) render descriptions in catalogue displays
@@ -672,7 +672,7 @@ Anchor: `block.block-scope`
 
 Every block has a `scope` denoting the broadest context within which the block is visible and addressable:
 
-- `run` — the block is visible only within the originating `Run`; transient blocks used for internal coordination; pruned with the run
+- `run` — the block is visible and addressable only where the resolution context names the originating `Run` (its `origin_run_id`); a `run`-scoped block is durable committed content like any other and remains stored — addressable in its originating, now-historical run — across terminal run transitions and process restart. Run termination performs no `Mask`, no `Drop`, and no hard delete; it only ends the live contexts that resolve the run's scope. Coordination state that should not survive the run is not a block at all — it belongs to events or runtime state. Accumulated run-scoped blocks are reclaimed only through explicit per-run storage reclamation (`storage.retention-gc-accounting`, File 20 §11)
 - `intent_thread` — the block is visible within the originating intent thread, across runs that share the thread
 - `task` — the block is visible within the originating task, across runs that advance it
 - `conversation` — the block is visible within the originating conversation; the default for transcript-related blocks
@@ -684,7 +684,7 @@ The scope is declared at commit by the producer. Scope determines:
 
 - which surfaces and runs can address the block by id
 - which retrieval indices include the block
-- which compaction policies are eligible to evict the block
+- which compaction policies may select the block for `Mask`/`Drop` in an addressed view (File 13 §12) — compaction changes view state, never storage (§6.6)
 - which export/share operations include the block in their output
 
 ### 11.2 Scope Promotion
@@ -699,7 +699,7 @@ Scope demotion (moving to a narrower scope) is not permitted as a direct operati
 
 Anchor: `block.cross-scope-references`
 
-A block at a narrower scope may reference (via edges) a block at a broader scope (a `run`-scoped `ToolResult` may `references` a `workspace`-scoped `Memory`). A block at a broader scope may reference a block at a narrower scope only if the references remain meaningful when the narrower block is no longer in scope (a `workspace`-scoped `Plan` referencing a `task`-scoped block must tolerate the task's blocks being garbage-collected). Edge resolution at read time honors the scope rules: a reference that cannot be resolved produces a `BrokenBlockReference` event but does not corrupt the referencer.
+A block at a narrower scope may reference (via edges) a block at a broader scope (a `run`-scoped `ToolResult` may `references` a `workspace`-scoped `Memory`). A block at a broader scope may reference a block at a narrower scope only if the reference remains meaningful when the narrower target is not resolvable in the current context — outside the current resolution scope, `Masked`/`Dropped` in the addressed view, or later explicitly hard-deleted (§6.6). Scope exclusion never deletes the target. Edge resolution at read time honors the scope rules and keeps the outcomes distinct: a target that exists but is outside the resolution scope yields a typed scope-unavailable resolution outcome; an explicitly hard-deleted target resolves to the §6.6 deleted-block placeholder over its orphan-marked edge; a target that is unexpectedly absent or invalid produces a `BrokenBlockReference` event and normally an integrity finding. None of these corrupts the referencer.
 
 ### 11.4 Boundary
 
