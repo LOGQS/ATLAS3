@@ -408,7 +408,7 @@ Anchor: `security.egress-governance`
 
 ### 11.1 Definition
 
-Egress governance is the policy that decides what data may leave the device or installation and in what form: a sync push, a package export, a surface format export, a share, a publish, a clipboard copy, or any external transfer. This section owns the policy semantics behind the tiers File 21 §12 applies.
+Egress governance is the policy that decides what data may leave the device or installation and in what form. Every boundary crossing is exactly one of the twelve closed `EgressChannelKind`s (§11.7) — there is no ungoverned "any external transfer" residual. This section owns the policy semantics behind the tiers File 21 §12 applies, and the closed kind set itself.
 
 ### 11.2 The Sensitivity Tiers
 
@@ -436,9 +436,28 @@ Vault backup is an explicit secret-egress capability, and it is separate from ev
 
 Sending content to an external model provider is a first-class egress channel, not an unclassified side effect. A provider call is governed by the pre-selection data-boundary decision (`model.model-workload-requirements`, File 16 §5.3), which analyzes content sensitivity before a model is chosen and treats the resulting `data_boundary_requirements` as hard filters, and by the boundary proof the provider layer carries into every request (`provider.provider-request`, File 17 §7.1): sensitive material the active provider must not see fails at the adapter boundary with a typed data-boundary conflict rather than being transmitted (`provider.provider-request`, File 17 §7.3). This channel uses the data-boundary-filter model, not the §11.2 `Sensitive` per-operation opt-in — the boundary decision, not a user opt-in at a movement scope, determines whether content may reach a given provider — and raw `Secret` material never reaches a provider call in any form (§4). File 21 §12 mirrors this channel at the movement boundary.
 
-### 11.7 Boundary
+### 11.7 The Closed Egress-Channel Kind Set
 
-This section owns the egress policy semantics, the destination inspector, and the vault-backup path. File 21 owns the movement and the package format; File 10 owns the sensitivity taxonomy; File 06 owns the gate and the floor; File 23 owns the network enforcement. The egress decision is this file's policy applied through File 06's mechanism over File 21's movement.
+`EgressChannelKind` is a closed, twelve-variant policy-routing discriminant, keyed one kind per distinct governing gate. It identifies the governing boundary channel; it is neither a sensitivity classification nor an authorization result. Every attempted egress selects exactly one kind before the boundary crossing and carries it through preview, policy evaluation, destination inspection (§11.4), ledger recording, and audit. Selecting a kind never grants egress — the applicable sensitivity rule (§11.2), permission floor (§11.3), destination decision, redaction requirement, capability policy, and audit requirement remain independently binding. A missing, unknown, or unmappable kind fails closed before data crosses the boundary.
+
+- `SyncPush` — the sensitive-sync gate: a durable per-destination, per-profile, or per-workspace grant (§11.2), never per-operation consent. Replica, remote, and sync-profile distinctions are metadata, not kinds.
+- `OperationScopedMovement` — the per-operation `Sensitive` opt-in gate (§11.2) over the ordinary movement mechanisms: package export, surface format export, external filesystem write, clipboard copy, and share (File 21 §§10, 12.3). The mechanism distinctions are capability and preview metadata; the gate is one.
+- `Publish` — the per-operation gate PLUS the irreversibility floor: irreversible external publication carries `permission_floor: Denied` with the typed-confirmation override (§11.3); an explicit irreversibility fact determines whether the floor activates.
+- `ProviderCall` — the data-boundary-filter gate (§11.6): pre-selection sensitivity analysis as a hard filter (File 16 §5.3), pre-dispatch revalidation (File 13 §6), and adapter-boundary rejection (File 17 §7.3) — never the §11.2 per-operation opt-in model.
+- `ExternalCapabilityCall` — File 06 capability policy plus destination inspection for an Atlas-initiated external invocation: outbound MCP-client calls, connectors, external APIs, remote tools, and data sent to external local processes over stdio/IPC/native messaging. A capability-declared higher floor remains effective.
+- `ExternalClientResponse` — sensitivity and secret enforcement plus destination inspection at the outbound RESULT boundary: data returned by Atlas in its MCP-server or another external-protocol server role. It never merges into `ExternalCapabilityCall` — the crossing is a response to an inbound invoker, not an Atlas-initiated call.
+- `WebOrBrowserRequest` — destination inspection specialized to browser-navigation and web-request targets, re-validated on every redirect hop (§11.4, §12.5); File 23 performs the network enforcement.
+- `TelemetryExport` — the active, durable, revocable telemetry-consent gate, keyed per category, destination, permitted data classes, and installation (File 41 §7) — including an opt-in crash-report destination, which is a telemetry sink under that consent. Log, trace, metric, usage, and crash categories are fields, not kinds.
+- `DiagnosticBundleExport` — the user-initiated one-shot diagnostic-bundle gate (File 41 §§7.4, 13): redaction first, `Public`-only by default, `Sensitive` only on typed confirmation, then explicit user sharing. It acquires no authority from durable sink consent.
+- `SubstrateBackupExport` — the explicit-selection backup gate (File 21 §13.3); raw `Secret` material categorically excluded. A device-local internal snapshot is not egress; this kind applies when the recoverable copy crosses the installation boundary.
+- `CredentialExport` — the raw-secret release gate: `permission_floor: Denied`, per-operation typed confirmation, default-deny destination inspection (§6.4, §11.3-§11.4). Never merged with `VaultBackup`: this path releases explicitly selected raw credential material.
+- `VaultBackup` — the separate explicit secret-egress capability (§6.5, §11.5): `permission_floor: Denied`, typed confirmation, producing the encrypted, integrity-protected vault backup artifact. "Separate path" separates it from ordinary egress, never from egress governance.
+
+`Public` removes only the sensitivity-specific gate on a kind. `Sensitive` uses the scope attached to the selected kind. Raw `Secret` material is denied on every ordinary kind; only `CredentialExport` and `VaultBackup` are the declared raw-secret paths (§11.2). The per-automation-template opt-in (§11.2) is an additional scope over whichever kind a non-interactive operation uses, not a thirteenth kind. Classification names the actual gate-bearing outbound crossing — never the producing subsystem, UI affordance, payload purpose, or protocol name — and one operation performing two independently gated crossings classifies and evaluates each separately. There is no `Custom` kind and none may be added by registration: an extension-defined kind would be an undeclared egress path outside the closed governance table (`core.invariants`, File 01), so an extension maps its outbound operation to one of the twelve, and an unmappable path fails closed pending canonical maintenance.
+
+### 11.8 Boundary
+
+This section owns the egress policy semantics, the closed `EgressChannelKind` set, the destination inspector, and the vault-backup path. File 21 owns the movement and the package format; File 10 owns the sensitivity taxonomy; File 06 owns the gate and the floor; File 23 owns the network enforcement. The egress decision is this file's policy applied through File 06's mechanism over File 21's movement.
 
 ## 12. Untrusted Content and Injection Defense
 
