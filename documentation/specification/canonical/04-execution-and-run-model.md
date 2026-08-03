@@ -1094,7 +1094,7 @@ Budget dimensions:
 - provider budget
 - artifact or resource budget
 
-Elapsed-time guards may be used only as external-process safety guards when no reliable completion signal exists. They are not correctness conditions and must be configurable.
+Elapsed-time guards may be used only as external-process safety guards: decisive where no reliable completion signal exists, and otherwise a finite last-resort backstop that catches a signal-bearing process hanging past every completion signal it should have raised (`sandbox.resource-limits`, File 23 §9.3 states the two-role scope). They are never correctness conditions and must be finite, configurable, and killable.
 
 Programmatic execution and graph or workflow execution may compose per-stage budgets within a single run. A research pipeline declares a thinking budget, an acting budget, and a final-response budget; a multi-stage research pipeline declares per-stage budgets. When configured, the runtime enforces both the per-stage and the run-level budgets; the per-stage warning fires before the per-stage limit, and the run-level warning fires before the run-level limit (the soft-warning escalation rule from §20.3 applies to both). Budgets are not enforced by default — provider rate limits and model-internal stop conditions are sufficient for ordinary work — and the runtime must not silently impose hidden budget limits. Users opt into per-run and per-stage enforcement when they want it, at the granularity they want it (per turn, per task, per surface, per subsystem, per workspace, globally).
 

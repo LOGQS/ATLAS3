@@ -338,7 +338,7 @@ Anchor: `capability.permission-floor`
 
 A capability may declare a `permission_floor` — a minimum tier that global settings (including `agent.unrestricted_mode`) cannot lower. Used for capabilities whose risk is high enough that no global toggle should make them frictionless: account deletion, destructive publish, force-push to a protected branch, system shutdown, credential export, irreversible publishing operations.
 
-`permission_floor` and `permission_tier` are distinct declarations. The floor names the minimum; the tier names the default. The runtime tier for a call is the higher of (a) the resolved `permission_tier`, (b) the `permission_floor`, (c) any narrower tier imposed by an active scope-level policy override.
+`permission_floor` and `permission_tier` are distinct declarations. The floor names the minimum; the tier names the default. The runtime tier for a call is resolved by the File 06 §4.2 pipeline (`policy.effective-tier-resolution`), no step of which may resolve below the floor; File 05 declares these inputs and does not restate the combination rule (§5.5).
 
 ### 5.5 Boundary
 

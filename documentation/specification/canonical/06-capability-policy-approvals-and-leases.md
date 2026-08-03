@@ -230,7 +230,7 @@ The resolution proceeds in fixed order:
    - `Unverified` — the `Community` escalation applies with the same class gating, and additionally the first invocation of each such capability in a given conversation requires per-call ask-user (no `AlwaysAllow` lease honored without an explicit user upgrade of the source's trust)
    - `Sideloaded` — as `Unverified`, except that the first invocation in a conversation of a capability whose declared tier is `UserApproval` or above presents through the typed-confirmation flow (§7) rather than ordinary ask-user, at the user's option through settings (§9.7)
    Trust narrowing never crosses the floor in either direction. A `Community` capability whose floor is `Denied` remains `Denied`; a `Community` capability whose declared tier is already `UserApproval` is unchanged.
-4. **Scope-level setting overrides**. Per-capability and per-source tier ceilings resolved through File 15's canonical settings source stack (`settings.scopes-profile-contexts-overlays`, File 15 §5.2) apply. A user-set tier ceiling can never lower below the floor (the floor wins) but can raise above the declared tier (the user can require approval for a normally `WorkspaceWrite` capability within a specific conversation or workspace).
+4. **Scope-level setting overrides**. Per-capability and per-source tier overrides resolved through File 15's canonical settings source stack (`settings.scopes-profile-contexts-overlays`, File 15 §5.2) apply. An override moves the effective tier in either direction along the §4.1 order: it may raise restrictiveness above the declared tier (the user can require approval for a normally `WorkspaceWrite` capability within a specific conversation or workspace), and it may lower restrictiveness no further than the more restrictive of the `permission_floor` and an active step-3 trust-driven minimum — an override below that bound produces `PolicyFloorViolated` and the bound's tier is used instead (step 2). Weakening a trust-driven minimum is never a tier override's job: the sanctioned route is the per-source user trust override (§9.4), which changes the trust-narrowing input itself. This step is the single statement of the override rule; `capability.permission-floor` (File 05 §5.4) and §9.4 cite it rather than restating it.
 5. **Lease lookup**. The active lease set is consulted. A lease applies when:
    - its `capability_match` covers the proposed capability id (exact match, family glob, or pattern)
    - its `scope` includes the active execution context (the call's run, intent thread, task, conversation, workspace, or globally; `single_proposal`-scope leases never persist past one call; `reusable-policy-rule`-scope leases apply globally)
@@ -505,7 +505,7 @@ The proposal is rendered as a typed `SourceRegistrationProposal` event for the U
 The user resolves the flow by choosing one of:
 
 - **Accept declared defaults** — every declared capability registers at its declared tier with default trust-driven narrowing (per §4.2 step 3); no per-capability lease is created; trust state is computed from source-authored trust hint, verification evidence, and any user trust override
-- **Customize per capability** — for each declared capability, the user may set a per-capability tier ceiling (capped above by the floor), grant a pre-approval (an `AlwaysAllow` reusable-policy-rule lease for the capability), or deny outright (an `AlwaysDeny` reusable-policy-rule lease); the policy layer composes these with the declared defaults
+- **Customize per capability** — for each declared capability, the user may set a per-capability tier override (bounded below by the more restrictive of the `permission_floor` and an active trust-driven minimum, per §4.2 step 4), grant a pre-approval (an `AlwaysAllow` reusable-policy-rule lease for the capability), or deny outright (an `AlwaysDeny` reusable-policy-rule lease); the policy layer composes these with the declared defaults
 - **Customize per source** — set a user trust override or default policy behavior for the source; this changes the trust-narrowing input without mutating the source-authored trust hint
 - **Deny outright** — the source's capabilities register but are not invocable; effectively each capability gets an `AlwaysDeny` reusable-policy-rule lease at registration time; the user can revisit and approve later through settings
 - **DeferSourcePolicy** — explicit choice to register the source while each capability remains gated by the configured fallback policy (`ask_each_time`, `require_explicit_approval`, or `ask_on_first_use`)
@@ -963,7 +963,7 @@ Anchor: `policy.settings-resolution-for-policy`
 
 Every policy mechanism in this file is configurable through settings (per File 15). File 15 owns settings resolution; File 06 owns how already-resolved policy settings compose into policy decisions. The dimensions are:
 
-- per-capability `permission_tier` overrides (capped above by `permission_floor`), per scope
+- per-capability `permission_tier` overrides (bounded below by `permission_floor` per §4.2 step 4), per scope
 - per-capability `approval_template_id` overrides, per scope
 - per-source trust overrides (`registry_trust_override`), global only by default; settings may permit per-workspace overrides
 - per-template enable/disable, per scope

@@ -207,7 +207,8 @@ Each assembly invocation proceeds in this order:
 7. Fit the request under the target budget by applying the active policy's priority and overflow rules.
 8. Externalize, omit, summarize, or reference oversize content according to policy.
 9. Produce logical cache-marker candidates when the target model/provider supports them.
-10. Emit `AssemblyOutput` and record the snapshot reference required for replay and audit.
+10. Revalidate the final assembled request against the selected model/provider's data boundary (`model.model-selection-algorithm`, File 16 §5.3): assembly may have added stricter sensitivity than the pre-selection analysis saw — through retrieved context, memory, tool results, files, or system state. A request that exceeds the selected boundary is never dispatched; the runtime reselects, reroutes, asks the user, or fails typed (File 16 §5.3). This step discharges the final pre-dispatch data-boundary revalidation File 16 §16 assigns to this file.
+11. Emit `AssemblyOutput` and record the snapshot reference required for replay and audit.
 
 Assembly is deterministic for the same durable inputs, settings snapshot, provider/model descriptor, and policy snapshot. Full reproducibility is a replay property, not a live guarantee: live retrieval, memory, and world-state inputs are mutable, so exact reconstruction holds only over the outputs captured in the `AssemblySnapshot` (§19), which segregates recorded snapshot inputs from live sources for replay.
 
@@ -360,8 +361,11 @@ A continuity summary should preserve:
 - decisions and rationale
 - constraints, assumptions, and open questions
 - pending tasks and commitments
+- the last user request that advanced the work line
 - important evidence and source references
 - what was omitted, summarized, or externalized
+
+For a per-work-line summary consumed by routing for continuity attachment, the `intent.creation` (File 02 §5.3) required-minimum items are binding, not recommended — that consumer must be able to reconstruct continuity attachment without replaying raw history; "should" above states the general compaction posture, not that contract.
 
 Continuity summaries are durable blocks linked to the compacted source blocks. They may be superseded incrementally as work continues. They are included by policy like any other context source and remain subject to authority, sensitivity, and budget rules.
 
