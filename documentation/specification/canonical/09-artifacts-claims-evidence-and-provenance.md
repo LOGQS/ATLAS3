@@ -330,7 +330,7 @@ Anchor: `artifact.review-state`
 
 - `NotValidated` — no validation has been run for this version
 - `PendingValidation` — one or more required validations have not yet committed a `Validation` block (a run may have been requested and be in progress, or a required validation is simply missing); the meaning is the §14.2 derivation's missing-required case
-- `Passed` — all required `Validation` blocks linked via `validated_by` carry `ValidationOutcome: Passed` and none is `Failed` (per the §14.2 derivation)
+- `Passed` — the §14.2 `Passed` rung applies: no required validation is `Failed`, `Inconclusive`, or missing, and at least one linked `Validation` block carries `ValidationOutcome: Passed`
 - `Failed` — at least one required `Validation` block carries `ValidationOutcome: Failed`
 - `NeedsReview` — at least one required `Validation` block carries `ValidationOutcome: Inconclusive` and no required validation is `Failed` (per the §14.2 derivation); a model-mediated validator that declines to validate commits that decline as an `Inconclusive` outcome carrying its `inconclusive_reason` (§14.1), never as a fourth outcome
 
@@ -934,12 +934,13 @@ The `ValidationState` of an artifact version (per §5.3), a claim, or any other 
 
 1. Collect all `Validation` blocks linked from the target by `validated_by` edges
 2. Filter to validations whose `validation_kind`, when combined with applicable settings, are considered required for the target's kind (e.g., a `Validator`-kind artifact may require both `SchemaValidation` and `TypeCheck` validations)
-3. Compute outcome aggregation:
+3. Compute outcome aggregation (rules apply in order; a non-required validation's adverse outcome never gates a rung — a non-required `Passed` may satisfy the linked-`Passed` floor, and only the last rule turns on adverse non-required outcomes):
    - any required validation with `outcome: Failed` → `ValidationState::Failed`
-   - all required validations with `outcome: Passed` → `ValidationState::Passed`
-   - any required validation with `outcome: Inconclusive` and no failures → `ValidationState::NeedsReview`
+   - every required validation kind present with `outcome: Passed`, and at least one linked validation carries `outcome: Passed` → `ValidationState::Passed`
+   - any required validation with `outcome: Inconclusive` and no required failures → `ValidationState::NeedsReview`
    - missing required validations → `ValidationState::PendingValidation`
    - no validations linked at all → `ValidationState::NotValidated`
+   - otherwise — validations are linked but none is required and none passed → `ValidationState::NeedsReview`; an all-adverse non-required record is reviewable signal, never a silent `Passed`
 
 The derivation is recomputed on every read of the target's validation state. Caching is a storage optimization; the derivation rules are the contract.
 
