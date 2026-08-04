@@ -332,7 +332,7 @@ Anchor: `artifact.review-state`
 - `PendingValidation` — one or more required validations have not yet committed a `Validation` block (a run may have been requested and be in progress, or a required validation is simply missing); the meaning is the §14.2 derivation's missing-required case
 - `Passed` — all required `Validation` blocks linked via `validated_by` carry `ValidationOutcome: Passed` and none is `Failed` (per the §14.2 derivation)
 - `Failed` — at least one required `Validation` block carries `ValidationOutcome: Failed`
-- `NeedsReview` — the most recent `Validation` block carries `ValidationOutcome: Inconclusive` or a model-mediated validator declined to validate
+- `NeedsReview` — at least one required `Validation` block carries `ValidationOutcome: Inconclusive` and no required validation is `Failed` (per the §14.2 derivation); a model-mediated validator that declines to validate commits that decline as an `Inconclusive` outcome carrying its `inconclusive_reason` (§14.1), never as a fourth outcome
 
 ### 5.4 Per-Version vs Per-Entity Derivation
 
