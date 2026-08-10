@@ -1428,7 +1428,7 @@ A version tombstone retains:
 - `conversation_id` (preserved)
 - `deleted_at` (timestamp)
 - `deleted_by` (actor identity)
-- `deletion_reason` (typed enum: `UserRequested`, `RetentionPolicy`, `MaintenanceCleanup`, `Custom { code, description }`)
+- `deletion_reason` (typed enum: `UserRequested`, `RetentionPolicy`, `CredentialExpungement`, `SourceUnavailable`, `MaintenanceCleanup`, `Custom { code, description }` — the single deletion-reason vocabulary; `artifact.version-tombstone` (File 09 §8.2) and `block.hard-delete` (File 08 §6.6) consume this same enum)
 - the version's `committed_at`, `op_summary`, `label` (preserved for inspector display)
 
 The tombstone replaces user-visible access to the full version row. It does not erase the topology required for path-walk reconstruction. Provenance queries that traverse through the tombstone receive a typed `Tombstoned` placeholder, and reconstruction uses either the preserved redacted diff or the reconstruction-preserving compacted summary.
