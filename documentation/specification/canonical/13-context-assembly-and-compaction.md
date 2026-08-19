@@ -198,7 +198,7 @@ Anchor: `context.assembly-algorithm`
 
 Each assembly invocation proceeds in this order:
 
-1. Resolve invocation kind, target model/profile, provider capabilities, active settings, and policy snapshots.
+1. Resolve invocation kind, target model/profile, provider capabilities, active settings, and policy snapshots, and the invocation's `PresentationContext` (`world.surface-state`, File 18 §5.1) — origin-root for a user-originated invocation, run-resolved for a continuing run, typed noninteractive otherwise — which step 3's world-state gathering consumes.
 2. Resolve the semantic region set, region order, budget allocation, and default authority classes.
 3. Gather candidate sources from instructions, current input, materialized conversation state, task/run state, tool surface, retrieval, memory, world state, policy state, and diagnostics.
 4. Convert candidates into assembly parts with source references, authority, sensitivity, lifecycle visibility, inclusion reason, and estimated budget cost.

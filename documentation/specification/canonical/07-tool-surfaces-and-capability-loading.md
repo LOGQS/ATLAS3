@@ -543,6 +543,17 @@ scope_context := {
   active_context_budget,
 }
 
+The scope_context's primary_surface_id and active_world_snapshot_id resolve
+by invoker: ModelAgent composition uses RunIntent.primary_surface and the
+run-resolved world snapshot; graphical Palette, Voice, Shortcut, and
+Inspector composition uses the invoking renderer root's world snapshot and
+root-resolved surface binding; AutomationTrigger, ExternalMcp, and other
+noninteractive composition uses the typed noninteractive presentation
+context with no graphical fallback (`world.surface-state`, File 18 §5.1;
+`ui.shell`, File 37 §4.4 — never the attention target). The root-qualified
+snapshot carries the presentation resolution; scope_context adds no
+separate renderer-root input.
+
 Step 1 — Resolve the active SubsystemSurfaceSpec from primary_surface_id.
   If primary_surface_id is conversation or resolves to no subsystem-owned
   surface, resolve the baseline conversation SubsystemSurfaceSpec (§5.1),

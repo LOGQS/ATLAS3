@@ -126,7 +126,7 @@ The Observatory is:
 
 - a **substrate service**, always on, serving every work surface and control rail; it is not a work surface and registers no `SurfaceContract` (`worksurface.management-surfaces`, File 25 §14)
 - a **read-and-project layer**: it queries the ledger and event stream, computes the projections, and serves them; it produces no consequential fact of its own except the device-local diagnostic log stream, which carries no authority
-- a **management surface** when presented: an inspector and dashboard rendered into the inspector dock or a secondary window by File 37, classified as a management surface, never a focus work surface
+- a **management surface** when presented: an inspector and dashboard rendered into the inspector dock or an auxiliary window by File 37, classified as a management surface, never a focus work surface
 - a **service face** for the agent: the agent invokes the Observatory's read capabilities to inspect its own traces, metrics, and logs (`observability.capability-surface`, §13), subject to the standard agent-exposure rules
 
 The Observatory is not:

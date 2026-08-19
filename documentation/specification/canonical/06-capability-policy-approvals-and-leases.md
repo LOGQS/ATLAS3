@@ -59,7 +59,7 @@ The policy layer reads:
 
 - the `CapabilityDeclaration` (`capability.declaration`, File 05 §3) for `permission_tier`, `permission_floor`, `capability_class`, `approval_template_id`, `data_sensitivity`, `touched_resources` expressions, `replay_class`, and execution-semantic metadata
 - the `RegisteredCapability` (`capability.registered-capability`, File 05 §10) for `effective_trust`, `enabled`, `availability_status`, `collision_state`, and active aliases
-- the active execution context (active conversation, active intent thread, active task, active run, active workspace, active surface, active world-model snapshot, active model route, active provider rate-limit state, invoker kind, and invoker context)
+- the active execution context (active conversation, active intent thread, active task, active run, active workspace, active surface, active world-model snapshot, active model route, active provider rate-limit state, invoker kind, and invoker context). Every presentation-derived member of this context resolves from the proposed invocation's `PresentationContext` (`world.surface-state`, File 18 §5.1): a direct graphical invocation uses its explicit origin renderer root, a run-internal or noninteractive invocation uses its run or typed noninteractive context, and policy never substitutes the attention target or a cross-root aggregate (`ui.shell`, File 37 §4.4)
 - the active settings cascade (per-capability overrides, per-source overrides, scope-level overrides, approval-posture preset)
 - the active lease set (matching by capability identity pattern, scope inclusion, and inherited-constraint containment)
 

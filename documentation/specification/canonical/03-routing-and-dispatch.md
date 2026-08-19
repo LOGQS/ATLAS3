@@ -133,7 +133,7 @@ The frame inputs are organized into four categories.
 - current active intent thread, if any
 - current active task, if any
 - compact prior routing summaries, previous route records, or selected history when the active router context policy uses them (per §6 and File 13)
-- active world model snapshot (active surface, focused element, mounted panels, selection, available capabilities/control affordances, current ui_mode)
+- active world model snapshot (active surface, focused element, mounted panels, selection, available capabilities/control affordances, current ui_mode) — resolved from the trigger's `PresentationContext` (`world.surface-state`, File 18 §5.1): an interactive trigger uses its origin renderer root; a noninteractive trigger (automation, child run, CLI, external) uses its typed noninteractive context. Routing never substitutes the attention target or a cross-root aggregate (`ui.shell`, File 37 §4.4)
 
 **Capability-and-policy context**
 
@@ -233,7 +233,7 @@ Routing can fail: the router step may error, time out, hit a provider outage, or
 
 On `RoutingFailed`, dispatch takes one of two deterministic paths, selected by settings (§13):
 
-- safe-default route: the runtime materializes a minimal valid `RunIntent` from the default model profile, a `respond_inline` or `respond_with_tools` execution entry, and the current surface as `primary_surface` (or no primary surface when none is active). `model_route` may be null when no provider could be resolved (§4.3), leaving model selection to downstream fallback.
+- safe-default route: the runtime materializes a minimal valid `RunIntent` from the default model profile, a `respond_inline` or `respond_with_tools` execution entry, and — when the routing frame's interactive presentation context names a work surface — that context's root-resolved `active_surface_binding` as `primary_surface` (else no primary surface; `world.surface-state`, File 18 §5.2). `model_route` may be null when no provider could be resolved (§4.3), leaving model selection to downstream fallback.
 - surface-to-user: the runtime does not dispatch and surfaces the failure to the user for an explicit decision.
 
 Either way, the `RoutingFailed` outcome is recorded in `routing_metadata` and the route record (§3.5), with enough detail to inspect and replay the failure. A routing failure must not silently discard the route or the request.

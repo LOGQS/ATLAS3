@@ -188,7 +188,7 @@ The authoritative state, execution, and policy must live in a memory-safe system
 ### 4.4 Single-Instance Enforcement and Handoff
 
 - A single-instance lock prevents two cores from owning the same data root for writing (`storage.lifecycle-reconstruction`, File 20 §13.3). The lock file is placed under the data root by File 20 (§8.3); the `Runtime` acquires it as the first lifecycle step after bootstrap resolution (§11).
-- The lock record carries enough owner identity to distinguish a live owner from a stale or unrelated process for the same data root: process identity, data-root identity, session or launch nonce, and the handoff endpoint identity or platform equivalent. A second launch that finds the lock held by a verified live instance hands its request — the launch arguments, the document or deep-link to open — to that instance over a local authenticated inter-process channel and exits; the running instance surfaces the request (focuses, opens the target). A lock whose owner is proven gone is stale and is reclaimed before proceeding. If ownership cannot be verified safely, startup fails with a typed diagnostic rather than racing or guessing.
+- The lock record carries enough owner identity to distinguish a live owner from a stale or unrelated process for the same data root: process identity, data-root identity, session or launch nonce, and the handoff endpoint identity or platform equivalent. A second launch that finds the lock held by a verified live instance hands its request — the launch arguments, the document or deep-link to open — to that instance over a local authenticated inter-process channel and exits; the running instance surfaces the request, resolving the renderer root it reveals in through the presentation layer's window-resolution rule (`ui.shell`, File 37 §4.4). A lock whose owner is proven gone is stale and is reclaimed before proceeding. If ownership cannot be verified safely, startup fails with a typed diagnostic rather than racing or guessing.
 - The committed realizations are a platform single-instance facility, a lock file with a recorded process identity, a bound loopback health endpoint, or a named mutex; each is named for grounding and sits behind the single-instance contract.
 
 ### 4.5 The Managed-Service Lifecycle Contract
@@ -366,6 +366,8 @@ Anchor: `runtime.transports`
 
 A `Transport` is a wire over which the one event bus and the typed request/response calls travel between processes, threads, tabs, or peers. The `TransportKind` set is the closed catalogue of those wires. The frontend bridge is the transport between the authoritative core and the UI shell.
 
+A **`FrontendClientSession`** is one attached client of the core — a graphical shell process, a terminal interface, a command-line client, or a programmatic client — owning its transport, subscription, buffer, and resume identity (§10.3). A graphical client session has one or more renderer roots (`ui.shell`, File 37 §4.5); a non-graphical session has none and resolves surface state through the typed noninteractive presentation context (`world.surface-state`, File 18 §5.1). The session, like every runtime handle, is a runtime-handle projection: rebuilt on reconnect, never durable (§21.1).
+
 ### 10.2 The Closed `TransportKind` Set
 
 The canonical `TransportKind` set is closed-canonical-plus-`Custom`:
@@ -421,7 +423,7 @@ The `Runtime` brings the application up in this order; each step names its owner
 11. **Warmers and health checks** — warm world-graph state (File 18), refresh the provider model catalogue as the implicit connectivity check (File 17 §12.4), and run capability health checks (`codex_recommendations.md` §11.2), each non-blocking and degrading gracefully on failure.
 12. **Recovery and reconciliation** — recover interrupted runs and reconcile orphans, surfacing resume-or-discard affordances and never auto-resuming (File 04 §17.3; this file §13); re-arm triggers and reconcile missed fires under the cold-start guard (File 33 §3.4, §18); clean or revalidate stale leases (File 06 §11.6). This phase runs to completion before any background worker spawns: recovery quiesces the claim and run state the workers will produce against, so no fire producer ever operates concurrently with the reconciliation of a prior session's leftovers.
 13. **Worker spawn and supervision** — spawn the canonical background workers and register them with the `WorkerSupervisor` (§6), placing the one `Scheduler` and the watch poller in the graph (File 33 §9). The prior process's orphan processes, sandboxes, and groups are reaped to quiescence before any fresh worker is spawned (§13), so no worker begins operating against un-reconciled orphan state.
-14. **Frontend bridge / front-end open** — open the frontend-bridge transport and the UI shell, or the terminal interface, or nothing in headless mode (§9.4, §10).
+14. **Frontend bridge / front-end open** — open the frontend-bridge transport and the shell windows the restore policy elects, or one default shell window on first run (`ui.shell`, File 37 §4.5), or the terminal interface, or nothing in headless mode (§9.4, §10).
 15. **Steady state** — commit `AppStarted` with the settings and registry snapshot identities (File 10 §4.1); the application is usable.
 
 ### 11.4 Rule
@@ -450,7 +452,7 @@ The application must be ready to close at any time without losing a committed fa
 
 ### 12.3 The Shutdown Sequence
 
-On a shutdown signal (a termination signal, a user interrupt, a window-close, an operating-system shutdown):
+On a shutdown signal (a termination signal, a user interrupt, an explicit quit action, an operating-system shutdown, or the typed `QuitRequested` outcome of the presentation layer's window-lifecycle resolution — closing a window is a presentation operation and never by itself a shutdown signal, `ui.shell`, File 37 §4.5):
 
 1. set the shutting-down flag and apply shutdown admission classes: admit `ShutdownCritical` work, continue or reconstruct `AlreadyAcceptedDurable` work, park or defer `Deferrable` work, and reject `RejectNew` work with a typed result;
 2. emit `AppShuttingDown` with the configured grace policy (File 10 §4.1), so the UI disables new actions and shows a saving indicator;
