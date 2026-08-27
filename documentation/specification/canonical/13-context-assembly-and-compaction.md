@@ -337,6 +337,8 @@ Compaction may use model steps, deterministic selectors, retrieval, block descri
 
 Compaction operations must be revision-safe. A compaction pass declares the view revision it read and fails or rebases safely if the view changed before commit.
 
+Compaction is progress-gated as a retry authority. An automatic retry of a model request that failed for context overflow is permitted only when the responding compaction pass committed a new revision and reassembly demonstrates strictly improved fit or reduced pressure for that request — a nonempty diff alone is not progress, because context can change without improving the overflow condition. Otherwise the context layer returns a typed no-progress result and execution does not automatically retry (`run.execution-retry-policy`, File 04 §20.2.1, consumes this gate).
+
 ## 13. Virtual Paging
 
 Anchor: `context.virtual-paging`

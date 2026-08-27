@@ -420,6 +420,7 @@ The following rules govern commit-boundary firing:
 - a boundary that would produce no diff (no operations were performed since the prior commit) does not fire; the system does not commit empty versions. An exception is `Recovery` and `Correction` boundaries which always commit even when the net diff is small
 - a boundary that would violate the block commit validator (per `block.block-commit-validator`, File 08 §8.2) for any committed block does not fire; the validator's typed error returns through `run.denial-is-in-band` (File 04 §8.3)'s in-band denial path
 - a boundary fires synchronously with the producing operation's commit point; the runtime cannot defer the commit to a later moment, because that would break replay determinism
+- a boundary commits only a fully validated candidate: before persistence, the runtime computes and validates the complete candidate `VersionDiff` and the resulting materialized view, and only that validated candidate may be persisted and adopted — `expected_view_hash` (§7.6) verifies the committed result and detects later corruption; it is not a substitute for pre-commit validation
 
 ### 5.5 Boundary
 
