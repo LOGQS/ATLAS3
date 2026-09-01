@@ -428,6 +428,11 @@ Every behavior change must carry executable evidence appropriate to the anchors 
   tests where presentation behavior matters. Heavy graph-like or canvas-like panels also require
   per-OS renderer-performance evidence against their declared interaction-latency budget; the
   weakest supported webview engine is binding evidence, not an afterthought.
+- Materially new or substantially changed user workflows require proportionate usability evidence:
+  representative-user task testing where feasible, otherwise a recorded independent cognitive
+  walkthrough. Record the task, the observed discovery or comprehension failures, the resulting
+  changes, and any explicit waiver. Accessibility checks and UI automation do not substitute for
+  evidence that users can discover, understand, and complete the workflow.
 - Runtime, worker, queue, timer, process, and sandbox changes require evidence for
   cancellation/killability, restart/recovery, idempotency or completion-marker behavior, and typed
   failure.
@@ -977,7 +982,9 @@ Initial profile:
   relevant layers exist.
 - Performance budgets should be tracked early for startup, input latency, streaming render overhead,
   large-list rendering, heavy graph/canvas interaction, search, version switching, package size, and
-  benchmarked substrate hot paths.
+  benchmarked substrate hot paths. Material regressions or unexplained budget breaches require
+  profiling evidence appropriate to the affected layer; profiler selection remains implementation-
+  and platform-specific.
 - Exact timing, size, and coverage numbers belong in tested profiles, benchmark docs, or development
   specs. They may change when real measurements show a better target.
 - Hooks should stay fast enough that developers and agents do not bypass them; heavier checks belong

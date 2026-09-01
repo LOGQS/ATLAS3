@@ -33,7 +33,9 @@ through one container and one renderer registry instead of inventing private UI.
   (loading/empty/error/degraded/first-run) (§17); multi-window — independent renderer roots over one
   service layer (§4.5); `ui.*` capabilities + events (§20–§21).
 - Deferred: the design-token *system*, themes, widgets, saved layouts → **P19** (File 38; this phase
-  consumes the token *discipline* against a built-in default token set); the interactive-artifact
+  consumes the token *discipline* against a built-in default token set); the durable copy-override
+  records and the `customize.copy.*` write path → **P19** (File 38 §3.4; this phase builds the
+  resolution seam and consults an empty or injected override source); the interactive-artifact
   runtime (§9.3) → **P19** (with widget-runtime confinement); observation viewers for
   desktop/browser captures → with their surfaces (P15/P17).
 
@@ -95,6 +97,21 @@ prerequisites).
   trust/provenance); a shadow over an overridable canonical content kind requires explicit consent and
   is never silent; `Custom` kinds are free (§3.3); token-discipline lint (§16.5); i18n
   key-coverage + hardcoded-literal lint, missing keys visible in dev (§15).
+- **Product-language evidence** (§15): the preferred-term index and the message-pattern guide are
+  generated and versioned with the string-key catalogue; declared preferred/prohibited terms and the
+  required structured-message fields are linted. Tone and contextual clarity require review evidence,
+  not heuristic prose scoring.
+- **Bidirectional-layout conformance** (§15): representative shell, dialog, transcript, inspector,
+  settings, and contributed-control fixtures render correctly under both LTR and RTL locales,
+  preserving logical reading and focus order, locale-aware formatting, and the directionality of
+  content that must not be mirrored — directionally correct, never blind mirroring.
+- **Product-education E2E** (§17.1): dismiss/skip, resume/revisit, search, persistence across
+  restart, and navigation into the owning capability or settings surface; no private durable store.
+- **Localization and copy-resolution evidence** (§15): exact-locale, per-key resolution against an
+  injected or empty copy-override source; unchanged fall-through to the shipped catalogue; a typed,
+  visible terminal miss; and the immutable semantic companion on protected targets. The shipped
+  catalogue is a generated artifact with a mechanical drift check, and completeness plus the
+  product-language lint run with the override layer disabled.
 - Streaming: partial→committed without remount/flicker; **a streamed partial is never persisted as
   truth**; reconnection rebuilds views from substrate + ledger and marks unreconstructable gaps
   (§10.2); auto-follow distinguishes user-initiated scroll (§10.3).
@@ -129,7 +146,8 @@ prerequisites).
 
 - [ ] Full conversational UX over the real backend: transcript, streaming, tool-call cards, approval
       dialogs, steering, history navigation — Playwright E2E green on 3 OSes.
-- [ ] a11y suite green; i18n at 100% key coverage; token lint green.
+- [ ] a11y suite green; i18n conformance green — 100% key coverage, fallback/missing-key
+      diagnostics, locale-aware formatting, and representative RTL rendering; token lint green.
 - [ ] Headless CLI parity proven again; M0–M2 still green.
 
 ## 9. Locked in this phase

@@ -100,7 +100,7 @@ A definition is not:
 
 Every `SettingDefinition` must carry:
 
-- `key` - dotted, namespaced, lowercase identifier. The registered spelling is preserved for display; lookup is case-insensitive.
+- `key` - dotted, namespaced, lowercase identifier: two or more non-empty dot-separated segments, each of lowercase ASCII letters, digits, `_`, and `-` (`^[a-z0-9_-]+(?:\.[a-z0-9_-]+)+$`). The registered spelling is preserved for display; lookup is case-insensitive. No normalization occurs at the durable boundary — a nonconforming key is rejected, never rewritten.
 - `owner_subsystem_id` - registered owner of the setting.
 - `source` - `Core`, `Plugin { plugin_id }`, `UserExtension { extension_id }`, or `ImportedBundle { bundle_id }`.
 - `definition_version` - version of this definition contract.
@@ -138,6 +138,7 @@ Setting keys are globally unique among active definitions. Registration fails wh
 - the same owner registers an incompatible definition version for the same key
 - the key is outside the owner's namespace without an explicit extension grant
 - the default policy, constraints, value semantics, or locality are invalid
+- the key does not conform to the §3.2 key grammar
 - a plugin or imported bundle attempts to replace a core definition
 
 Unloading a plugin or extension does not delete user values by default. Values whose owning definition is unavailable become orphaned. Orphaned values are hidden from normal setting panels, inspectable in advanced management surfaces, exportable, removable by the user, and reclaimable if the owner returns with a compatible definition.
@@ -180,6 +181,8 @@ Primitive type is storage shape; semantics describe meaning. The semantic set is
 - `SecretRef`
 
 `SecretRef` means the stored setting value is a reference to a secret, not the secret. The settings service never returns resolved secret material to the agent, logs, events, sync, export, TOML, or ordinary UI value display.
+
+`LanguageTag` carries the active locale, and one core setting declares it: `ui.language`, with `value_type` `String`, `value_semantics` `LanguageTag`, `default_policy` `PlatformDerived { source: locale }`, `allowed_scopes` `[Global]`, and `locality` `Syncable`; its remaining section 3.2 metadata is declared like any other core definition. It resolves through the ordinary source stack, so an explicit value or an active profile layer overrides the platform-derived default. The presentation layer reads the resolved locale from this setting rather than from a renderer-private store (`ui.i18n`, File 37 §15).
 
 ### 4.3 `DefaultPolicy`
 
@@ -594,6 +597,7 @@ Anchor: `settings.consequences-for-later-specs`
 Later specs must follow these rules:
 
 - subsystem settings sections declare `SettingDefinition`s; they do not define parallel stores or cascades
+- a subsystem may define a keyed customization-record family whose members are records rather than `SettingDefinition`s; such a family uses this file's validation, source attribution, locality, causal reset, conflict, profile-layer, and inspection machinery, and introduces no second cascade, no parallel store, and no per-record definition registration
 - capability specs consume `setting` as a resource class for settings capabilities and policy checks
 - policy specs consume settings as inputs but do not own settings resolution
 - tool-surface, routing, context, memory, retrieval, automation, and provider specs consume effective settings snapshots and profile-layer resolution

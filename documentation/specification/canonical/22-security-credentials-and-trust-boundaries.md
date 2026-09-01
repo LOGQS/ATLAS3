@@ -283,6 +283,7 @@ Secret detection is the mechanism that recognizes secret-shaped material in text
 - Redaction replaces detected secret material with a fixed marker before the content reaches any log, event, ledger entry, persisted observation, export, or model context. A redacting log formatter applies the detector to every message so a secret that reaches a log statement is masked rather than written.
 - Masking preserves only what is safe to show: a detected credential may be rendered as a kind label or a short non-reversible fingerprint for display, never as its value (`open-cowork`-class fingerprint, realized as a non-reversible derivation).
 - Error and tool-result scrubbing is part of the contract: provider error bodies, connector responses, and tool results are scrubbed of detected secret material before they re-enter model context or persist, so an upstream error never leaks a credential and injected error text cannot smuggle one in (`provider.sensitivity-redaction-secret-boundary`, File 17 §23.4).
+- What masking shows is not customizable copy: the masked-value indication, the kind label or non-reversible fingerprint standing in for a credential, and the rendered trust-state and provenance indications whose classes §9 owns carry semantics the presentation layer localizes but never relabels away — a user copy override (`ui.i18n`, File 37 §15) may change a field's friendly label and never its secret, redaction, or trust indication.
 
 ### 7.4 Boundary
 

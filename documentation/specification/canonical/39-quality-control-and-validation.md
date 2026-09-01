@@ -519,6 +519,7 @@ The system ships a baseline set of validator declarations, predominantly `Determ
 - **Grounding alignment** (`CitationCheck`, `PostOutput`, structural): a citation or extraction whose text aligns to an exact source span passes; one that cannot be aligned is flagged as likely ungrounded. Deterministic where alignment suffices; the residue is handed to an optional model-mediated grounding judge.
 - **Content safety** (`SafetyCheck`, `PostOutput`/`InputProposed`, structural-then-semantic): a fast pattern pass for known-unsafe content and personal-data patterns, with redaction corrections at `High`/`Medium` confidence, escalating to a model-mediated safety judge only where configured. Invokes File 22's redaction primitive.
 - **Output budget** (`Postcondition` or `Custom { namespace: "context", name: "budget_fit" }`, `PreCommit`, structural): a produced output that would exceed the remaining context or output budget is flagged for truncation or compaction (driving the recovery cascade of `run.recovery`, File 04 §20.2). Budget fit is a resource/contract check, not schema conformance.
+- **Copy-override structure** (`SchemaValidation`, `InputProposed`, structural): a proposed copy-override write carries a target that resolves or is preserved as a typed orphan, an exact valid locale tag, an allowed scope, and a message template whose required placeholders, placeholder types, plural and select branches, and formatting contracts remain intact; unsafe control characters, bidirectional spoofing, injection-bearing markup, and raw secret material are rejected, and accessibility-required text stays non-empty (`customize.customization-substrate`, File 38 §3.4; `ui.i18n`, File 37 §15). User-authored copy is validated structurally only; it carries no terminology or style enforcement.
 
 The baseline set does not include a general-purpose correctness or hallucination judge (§6.3). All baseline semantic checks are narrow and mostly off by default at higher cost (factuality and model-mediated safety default off; structural checks default on), with per-profile defaults (§18).
 
@@ -538,7 +539,7 @@ A surface validator is a specialization of the `Validator` primitive, not a priv
 
 ### 15.4 Boundary
 
-The baseline set is canonical here; the surface specializations are owned by their surface specs, which declare their validators' kinds, boundaries, severities, and required-validation defaults. File 39 declares the baseline and the registration-and-gate contract the surfaces consume.
+The baseline set is canonical here; the surface specializations are owned by their surface specs, which declare their validators' kinds, boundaries, severities, and required-validation defaults. File 39 declares the baseline and the registration-and-gate contract the surfaces consume. Shipped-copy completeness is deliberately not one of them: the completeness and product-language checks over the generated shipped localization catalogue have no run target, and are evaluated with the copy-override layer disabled as an offline suite (`eval.eval-families`, File 40 §8.2) and as a release-admission check (`packaging.build-targets`, File 43 §4.3); no inline validator, user override, or imported catalogue satisfies or masks a shipped-catalogue failure (`ui.i18n`, File 37 §15).
 
 ## 16. The `validation.*` Capability Surface and the Quality-Control Surface
 

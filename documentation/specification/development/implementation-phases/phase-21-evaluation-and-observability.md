@@ -107,6 +107,11 @@ health/remediation. (a)→(b); (c)/(d) independent; (e) joins (c) at the health 
   (§5.4); baseline staleness rules (§10.1); cost-preview + user gate on expensive evals (§14.1);
   judge dataset split-by-task (§12.3); coverage honesty — the case set never silently truncated,
   skips counted separately (§6.4/§13.2).
+- **UX-family localization baseline** (40 §8.2): the UX suites pin a configuration with the
+  copy-override layer disabled and evaluate shipped-catalogue completeness and product-language
+  conformance against it; a user override or an imported catalogue never satisfies a clean-baseline
+  case; separate cases cover exact-locale override resolution, per-key fall-through, causal reset,
+  typed conflicts, and the protected semantic companion.
 - 41: **observe-only / never-authority** (the headline) — observability never
   blocks/gates/throttles/kills/remediates the observed operation; an observe-only hook's
   non-Continue decision downgrades to Continue + warning; **41 owns no watchdog and infers no stale

@@ -102,6 +102,11 @@ work branches behind one packaging contract.
   item stays removed across updates; profile re-seed never overrides explicit user values (§10.2);
   golden encoding tests pin artifact/manifest/provenance/item-manifest/staged-update hash encodings
   (§16.2, extending the P0/P1 goldens).
+- **Shipped-localization release admission** (43 §4.3): a candidate whose embedded shipped catalogue
+  fails generated-artifact drift, completeness, or the product-language check is not release-eligible
+  — a seeded missing key and a seeded terminology violation each fail the gate; the checks run with
+  the copy-override layer disabled, and neither a user override nor an imported catalogue is a
+  release input.
 - Sidecars: a partial/unverifiable download is discarded, never run or loaded; an
   incompatible/downgraded payload marked unavailable, never used opportunistically; a missing
   optional payload degrades typed, never crashes (§9.3–9.5).

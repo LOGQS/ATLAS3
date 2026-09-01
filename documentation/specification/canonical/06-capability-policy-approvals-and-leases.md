@@ -837,6 +837,8 @@ The `decision` is `NarrowedAllow` when the user narrows the option's `default_co
 
 The set of available options is computed by the policy layer based on the capability's tier, floor, applicable templates, active leases, and the user's settings. Options that would violate floor or pierce a deny lease are excluded from the available set; the UI never offers an unavailable option.
 
+Presentation varies only the localized `scope_label` and `scope_description`: neither localization nor a user copy override (`ui.i18n`, File 37 §15) alters a `LeaseOption`'s `kind`, its membership in the available set, its `typed_confirmation_required` flag, its `default_constraints`, or its `user_customizable_constraints`; the enclosing `ApprovalRequest`'s `confirmation_string_pattern`; the response mapping into `Lease.decision` and `Lease.scope`; the resolved tier and floor; or the touched resources the option scopes.
+
 ### 13.4 `ApprovalResponse`
 
 The user's response carries:

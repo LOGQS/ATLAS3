@@ -26,7 +26,11 @@ the completion contract.
   `validation result` completion requirements; the agent may add but never weaken its own (§14);
   **the baseline deterministic validators** — tool-call shape, output format, postcondition,
   grounding alignment, content safety, output budget; structural checks default-on, semantic
-  default-off; **no built-in general-purpose correctness/hallucination judge** (§15); `validation.*`
+  default-off; **no built-in general-purpose correctness/hallucination judge** (§15); the
+  copy-override structural validator (§15.1) → **P19** (its target — the §3.4 record family and the
+  `customize.copy.*` write path — is built there); shipped-copy completeness is not an inline
+  validator at all (§15.4) and stays the P12 generated-artifact lint, the P21 clean-baseline suites,
+  and the P22 release gate; `validation.*`
   capabilities (§16); accuracy-feedback metric sources (§17). Model-mediated judges ship as
   machinery + frozen discipline constraints; semantic judges are authored per failure mode by later
   phases.
@@ -98,6 +102,9 @@ comparators + `EvalScore`. (a) → (b); (c)/(d) parallel to (b).
 - `ValidationReport` determinism over snapshots (39 §12.3); replay-equivalence — deterministic
   validators re-derive, model-mediated reproduce recorded verdicts from the replay key, never
   re-invoking the model (39 §19.4, §10.5).
+- **The baseline set admits no build-artifact validator** (39 §15.4): shipped-catalogue completeness
+  is never registered as a run-boundary validator, and no registered validator declares a boundary
+  outside the closed §4.2 set — grep + the baseline-registration test.
 - **Eval-forgery guard** (40 §7.6): a case cannot record `Passed` without the ledgered evidence its
   scorers require — rejected at the ledger boundary (the offline analog of completion forgery).
 - Eval determinism: same fixtures + pinned config → same verdicts + aggregates (40 §7.5);

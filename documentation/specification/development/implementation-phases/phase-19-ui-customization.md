@@ -14,8 +14,13 @@ settings/customization record — no private store.**
 
 - **File 38 — complete**: the customization-as-settings-record substrate — every customization
   references the substrate by canonical identity, carrying source/provenance/revision/dependency;
-  revision-safe writes; the `CustomizationDependency` closure (§3); the `DesignTokenSystem` — three
-  layers (component tokens optional), the closed semantic-token family set, **the
+  revision-safe writes; the `CustomizationDependency` closure (§3); the localized copy-override
+  record family — structural source-qualified target identity, exact BCP-47 locale,
+  structurally-present scope (`Global` only initially), validated template, the message-contract
+  fingerprint, and `safety_class`; reset as a causally descendant unset revision, never a
+  deletion; incompatible, renamed, or orphaned records preserved inert with a typed diagnostic
+  (§3.4); the `DesignTokenSystem` — three layers (component tokens optional), the closed
+  semantic-token family set, **the
   perceptually-uniform color contract** (§4); `Theme` + `ThemeRegistry` + **the
   `ThemeValidationMatrix`** (required tokens + contrast floors incl. focus/selection/disabled/
   trust-state; no arbitrary CSS/global stylesheets/scripts/remote imports), `ColorScheme`
@@ -48,8 +53,8 @@ for widget data + the structural projection. P14 — Status/Action widgets over 
 ## 4. Lanes
 
 (a) Token system + themes + first-paint cache; (b) saved layouts; (c) widgets + placement +
-runtimes; (d) AI customization + per-profile defaults. (a) first ((b)–(d) consume tokens);
-(b) ∥ (c); (d) last. May overlap P20/P21.
+runtimes; (d) AI customization + per-profile defaults; (e) localized copy overrides. (a) first
+((b)–(d) consume tokens); (b) ∥ (c); (d) last; (e) independent of (a)-(d). May overlap P20/P21.
 
 ## 5. Build plan
 
@@ -71,6 +76,10 @@ runtimes; (d) AI customization + per-profile defaults. (a) first ((b)–(d) cons
    sibling, not a parallel undo store), one-op revert.
 7. **Per-profile defaults + onboarding**: profile-layer defaults (theme/density/layout/widgets)
    applied at onboarding; ship-with themes from P18's seeded bundles.
+8. **Localized copy overrides**: the §3.4 record family and the `customize.copy.*` capability path;
+   structural validation of target, locale, scope, message contract, `safety_class`, provenance, and
+   causal revision; incompatible or unavailable records preserved inert; lookup composed through
+   P12's §15 resolution seam, never a second resolution path.
 
 ## 6. Test obligations & acceptance evidence
 
@@ -96,6 +105,15 @@ runtimes; (d) AI customization + per-profile defaults. (a) first ((b)–(d) cons
 - Event-first widgets — periodic refresh only as the flagged fallback (§10); layout portability —
   logical geometry, pixels are renderer hints (§7.2); no autonomy/persona field at the customization
   layer — the standing structural guard extends (§17.4).
+- **Profile-onboarding composition E2E** (37 §17.1): applying or skipping profile-layer
+  defaults composes with P12's product education without resetting dismissed or completed guidance
+  and without overriding explicit user choices.
+- **Copy-override E2E** (37 §15; §3.4): set, preview, inspect effective copy, and reset under
+  exact-locale matching; per-key fall-through reaches the shipped catalogue; reset writes a causally
+  descendant unset revision; typed conflicts have no last-write-wins resolution; a protected target
+  retains its immutable semantic companion and the effective override revision; and the structural
+  write validator (39 §15.1) rejects a broken message contract, unsafe control characters,
+  bidirectional spoofing, injection-bearing markup, and raw secret material.
 - **Closed-set pinning**: semantic-token families, `ColorScheme` (Light/Dark/Auto — styles are
   themes, never new enum values), `WidgetKind` archetypes, the slot vocabulary.
 - Conformance matrix gains: 38 anchors; the first-paint-cache row marked partial (mechanism closes
@@ -104,8 +122,9 @@ runtimes; (d) AI customization + per-profile defaults. (a) first ((b)–(d) cons
 ## 7. Artifacts, docs & CI surface
 
 - **Generated artifacts**: shared types for `ThemeTokenSet`/`SavedLayout`/`WidgetDeclaration`/
-  `WidgetInstance`/`CustomizationDependency`; the default/light/dark/high-contrast theme definitions
-  as versioned registrations; migrations for the customization-record families.
+  `WidgetInstance`/`CustomizationDependency`/`LocalizedCopyOverride`; the default/light/dark/
+  high-contrast theme definitions as versioned registrations; migrations for the customization-record
+  families.
 - **Docs**: the token-system reference (families + the color contract); the theme authoring +
   validation doc; the layout/widget/placement docs; the AI-customization flow doc; the per-profile
   defaults doc.
@@ -119,6 +138,9 @@ runtimes; (d) AI customization + per-profile defaults. (a) first ((b)–(d) cons
 - [ ] A deliberately contrast-violating theme is rejected at registration; a plugin widget
       requesting wider egress parks for source review.
 - [ ] First-paint smoke: themed first frame with no flash; a corrupted cache falls back cleanly.
+- [ ] A copy override set, previewed, and reset round-trips under exact-locale matching with per-key
+      fall-through intact; a protected target keeps its semantic companion; a stale-base write fails
+      typed with a repair path.
 - [ ] M0–M3 still green.
 
 ## 9. Locked in this phase
@@ -132,3 +154,5 @@ runtimes; (d) AI customization + per-profile defaults. (a) first ((b)–(d) cons
   tokens invalidates existing themes — a spec-revision event).
 - The `customize`/`widget.runtime` event namespaces as fixed names (dynamic per-plugin namespaces are
   invalid); the slot vocabulary (identity owned by 25 §16.1).
+- **The copy-override record's structural target-identity form and its BCP-47 locale-tag validation**
+  (both freeze at first durable write).
