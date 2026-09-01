@@ -92,7 +92,7 @@ Anchor: `automation.trigger`
 
 ### 2.1 Definition
 
-A `Trigger` is a typed firing-condition object. Each `Trigger` declares its `TriggerKind`, the kind-specific condition fields, an `enabled` flag, and the optional `WatchPolicy` (§4) for condition triggers; a `Schedule` trigger ADDITIONALLY declares its `missed_fire_policy` (§3.4) — a missed fire is a deterministically computable due instant, which only `Schedule` has, so the field is Schedule-only and the other kinds' downtime story is the §5.1 delivery-completeness rule and the §4.4 initial-observation rule over the typed `TriggerObservationGap` vocabulary (§20.1). An `Automation` carries one or more `Trigger`s; firing any enabled trigger initiates the automation's run, subject to the eligibility gate chain (§8).
+A `Trigger` is a typed firing-condition object. Each `Trigger` declares its `TriggerKind`, the kind-specific condition fields, an `enabled` flag, and the optional `WatchPolicy` (§4) for condition triggers; a `Schedule` trigger ADDITIONALLY declares its `missed_fire_policy` (§3.4) — a missed fire is a deterministically computable due instant, which only `Schedule` has, so the field is Schedule-only and the other kinds' downtime story is the §5.1 delivery-completeness rule and the §4.3 initial-observation rule over the typed `TriggerObservationGap` vocabulary (§20.1). An `Automation` carries one or more `Trigger`s; firing any enabled trigger initiates the automation's run, subject to the eligibility gate chain (§8).
 
 ### 2.2 The Closed `TriggerKind` Catalogue
 
@@ -154,7 +154,7 @@ A `Schedule` trigger fires at a computed instant. It carries a `RecurrenceRule`:
 
 ### 3.4 Missed-Fire Handling
 
-The machine may be off or the application closed when a `Schedule` trigger was due. There is no guaranteed delivery while powered down. Each `Schedule` trigger declares a `missed_fire_policy` — and `Schedule` ALONE: a missed occurrence is a recurrence occurrence whose due instant is deterministically computable, so only Schedule reconciliation ever produces `ScheduleMissed`, a skipped-missed-fire record, or an `original_due_instant`. `Event`, `WorldCondition`, `Webhook`, `Manual`, and `Custom` declare no schedule-style missed-fire policy: no occurrence is ever synthesized from unobserved downtime — their gaps are typed `TriggerObservationGap`s (§20.1) resolved by §5.1's delivery completeness or §4.4's initial-observation rule, and a `Custom` kind inherits its registered substrate's semantics and cannot introduce schedule-style missed occurrences. The policies:
+The machine may be off or the application closed when a `Schedule` trigger was due. There is no guaranteed delivery while powered down. Each `Schedule` trigger declares a `missed_fire_policy` — and `Schedule` ALONE: a missed occurrence is a recurrence occurrence whose due instant is deterministically computable, so only Schedule reconciliation ever produces `ScheduleMissed`, a skipped-missed-fire record, or an `original_due_instant`. `Event`, `WorldCondition`, `Webhook`, `Manual`, and `Custom` declare no schedule-style missed-fire policy: no occurrence is ever synthesized from unobserved downtime — their gaps are typed `TriggerObservationGap`s (§20.1) resolved by §5.1's delivery completeness or §4.3's initial-observation rule, and a `Custom` kind inherits its registered substrate's semantics and cannot introduce schedule-style missed occurrences. The policies:
 
 - `RunOnce` — on the next startup, fire once for the missed window, coalescing multiple missed recurring occurrences into a single catch-up fire. The default for `Once` triggers and the default for recurring triggers.
 - `Skip` — do not fire for the missed window; compute and arm the next future instant. An override for a recurring trigger whose repeated catch-up firing would be redundant or harmful, where `RunOnce`'s single coalesced catch-up is unwanted.
@@ -735,7 +735,7 @@ Automation behavior is configurable through `settings.setting-definition` (File 
 - the default `missed_fire_policy` keyed on `Once` versus recurring schedules, and the `RunAll` opt-in gate;
 - the schedule timer-versus-scan mode and the periodic-scan fallback interval (flagged), recurring-schedule jitter window, and calendar-local DST policy defaults;
 - the default `OverlapPolicy` and its bounds (queue max-depth, parallel max-concurrent);
-- the watch defaults: `firing_mode`, `reset_condition`, `dedupe` window, `debounce` window, hysteresis margins, and the no-event poll-interval fallback (flagged), per automation, per surface, and globally;
+- the watch defaults: `firing_mode`, `reset_condition`, `initial_observation_policy` (`EstablishBaseline` unless a scope explicitly selects `FireIfSatisfied`, §4.3), `dedupe` window, `debounce` window, hysteresis margins, and the no-event poll-interval fallback (flagged), per automation, per surface, and globally;
 - the per-automation `rate_limit` (minimum interval, per-window cap) and the global automation budget (maximum concurrent runs, maximum fire rate), and the cold-start guard bound;
 - the recursive-trigger cycle-guard depth and re-entry window;
 - the default `failure_handling` (max attempts, backoff selection over the canonical strategies, circuit-breaker threshold, recovery triggers, probe policy, and cooldown safety bound), per automation and globally;
