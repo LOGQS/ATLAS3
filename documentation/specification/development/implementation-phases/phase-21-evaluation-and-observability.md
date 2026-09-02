@@ -88,6 +88,11 @@ health/remediation. (a)→(b); (c)/(d) independent; (e) joins (c) at the health 
    families (latency/throughput/usage+cost/error/cache/quality/provider-health/resource); the
    resource-gauge sampler as the one flagged periodic worker; the diagnostic stream under the data
    root.
+   Add source-emitted host-boundary timing observations for the runtime-owned seams (42 §19.2) and
+   register the File 41 responsiveness instruments over them; the Observatory renders the
+   reference-envelope and baseline comparisons, measured locus first, with any external cause
+   advisory unless directly observed. This is one obligation inside item 5, not a new lane: P21's
+   dominant scope remains File 40 evaluation completion.
 6. **Sinks + consent**: consent records; the egress pipeline; `DiagnosticBundle` under egress
    governance; the OTel adapter as a replaceable backend.
 7. **Observatory + debug surface**: panes over existing projections; the reconstruction pane = File
@@ -128,6 +133,18 @@ health/remediation. (a)→(b); (c)/(d) independent; (e) joins (c) at the health 
   **the audit boundary** — disabling telemetry never disables audit; tamper surfaced, 41 changes
   nothing (§10); the one sampled exception (host-resource gauge) flagged + configurable (§8.5); no
   time-based retention as correctness (§9.3).
+- **Host-boundary instrumentation** (41 §§6.3/12.2/16, 42 §§16.3/19.2): timing observations are
+  bounded-cardinality and `DiagnosticOnly` — a high-cardinality label is rejected at registration,
+  and no sampled production timing becomes a correctness, policy, evaluation, or remediation
+  authority; test-only seam injection at the process-start/readiness, filesystem, network,
+  native-platform, resource-pressure, and renderer/device seams — and, where the platform exposes
+  controllable test primitives, power-, scheduler-, and resource-governance variance, with no
+  emulated substitute where no deterministic primitive exists — proves the slow locus is identified,
+  that an unobserved third-party product is never asserted as causal, and that the injection seam is
+  absent from every shipping build; the reference-envelope comparison stays visible when a baseline
+  reports normal; the session baseline's memory stays bounded over arbitrarily many samples and does
+  not survive restart, and a retained-device baseline rebuilds solely from retained source facts and
+  suppresses no failed envelope comparison.
 - 42 §16: remediation never silently masks a deterministic failure (trips the circuit + notifies);
   boundary-crossing remediation passes capability+policy with typed confirmation; degraded-mode —
   the app starts and runs with any subset of optional backends.
@@ -150,6 +167,10 @@ health/remediation. (a)→(b); (c)/(d) independent; (e) joins (c) at the health 
   blind-comparator, self-certifying-guard, observe-only, redaction-before-write, consent-user-only,
   and health/remediation suites as named CI jobs; the **recurring regression Automation**
   (settings-configured cadence) becomes a standing scheduled job.
+- **Host-boundary legs**: the deterministic boundary-count, refusal, interruption, and injected-delay assertions are blocking tests inside the existing single local/CI command surface, never a separate CI-only job, and no real-host timing output fails a correctness gate. Real-host
+  timing is exposed through the local-parity `cargo xtask hostenv-report` command. An explicitly
+  invoked CI run may retain the report as a diagnostic artifact; no historical trend is claimed unless
+  a separately specified consumer, sampling cadence, and retention policy exist.
 
 ## 8. Exit criteria
 

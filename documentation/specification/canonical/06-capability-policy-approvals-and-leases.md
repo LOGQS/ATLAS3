@@ -162,7 +162,7 @@ The router internally composes named `policy inspectors`, each emitting an inter
 Required built-in inspectors:
 
 - `tier-resolution`: computes the effective tier from declared `permission_tier` (via `TierResolver` per `capability.tier-resolver` (File 05 §5.2)), `permission_floor`, source trust, scope-level overrides, and active leases — produces `EffectiveTierDecision`
-- `template-evaluation`: consults the capability's `approval_template_id` and any active reusable-policy-rule leases; runs the template's validator chain — produces template verdicts (`Allow`, `Deny`, `Ask`, `Escalate`, `NoOpinion`)
+- `template-evaluation`: consults the capability's `approval_template_id`, the directly-applicable built-in reusable policy templates (§11.5), and any active reusable-policy-rule leases or projections that express templates; runs the template's validator chain — produces template verdicts (`Allow`, `Deny`, `Ask`, `Escalate`, `RedirectSuggestion`, `NoOpinion`)
 - `touched-resource-matching`: resolves declared `touched_resources` expressions against arguments and matches each against active lease constraints — produces matched-lease set or no-match
 - `contradiction-detection`: compares verdicts across scope levels and flags conflicts — produces `Vec<Contradiction>`
 - `classifier-mediation`: when `auto-decide` is active or the capability declares a `ModelMediated` classification mode for relevant fields, invokes the configured classifier model — produces `ClassifierResult { decision, confidence, reasoning }` or skips
@@ -173,7 +173,7 @@ The effective-tier-resolution algorithm (§4.2) is executed across these inspect
 Inspectors declare an authority class:
 
 - `observe_only` — may emit notes, risk facts, and explanations, but no verdict
-- `narrowing_only` — may emit `Ask`, `Deny`, `Escalate`, or stricter constraints, but cannot produce an effective `Allow`
+- `narrowing_only` — may emit `Ask`, `Deny`, `Escalate`, a proposal-aborting `RedirectSuggestion` (which grants the redirect target no authority: the target is re-proposed and re-evaluated through the full pipeline), or stricter constraints, but cannot produce an effective `Allow`
 - `allow_capable` — may contribute `Allow` verdicts only when registered by built-in, subsystem, verified, or explicitly user-approved policy sources
 - `substitute_capable` — may propose `Substitute`, but only for declared narrowing or transparent redirects
 
@@ -193,6 +193,8 @@ The router emits one of four typed `ApprovalDecision` outcomes, mapped to the `r
 - `RedirectSuggestion { target_capability_id, suggested_args, reason }` — abort the proposed action and signal that the agent should retry using a suggested capability (e.g., `shell.exec` with `find` redirected to `file.search` per the dedicated-tool-preference rule in §11.5); the agent loop consumes this as a typed retry signal per `run.hook-integration` (File 04 §23.3). The `{ target_capability_id, suggested_args, reason }` field names are owned by `ledger.hook-decision-vocabulary` (File 10 §7.2); File 06 cites them
 
 The router never invents new contract semantics. Its decision is one of these four shapes. Any other outcome is an Explicit Rejection (§17).
+
+The router returns that closed `ApprovalDecision` outcome together with `advisories: Vec<RedirectAdvisory>` as common evaluation metadata. Advisories do not add an outcome, do not alter terminality, and are recorded on `PolicyDecisionMade` (`ledger.entry-kind-catalogue`, File 10 §4.1); an approval-producing outcome also projects them onto its `ApprovalRequest` (§13.2). §4.3's crosswalk already places `RedirectSuggestion` as the fourth shape, arising from a template or built-in rule rather than from a terminal tier outcome; this paragraph adds only the advisory sidecar.
 
 ### 3.5 Failure Mode
 
@@ -226,7 +228,7 @@ The resolution proceeds in fixed order:
 2. **Floor enforcement**. The result is clamped from below by the capability's `permission_floor` (`capability.permission-floor`, File 05 §5.4). If the resolver returned a tier weaker than the floor, the floor wins. The floor is never lowered by any subsequent step. Any later step that would produce a tier below the floor produces a `PolicyFloorViolated` event and the floor's tier is used instead.
 3. **Trust narrowing (canonical trust-escalation table)**. The registered entry's `effective_trust` (`capability.trust-source-approval-flow`, File 05 §9.2) applies a trust-driven minimum tier. This step is the canonical trust-escalation rule; `policy.trust-mapping-defaults` (§9.6) and `policy.risk-classification-trust-interaction` (§15.2) cite it rather than restating it.
    - `System`, `Verified`, `User` — no trust-driven narrowing
-   - `Community` — minimum effective tier is `UserApproval` (a one-tier escalation from `WorkspaceWrite` or below), gated by capability class: an `ActionExternal` capability always escalates; an `InternalAnalysis` capability escalates only when its resolved touched resources include `network`, `credential`, `sub-agent`, or a registered extension class carrying user-private data; a `UserArtifact` capability escalates only when its resolved touched resources include filesystem paths outside the active workspace or external-credential references
+   - `Community` — minimum effective tier is `UserApproval` (a one-tier escalation from `WorkspaceWrite` or below), gated by capability class: an `ActionExternal` capability always escalates; an `InternalAnalysis` capability escalates only when its resolved touched resources include `network`, `credential`, `sub-agent`, or a registered extension resource whose effective privacy exposure for any resolved touched resource is `UserPrivateCapable`; missing or unresolved exposure is `UserPrivateCapable`, while `PublicOnly` does not by itself trigger this extension-data escalation arm; a `UserArtifact` capability escalates only when its resolved touched resources include filesystem paths outside the active workspace or external-credential references
    - `Unverified` — the `Community` escalation applies with the same class gating, and additionally the first invocation of each such capability in a given conversation requires per-call ask-user (no `AlwaysAllow` lease honored without an explicit user upgrade of the source's trust)
    - `Sideloaded` — as `Unverified`, except that the first invocation in a conversation of a capability whose declared tier is `UserApproval` or above presents through the typed-confirmation flow (§7) rather than ordinary ask-user, at the user's option through settings (§9.7)
    Trust narrowing never crosses the floor in either direction. A `Community` capability whose floor is `Denied` remains `Denied`; a `Community` capability whose declared tier is already `UserApproval` is unchanged.
@@ -239,7 +241,7 @@ The resolution proceeds in fixed order:
    - its `status` is `Active` (not `Stale` or `Revoked`)
    - its `expires_at`, if set, has not passed as of the call — the deadline is evaluated at this consult, with the call itself as the evaluation event (per §10.3), never against a polled clock; a lease found expired here transitions to `Stale`
    - the call satisfies any per-lease conditions (argument-shape match, idempotency requirement, max-invocations limit)
-   When multiple leases apply, narrower scope wins; among same-scope leases, deny-wins. A matching `AlwaysAllow` lease produces direct execution at the effective tier resolved by the prior steps (still bounded by the floor); a matching `AlwaysDeny` lease produces immediate `Block`.
+   When multiple leases apply, narrower scope wins; among same-scope leases, deny-wins. A matching `AlwaysAllow` lease produces direct execution at the effective tier resolved by the prior steps (still bounded by the floor); a matching `AlwaysDeny` lease produces immediate `Block`, except where the rule-deny override of §7.4 applies, in which case the outcome is `typed_confirmation`.
 6. **Decision selection**. The resulting tier and the lease/template verdicts produce the terminal decision: direct execution, ask-user, typed-confirmation, deny, or model-mediated escalation per §5.
 
 The output of resolution is a typed `EffectiveTierDecision` carrying the resolved tier, the contributing scope level (conversation/workspace/global/lease/floor), the lease used (if any), the contradictions detected (if any), and the human-readable reason. This record flows onto the invocation record per `capability.invocation-record` (File 05 §11).
@@ -260,7 +262,7 @@ The tier-to-outcome mapping is canonical:
 - `ReadOnly` → `direct_allow`
 - `WorkspaceWrite` with proposal contained within the active workspace → `direct_allow`
 - `WorkspaceWrite` with proposal escaping the workspace → effective tier escalates to `UserApproval` and the rule re-applies
-- `UserApproval` → `direct_allow` if a matching `AlwaysAllow` lease is active; `direct_deny` if a matching `AlwaysDeny` lease is active; `model_mediated` if `auto-decide` is configured for this capability and active; otherwise `ask_user`
+- `UserApproval` → `direct_allow` if a matching `AlwaysAllow` lease is active; `direct_deny` if a matching `AlwaysDeny` lease is active, or `typed_confirmation` if that deny is overridable under §7.4; `model_mediated` if `auto-decide` is configured for this capability and active; otherwise `ask_user`
 - `Unrestricted` → `direct_allow` only when the relevant invoker/settings context enables `agent.unrestricted_mode`; otherwise the rule for `UserApproval` applies (per `run.approval-during-execution`, File 04 §11). `Unrestricted` is still policy-governed: it emits events, honors source trust, floors, typed-confirmation, touched-resource constraints, and user narrowing.
 - typed-confirmation variant of `UserApproval` → `typed_confirmation` always; `auto-decide` and `AlwaysAllow` leases never lift it
 
@@ -410,9 +412,11 @@ Typed-confirmation:
 
 Anchor: `policy.denied-carve-out`
 
-A capability with effective tier `Denied` is not invocable by default. The only path through `Denied` is the typed-confirmation override: the capability's approval template may declare `denied_override_via_typed_confirmation: Required`, which enables a one-time override per invocation. The user types the exact confirmation string and the call proceeds; this is recorded as a `Denied`-override event in the policy ledger and is single-proposal scope (no `AlwaysAllow` lease can be created from a `Denied`-override flow).
+A capability with effective tier `Denied` is not invocable by default. The only path through `Denied` is the typed-confirmation override: the capability's approval template may set `denied_override_via_typed_confirmation` to true, which enables a one-time override per invocation. The user types the exact confirmation string and the call proceeds; this is recorded as a `Denied`-override event in the policy ledger and is single-proposal scope (no `AlwaysAllow` lease can be created from a `Denied`-override flow).
 
 A capability whose `permission_floor` is `Denied` and whose template does not declare the typed-confirmation override has no path to execution — agent or user. This is the canonical shape for operations the system declares as never-auto-approvable: force-push to a protected branch, account deletion, and similar.
+
+The carve-out extends, on identical terms, to a deny that comes from a policy rule rather than from a capability floor. When policy evaluation selects an `AlwaysDeny` — a granted lease, or the application of a fixed-deny built-in rule (§11.5) — whose `template_ref` (§11.2) resolves to a template that enables the override, the call routes to the typed-confirmation flow (§5.3) instead of `Block`. When an `AlwaysDeny` and an effective `Denied` tier are both overridable, the router produces one `typed_confirmation` flow whose `confirmation_requirements` (§13.2) carries one entry per independently applicable template; execution proceeds only after every entry is satisfied, and the audit record names every overridden element. Each requirement's confirmation-string pattern and approval text come from the template that raised it (§12.2) — the rule that denied is the rule that states what must be typed; the request's synthesized preview stays one per request (§13.2), not one per requirement. The override is single-proposal on §7.3's terms: it grants no `AlwaysAllow` lease, and it neither disables, narrows, nor replaces the rule — §11.5's durable user-override records are the only mechanism for that — so the rule remains in force for the next call. A rule deny whose template does not enable the override has no path, exactly as the preceding paragraph describes, and a rule override never lowers a capability floor (§7.1). In an unattended run this human-decision outcome parks by default or follows the automation's configured fail/skip behavior (`automation.non-interactive-safety`, File 33 §11.3), and never executes.
 
 ### 7.5 Examples
 
@@ -425,7 +429,7 @@ The list is illustrative. The canonical rule is: any capability that is irrevers
 
 ### 7.6 Boundary
 
-Typed-confirmation is a policy-flow shape. The actual rendering of the typed-confirmation UI (the modal, the input field, the preview, the cancel button) is owned by File 37 and File 38. File 06 specifies the data contract: the approval-text template, the confirmation-string pattern, the preview payload, and the typed `TypedConfirmationResponse` carrying the user's typed string. The policy layer validates the typed string against the pattern; mismatch produces a typed `TypedConfirmationMismatch` decision and the flow returns to ask the user again or cancel.
+Typed-confirmation is a policy-flow shape. The actual rendering of the typed-confirmation UI (the modal, the input field, the preview, the cancel button) is owned by File 37 and File 38. File 06 specifies the data contract: the approval-text template, the confirmation requirements, the preview payload, and the typed `TypedConfirmationResponse` carrying the user's typed strings. The policy layer validates each typed string against its own requirement's pattern; any mismatch produces a typed `TypedConfirmationMismatch` decision naming the unsatisfied requirement, and the flow returns to ask the user again or cancel. Execution proceeds only when every requirement is satisfied.
 
 ## 8. Auto-Decide Mode
 
@@ -625,6 +629,7 @@ A `Lease` must carry at minimum:
 - `decision` — one of `AlwaysAllow`, `NarrowedAllow { constraints }`, `AlwaysDeny`
 - `inherited_constraints` — typed constraints over touched resources (per §6) and other call shape (argument-shape match, idempotency requirement, max invocations within scope, expiry deadline if any)
 - `grant_reason` — free-text rationale plus a typed `grant_origin` (one of `user_response_to_ask`, `source_approval_flow`, `automation_rule`, `built_in_template`, `policy_template_definition`)
+- `template_ref` — present on every effective rule projection (§11.5) and every granted lease whose grant was derived from a template; carries `template_id` (§12.2) and `observed_template_version`. An effective rule projection resolves `template_id` to the current registered template on every consult; when resolution fails the evaluation fails closed with a `Block` decision and the typed `PolicyConfigurationError` diagnostic event §3.5 already defines. A granted lease never changes meaning through live re-resolution; a later template change is handled through its declared `policy_change` revocation condition (§10.2) or an explicit `Revoked` transition (§10.1). `grant_context`'s policy template version remains the accepted grant-time snapshot that condition reads.
 - `grant_context` — snapshot of the active context at grant time: granting user identity, active conversation id, active intent thread id, active task id, active run id, active workspace id, active surface, world-model snapshot id, model-route at grant time, settings snapshot id, policy template version
 - `granted_at` — timestamp
 - `granted_by` — actor identity (user, automation, built-in template registration, source-approval flow)
@@ -645,9 +650,9 @@ Scope determines lease applicability and revocation defaults:
 - `conversation` — applies within one `Conversation`; revoked when the conversation is archived, deleted, or explicitly closed, and, for an ephemeral conversation, when it ends — an ephemeral conversation's leases never outlive it (the ephemeral-conversation-end revocation trigger)
 - `workspace` — applies within the granting workspace; revoked when the workspace is removed or when the user manually revokes
 - `global` — applies across all workspaces, conversations, runs, and tasks for the active user
-- `reusable_policy_rule` — applies globally and is pattern-based; the canonical shape for built-in safety rules and user-authored policy templates expressed as leases (e.g., "always deny `git.push --force` to protected branches" is a reusable-policy-rule lease)
+- `reusable_policy_rule` — applies globally and is pattern-based; the canonical scope for a user-granted global pattern rule and for the `EffectiveRuleProjection` of a fixed-deny built-in rule (§11.5) (e.g., "always deny `git.push --force` to protected branches")
 
-The `reusable_policy_rule` scope is distinguished from `global` by capability matching: `global` typically pins one or a small set of capability ids; `reusable_policy_rule` uses pattern-based `capability_match` and is the canonical representation of policy-templates-expressed-as-leases.
+The `reusable_policy_rule` scope is distinguished from `global` by capability matching: `global` typically pins one or a small set of capability ids; `reusable_policy_rule` uses pattern-based `capability_match`. A granted lease at this scope is a durable user grant; an `EffectiveRuleProjection` at this scope is the evaluation-time application of a template (§11.5) and is never stored.
 
 ### 11.4 Composition
 
@@ -659,9 +664,11 @@ A `single_proposal` lease never affects a future call; its scope is one decision
 
 Anchor: `policy.built-in-reusable-policy-rules`
 
-The system ships built-in reusable policy rules as system defaults with stable ids. They project to effective reusable-policy-rule leases at evaluation time, after durable user override records are applied. This avoids ambiguity on restart: defaults re-register, then user disables, narrows, widens, template edits, replacements, and restore-default actions are applied as separate audit-visible records.
+The system ships built-in reusable policy rules as system defaults with stable ids. A built-in rule's enforcement mechanism follows its definition: a fixed-deny rule produces an `EffectiveRuleProjection` carrying `AlwaysDeny`; a behavior rule participates directly as a reusable policy template (§12.6). Where a rule's setting selects among modes, the mode selects the mechanism and is recorded with the decision — the fetch-fallback rule below is the canonical case: `AlwaysDeny` at `Forbidden`, an escalating template verdict at `UserConfirmed`, and no rule at `Allowed`.
 
-Each built-in rule is defined by a built-in approval-policy template (§12.4) and enforced as that template's projected reusable-policy-rule lease: the template is the single source of truth (`template-defines`) and the lease is its evaluation-time projection (`lease-projects`). Editing the template changes the projected rule; the two are never independent sources of truth.
+An `EffectiveRuleProjection` is the evaluation-time application of a reusable policy template to a proposed call, computed per consult from the template registry and the durable override records after those records are applied. It is not a `Lease`: it is never stored, never granted, never revoked, carries no `lease_id`, `grant_context`, `granted_at`, `granted_by`, `expires_at`, `revocation_conditions`, or `status`, and is not subject to §11.1's grant contract, §11.6's persistence, or §17's grant-time rejection. It carries only what evaluation needs — `capability_match`, `scope`, `invoker_kind`, `inherited_constraints`, `decision`, and `template_ref` (§11.2). The durable artifacts are the template definitions and the separate override records; restart reproduces a projection exactly rather than recovering it. This avoids ambiguity on restart: defaults re-register, then user disables, narrows, widens, template edits, replacements, and restore-default actions are applied as separate audit-visible records. An EffectiveRuleProjection is evaluated as a template-derived policy input, not inserted into §6.4's active-lease selection. Section 6.4 continues to select at most one granted Lease. Policy composition then combines that selected lease, if any, with applicable template/projection verdicts under §§3.3 and 12.6; a projection is identified by template_ref and is never represented as lease_used.
+
+Each built-in rule is defined by a built-in approval-policy template (§12.4). A fixed-deny rule is enforced as that template's `EffectiveRuleProjection`; a behavior rule is enforced by running the template itself — `fetch_fallback_ban` (§12.4), whose validator emits `Deny`, is the canon-carried instance of the second form. Either way the template is the single source of truth (`template-defines`) and the enforcement is its evaluation-time application (`rule-applies`). A projection carries the defining template's `template_ref` (§11.2) and resolves it live on every consult, so editing the template changes the enforced rule; the two are never independent sources of truth. Of the default rules below, the protected-branch force-push, agent-invoked `system.shutdown`, agent-invoked `account.delete`, `credential.export`, and dangerous-shell-pattern rules are fixed-deny; the dedicated-tool preference rule and the fetch-fallback rule are behavior rules whose configured mode selects what their template emits.
 
 Built-in default rules include:
 
@@ -704,27 +711,35 @@ An `Approval-Policy Template` is a named, registered, composable validator chain
 Every template carries:
 
 - `template_id` — stable namespaced identifier
+- `template_version` — the template definition's version, advanced on every edit; recorded by a lease or projection that expresses this template as `observed_template_version` (§11.2) and by a durable grant as `grant_context`'s policy template version (§11.2)
 - `display_name`, `description`, `short_description` — localizable per the canonical pattern (literal defaults plus optional i18n keys)
 - `family_applicability` — the capability families the template applies to (`*` for any)
 - `scope_applicability` — the lease scopes at which the template may be applied
 - `validators` — ordered list of typed validator declarations
 - `typed_confirmation_required` — bool; true means any call routed through this template uses the typed-confirmation flow
-- `denied_override_via_typed_confirmation` — bool; for templates attached to `Denied`-floor capabilities, whether the typed-confirmation override path is available
+- `denied_override_via_typed_confirmation` — bool; whether this template enables the typed-confirmation override for an effective `Denied` tier or for an `AlwaysDeny` reusable policy rule that references this template (§7.4)
 - `confirmation_string_pattern` — when typed-confirmation is required, the registered pattern the user's typed string must match; may interpolate validated `args.*` field paths from the proposed call
 - `approval_text_template` — the localizable request text shown to the user during ask-user or typed-confirmation flows from this template
 - `source` — `Builtin`, `Subsystem { id }`, `Plugin { id, version }`, `UserDefined { scope }` per the canonical sourcing taxonomy
 
 ### 12.3 Validator Verdicts
 
-A template validator is a typed declaration that produces one of:
+A template validator is a typed declaration, identified by `validator_id`, that produces one of:
 
 - `Allow` — proceed
 - `Deny` — block
 - `Ask` — escalate to ask-user
-- `Escalate` — escalate to typed-confirmation
+- `Escalate` — escalate to typed-confirmation about executing the current proposal
+- `RedirectSuggestion { target_capability_id, suggested_args, reason }` — abort the current proposal and suggest a new proposal against another capability
 - `NoOpinion` — pass to the next validator
 
-The validator chain runs in declared order and aggregates by severity: `Deny > Escalate > Ask > Allow > NoOpinion`. Every validator in the registered chain is mandatory by default: it runs unconditionally and its verdict participates in the severity maximum. `Allow` is final only when no mandatory validator produces a stricter verdict. If every validator returns `NoOpinion`, the template's terminal default applies (configurable per template; canonical default is `NoOpinion` itself, in which case the policy evaluator's other inspectors decide).
+The validator chain runs in declared order. Every validator in the registered chain is mandatory by default: it runs unconditionally and its verdict participates in the aggregate, and every mandatory validator runs before the template result is selected. A `Deny` from any mandatory validator wins. Among the remaining non-redirect verdicts, severity is `Escalate > Ask > Allow > NoOpinion`, preserving §3.3's rule that an `Ask` promotes the decision unless a later inspector escalates further. `Allow` is final only when no mandatory validator produces a stricter verdict. If every validator returns `NoOpinion`, the template's terminal default applies (configurable per template; canonical default is `NoOpinion` itself, in which case the policy evaluator's other inspectors decide).
+
+`RedirectSuggestion` is not a severity rung. Under the resolved dedicated-tool preference mode (§16.1) `Strict`, an actionable redirect is terminal for the current proposal after all mandatory validators have run and no validator has returned `Deny`; it supersedes `Ask` or `Escalate` about executing the now-aborted original proposal. That is the validator-layer rule — whether a redirect verdict becomes the router's decision at all. Once the router has emitted a `RedirectSuggestion`, its terminality at the hook-decision layer is unconditional (`ledger.priority-ordering`, File 10 §7.3). The redirected invocation is a new proposal and runs the complete capability-call pipeline, including target resolution, input validation, policy, approval, sandbox, and hooks. A redirect is actionable only when its target is registered and available, its suggested arguments validate under the target capability's owning input contract, and it is not an unchanged retry of a target already denied under the same deciding facts. A non-actionable redirect under `Strict` fails closed with a typed policy-configuration or target-unavailable block; it never permits the original proposal. The router's decision for an actionable redirect is `RedirectSuggestion { target_capability_id, suggested_args, reason }` (§3.4); the agent loop consumes it as a typed retry signal.
+
+Under `Warn`, the validator returns `NoOpinion` and emits a typed `RedirectAdvisory { target_capability_id, suggested_args, reason, validator_id }`. Under `Off`, it returns `NoOpinion` without an advisory. Advisories are metadata, never `ApprovalResponse` choices. They are retained on the policy evaluation and decision record even when another verdict wins.
+
+An explicit raw-shell bypass permitted by the active policy is a new proposal carrying its typed bypass reason; it disables the dedicated-tool redirect for that proposal only, is recorded, and remains subject to every other validator, including `fetch_fallback_ban`.
 
 A validator may be declared `terminal` only when the template explicitly marks it terminal and all built-in and system-source validators in the chain have already produced their verdicts. No non-system-source validator may declare itself terminal. The final aggregate verdict and decisive validators are recorded in policy events.
 
@@ -750,7 +765,9 @@ User-authored templates may not override the floor-enforcement step (§4.2 step 
 
 ### 12.6 Composition
 
-A capability invocation may have multiple templates applicable: the capability's `approval_template_id` declared default plus any user-set per-capability or per-scope template overrides plus any active reusable-policy-rule leases that express templates. The policy evaluator runs each in order: capability default first, scope-level overrides second, reusable-policy-rule leases last. Verdicts aggregate by the severity lattice in §12.3; ordering affects deterministic explanation, not silent safety bypass.
+A capability invocation may have multiple templates applicable: the capability's `approval_template_id` declared default, plus any user-set per-capability or per-scope template overrides, plus the directly-applicable built-in reusable policy templates of §11.5, plus any active reusable-policy-rule leases or projections that express templates. The policy evaluator runs each in order: capability default first, scope-level overrides second, directly-applicable built-in reusable templates third, reusable-policy-rule leases and projections last. Verdicts aggregate per §12.3; ordering affects deterministic explanation, not silent safety bypass.
+
+Applicable fixed-deny EffectiveRuleProjection values are consumed as template-derived policy verdicts; they are neither inserted into the active-lease set nor re-run as behavior templates. Only an actually granted Lease may be selected by §6.4 or recorded as lease_used.
 
 ### 12.7 Boundary
 
@@ -774,20 +791,21 @@ Every ask-user, typed-confirmation, lease-grant-proposal, lease-stale-re-grant, 
 - `capability_id`, `capability_version`, `capability_display_name`, `capability_description`, `capability_short_description`, `capability_family`
 - `resolved_args` — the resolved invocation arguments with `data_sensitivity` redactions applied (`Sensitive` fields shown with reduced detail; `Secret` fields shown only as kind labels)
 - `reason` — the human-readable reason combining the model's stated intent (when available) and the policy-supplied justification (e.g., "tier UserApproval, no active matching lease")
-- `resolved_tier` — the effective tier after resolution; for a typed-confirmation flow (including a `Denied`-override, §7.4) it is the pre-override effective tier — a `Denied`-override surfaces `resolved_tier: Denied`, the most restrictive applicable tier — so the surface communicates the true severity rather than the override path
+- `resolved_tier` — the effective tier after resolution; for a typed-confirmation flow (including a `Denied`-override or a rule-deny override, §7.4) it is the call's actual pre-override effective tier, never a tier forged from a deny decision — a capability floored `Denied` surfaces `resolved_tier: Denied`, while a rule-denied call retains the tier resolution actually produced. Deny severity and provenance are carried by `confirmation_requirements`' `overridden_elements`, so the surface communicates the true severity and its source rather than the override path
 - `permission_floor` — the declared floor (so the UI can communicate "this cannot be lowered")
 - `resolved_touched_resources` — the concrete touched resources resolved from declared expressions per §6
 - `data_sensitivity` — the capability's declared sensitivity classification
 - `trust_state` — the registered entry's `effective_trust`
 - `available_options` — typed `LeaseOption` set (§13.3)
 - `classifier_result` — when auto-decide ran and produced a below-threshold or `Ask`/`Escalate` verdict, the typed result is included so the UI can surface "the classifier suggested X with confidence Y"
+- `redirect_advisories` — the typed `RedirectAdvisory { target_capability_id, suggested_args, reason, validator_id }` values retained from advisory or losing redirect validators; absent when none apply. They inform the user without becoming an approval choice.
 - resolved proposal facts projected from File 05 declaration/invocation records: `side_effect_class`, `reversibility_class`, `replay_class`, `postconditions`, `required_observations`, and `expected_artifacts_or_outputs`
 - synthesized proposal facts: `preview_payload` from declared preview mode, `data_egress_summary` from resolved network/credential resources and sensitivity, `sandbox_or_isolation_summary` from the active execution context, and `rollback_or_compensation_note` when available
 - `batch_id` — optional, present when this request is part of a batched approval per §5.5
 - `contradictions_detected` — typed `Contradiction` records when the request is a contradiction-resolution flow per §14
 - `lease_staleness` — typed reason when the request is a lease-stale-re-grant per §10.4
 - `approval_text` — the localized request text from the active approval-policy template
-- `confirmation_string_pattern` — present only for typed-confirmation flows; the pattern the user's typed string must match per §7.4. Template variables referencing validated `args.*` field paths resolve to concrete argument values (for example, `force-push to {args.branch}` resolves to `force-push to main`). Static patterns remain valid. Sensitive interpolations must preserve redaction; `Secret` values use safe labels or typed surrogates, not raw secret values.
+- `confirmation_requirements` — present only for typed-confirmation flows; a canonical-order, duplicate-free list whose entries carry one or more `overridden_elements`, the originating `template_ref`, the confirmation pattern, and the requirement's own approval text from the template that raised it. The ordinary case is a single entry. The request-level `approval_text` above remains the flow's own request text and is presented first; a requirement's text is presented with that requirement and never replaces it. Template variables referencing validated `args.*` field paths resolve to concrete argument values (for example, `force-push to {args.branch}` resolves to `force-push to main`). Static patterns remain valid. Sensitive interpolations must preserve redaction; `Secret` values use safe labels or typed surrogates, not raw secret values.
 
 The payload flows through the canonical event bus carrying the standard envelope (`conversation_id`, `step_id`, `node_id`, `worktree_id`, `backend_id`, `sequence`, `timestamp`, `sensitivity`).
 
@@ -835,9 +853,9 @@ Each `LeaseOption.kind` decomposes into the `Lease` it creates — the `decision
 
 The `decision` is `NarrowedAllow` when the user narrows the option's `default_constraints`, otherwise `AlwaysAllow`. The bare `AlwaysAllow`/`AllowForRun`/… names used narratively in §5.2 step 4 are these `LeaseOption.kind` values; the persisted `Lease` always carries the decomposed `decision` and `scope`.
 
-The set of available options is computed by the policy layer based on the capability's tier, floor, applicable templates, active leases, and the user's settings. Options that would violate floor or pierce a deny lease are excluded from the available set; the UI never offers an unavailable option.
+The set of available options is computed by the policy layer based on the capability's tier, floor, applicable templates, active leases, and the user's settings. Options that would violate floor or pierce a deny lease are excluded from the available set, except that a deny overridable under §7.4 admits the single-proposal `AllowOnce` option its typed-confirmation flow requires — that option grants nothing beyond the current call (§7.3). The UI never offers an unavailable option.
 
-Presentation varies only the localized `scope_label` and `scope_description`: neither localization nor a user copy override (`ui.i18n`, File 37 §15) alters a `LeaseOption`'s `kind`, its membership in the available set, its `typed_confirmation_required` flag, its `default_constraints`, or its `user_customizable_constraints`; the enclosing `ApprovalRequest`'s `confirmation_string_pattern`; the response mapping into `Lease.decision` and `Lease.scope`; the resolved tier and floor; or the touched resources the option scopes.
+Presentation varies only the localized `scope_label` and `scope_description`: neither localization nor a user copy override (`ui.i18n`, File 37 §15) alters a `LeaseOption`'s `kind`, its membership in the available set, its `typed_confirmation_required` flag, its `default_constraints`, or its `user_customizable_constraints`; the enclosing `ApprovalRequest`'s `confirmation_requirements` — their number, order, patterns, or overridden elements; the response mapping into `Lease.decision` and `Lease.scope`; the resolved tier and floor; or the touched resources the option scopes.
 
 ### 13.4 `ApprovalResponse`
 
@@ -846,7 +864,7 @@ The user's response carries:
 - `request_id` — matches the request
 - `choice` — one of the available `LeaseOption` kinds, or `Cancel`
 - `customized_constraints` — when the user narrowed the lease scope, the typed customized constraints
-- `typed_confirmation_string` — for typed-confirmation flows, the user's typed string (validated against `confirmation_string_pattern`)
+- `typed_confirmation_strings` — for typed-confirmation flows, the user's typed strings, one per entry of the request's `confirmation_requirements`, in that list's canonical order (each validated against its own entry's pattern)
 - `reason` — optional free-text rationale the user supplies for audit
 
 Responses flow back through the same event bus. The policy layer awaits a response per `request_id`; on receipt, it validates the choice and customization against the available options and emits the corresponding `LeaseGranted` or `PolicyDecisionMade` events.
@@ -878,7 +896,8 @@ Any presentation surface implementing the contract must:
 - present invoker identity, resolved proposal facts, synthesized preview/egress/isolation facts, and absence of preview when preview is unavailable for a mutating or high-risk call
 - present every `available_option` with its scope label, description, and default constraints
 - allow the user to customize `user_customizable_constraints` for any option that declares them
-- for typed-confirmation flows, present the `confirmation_string_pattern` requirement and validate the user's typed string before submission
+- for typed-confirmation flows, present every entry of `confirmation_requirements` with the element it overrides and that entry's own approval text, and validate each typed string against its own entry's pattern before submission
+- present every entry of `redirect_advisories` as advice distinct from the approval choices; following one creates a new capability proposal, while `ApprovalResponse.choice` remains closed to an available `LeaseOption.kind` or `Cancel`
 - emit the `ApprovalResponse` through the canonical event bus
 - support keyboard navigation, voice control, and screen-reader operation per the canonical accessibility requirements (File 37 and File 38 detail these, but the policy layer's contract here requires that the UI honor them)
 
@@ -1036,7 +1055,7 @@ The following shapes are wrong for this layer:
 - untrusted inspectors silently allowing or rewriting policy outcomes: inspector authority classes constrain what third-party policy code can decide
 - silent semantic substitution: `Substitute` may only perform declared narrowing or transparent redirects; changing the target/action semantics requires ask-user; the enforcing mechanism — cancellation-signal re-establishment before dispatch and owning-contract re-validation of every substituted payload and result — is owned by `run.hook-integration` (File 04 §23.3)
 - ad-hoc procedural revocation conditions: leases revoke through declared typed predicates only; runtime closures are not eligible because closure-backed conditions cannot be inspected, replayed across devices, or evaluated against persisted state
-- registering a lease whose `capability_match` references a missing or unregistered capability — the lease is rejected at grant time; the user is informed; the lease never silently activates if the capability later registers with a matching id
+- registering a lease whose `capability_match` references a missing or unregistered capability — the lease is rejected at grant time; the user is informed; the lease never silently activates if the capability later registers with a matching id. This rejection governs the grant of a durable `Lease`. It does not govern an `EffectiveRuleProjection` (§11.5), which is neither granted nor stored and is computed per call after the pipeline has resolved a registered capability (§3.2 step 1), so its target is registered by construction. A built-in rule whose target is not registered simply never matches and contributes no verdict; capability and registry availability remain inspectable through `capability.registered-capability` (File 05 §10.1)'s `availability_status`
 - treating trust state as a declaration: source trust is registered-entry state per `capability.trust-source-approval-flow` (File 05 §9.2); any policy mechanism that mutates a declaration field based on trust is rejected; trust narrowing is policy-side
 - a single global "approval policy" that overrides per-capability templates and per-scope overrides — policy is composed, not monolithic; built-in defaults plus templates plus leases plus settings compose deterministically; no single setting silently overrides the composition
 - routing approval decisions through unrelated services or sidecars (logging service, telemetry service, automation service) — the approval router is the canonical decision point; logging and telemetry observe but never decide

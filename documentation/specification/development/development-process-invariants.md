@@ -253,6 +253,21 @@ Every substantial change is checked against these recurring rejection patterns:
   the lock, then invoke. Calling foreign code under the lock lets a re-entrant call deadlock (a non-reentrant
   mutex) and lets a panic poison the lock for every later holder (a poisoned shared bus/registry is a
   whole-subsystem outage). Isolate the foreign call's failure from the shared structure's integrity.
+- `host-boundary-economics`: a mechanism that introduces or materially changes either (a) an
+  operating-system- or host-controlled crossing — process creation/readiness, filesystem operation,
+  network establishment, native IPC/platform registration, renderer/device interaction, or equivalent —
+  or (b) the amount, lifetime, exclusivity, or contention sensitivity of host-mediated work or a
+  host-scheduled resource claim — including power-management, scheduler, sandbox, resource-governor, or
+  equivalent interposition — accounts for the host-mediated work per unit of user work and per session,
+  including any host-mediated work whose amount grows with retained state, session lifetime, or
+  concurrent load, together with its cold and steady resident resource cost and the ways the host may
+  delay, deny, scan, transform, suspend, or throttle it. Eliminate or amortize a crossing or a standing
+  host-mediated resource claim only where the required security, confinement, categorical cancellation
+  and killability, durability, fault containment, and observable semantics all survive; otherwise it is
+  retained and its cost is recorded as intentional. A boundary or a claim is not justified by being
+  cheap on the development host, and an optimization is not valid because latency fell while steady
+  resident cost or failure blast radius rose, independent cancellation domains merged, confinement
+  widened, or request state began leaking across units.
 
 These gates should become automated checks wherever possible.
 
@@ -436,6 +451,17 @@ Every behavior change must carry executable evidence appropriate to the anchors 
 - Runtime, worker, queue, timer, process, and sandbox changes require evidence for
   cancellation/killability, restart/recovery, idempotency or completion-marker behavior, and typed
   failure.
+- Runtime, process, sandbox, storage-boundary, network-boundary, native-platform, and renderer/device changes that
+  introduce or materially change a host-controlled crossing or a host-mediated resource or lifecycle
+  claim additionally require deterministic evidence for the mechanism's applicable crossing
+  multiplicity, its resource-claim lifetime and bounds, and injected delay, refusal, interruption,
+  contention, suspension, throttling, and semantic variance at that owning seam where those outcomes
+  are meaningful. Such tests inject the mechanism, never a named third-party product, and establish no
+  correctness result from a wall-clock sleep; the durable-replacement boundary keeps its own fault-test
+  protocol (§15) rather than growing a parallel one. Host-variance injection seams are test-only and
+  absent from every shipping build. Real-host timing is diagnostic performance evidence until an owning
+  canonical contract or a development phase declares a calibrated budget and a stable measurement
+  procedure for that operation class.
 - Packaging/update changes require integrity verification, rollback, downgrade rejection, built-in
   bundle verification, and no-network core startup evidence where relevant.
 - Model-mediated changes carry replayable before/after evaluation evidence where the active

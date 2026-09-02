@@ -134,7 +134,7 @@ Anchor: `block.block-kind`
 
 Anchor: `block.kind-catalogue`
 
-Every block declares its `kind` at creation. The canonical closed catalogue:
+Every block declares its `kind` at creation. Each kind — canonical or registered custom — declares an injective `settings_key_segment` matching `[a-z0-9]+(?:_[a-z0-9]+)*`, which is the `<kind_name>` substituted into every settings family that indexes this catalogue (§14.2; `settings.setting-definition`, File 15 §3.2); `InstructionSource` contributes `instruction_source` and `MessageUser` contributes `message_user`. The canonical closed catalogue:
 
 **Message and instruction kinds:**
 
@@ -611,13 +611,13 @@ Block sensitivity is the durable counterpart to event sensitivity (`run.event-st
 
 Anchor: `block.per-field-override`
 
-A block's content may contain mixed-sensitivity material. The block carries an optional `sensitivity_field_map` that overrides the default per JSON-path-style field reference into the block's content. Example: a `ToolResult` block whose content is `{ stdout: "ok", stderr: "...", credential_used: "aws-prod-key" }` may declare `default_sensitivity: Sensitive` plus an override mapping `$.credential_used: Secret`. Rendering, export, and retrieval respect the per-field map. A field path is syntactically valid when it matches the canonical grammar — `$` followed by one or more `.segment` components, each segment a non-empty run containing no `.`, `[`, or whitespace — and the map binds at most one override per path. The commit validator (§8.2 rule 8) enforces exactly this syntactic validity and uniqueness; semantic existence of the path within the content is the producer's validation (and, for declared kinds, the kind schema's).
+A block's content may contain mixed-sensitivity material. The block carries an optional `sensitivity_field_map` that overrides the default per JSON-path-style field reference into the block's content. Example: a `ToolResult` block whose content is `{ stdout: "ok", stderr: "...", credential_used: "aws-prod-key" }` may declare `default_sensitivity: Sensitive` plus an override mapping `$.credential_used: Secret`. Rendering, export, and retrieval respect the per-field map. A field path is syntactically valid when it matches the canonical grammar — `$` followed by one or more `.segment` components, each segment a non-empty run of Unicode scalar values containing no `.`, `[`, `]`, `{`, `}`, `$`, Unicode whitespace, or C0/C1 control code point (`U+0000–U+001F`, `U+007F–U+009F`) — and the map binds at most one override per path. `$` is valid only as the initial root marker. The commit validator (§8.2 rule 8) enforces exactly this syntactic validity and uniqueness; semantic existence of the path within the content is the producer's validation (and, for declared kinds, the kind schema's).
 
 ### 9.3 Inheritance Through Composition
 
 A `Composed` block's effective sensitivity is the maximum of its declared `default_sensitivity` and the maximum effective sensitivity of its children. If a `Composed` block declares `Public` but contains a `Secret` child, the composed block's effective sensitivity is `Secret`.
 
-The commit validator must prevent persisted underreporting. When the effective sensitivity is deterministically higher than the producer-declared value, the validator auto-escalates the declared sensitivity to the effective maximum and records an inspectable warning event. If the producer explicitly requested unsafe lowering, the commit is rejected unless policy allows a typed-confirmation override. Rendering, export, indexing, and caching always use effective sensitivity, never a lower declared value.
+The commit validator must prevent persisted underreporting. When the effective sensitivity is deterministically higher than the producer-declared value, the validator auto-escalates the declared sensitivity to the effective maximum and commits `BlockSensitivityAutoEscalated { block_id, declared_sensitivity, effective_sensitivity }` as a consequential warning event in the same semantic commit boundary as the affected block and its `BlockCommitted` ledger fact. If the producer explicitly requested unsafe lowering, the commit is rejected unless policy allows a typed-confirmation override. Rendering, export, indexing, and caching always use effective sensitivity, never a lower declared value.
 
 ### 9.4 Producer-Seeded Defaults
 
@@ -850,7 +850,7 @@ Agent-exposure dimensions (per `policy.agent-exposure-policy-settings`, File 06 
 
 ### 14.2 Settings-Key Convention
 
-Block-related settings use the dotted-key convention `blocks.<dimension>`. Per-kind overrides use `blocks.<dimension>.kind.<kind_name>`. Per-source overrides use `blocks.<dimension>.source.<source_id>`. Plugin- or subsystem-registered custom kinds may register their own kind-specific settings keys.
+Block-related settings use the dotted-key convention `blocks.<dimension>`. Per-kind overrides use `blocks.<dimension>.kind.<kind_name>`, where `<kind_name>` is the kind's `settings_key_segment` (§3.1). Per-source overrides use `blocks.<dimension>.source.<source_id>`, where `<source_id>` is the registered source instance's identifier (`capability.registered-capability`, File 05 §10.1). Plugin- or subsystem-registered custom kinds may register their own kind-specific settings keys.
 
 ### 14.3 Boundary
 

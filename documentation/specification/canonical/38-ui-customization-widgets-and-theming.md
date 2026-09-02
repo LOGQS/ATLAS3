@@ -125,7 +125,7 @@ A widget that displays substrate content renders a projection of the one block p
 
 ### 2.8 With File 33 (Automation) and File 34 (Workflows)
 
-A widget that surfaces background or scheduled output reads the automation observability and consumption contract (`automation.observability`, File 33 §17.3 — which names the widgets that surface automation output as ambient interfaces) and the run-now and enable/disable controls; it consumes that data contract and never becomes the firing or run truth (`automation.consequences-for-later-specs`, File 33 §23). A widget action that triggers an automation or a workflow resolves to `automation.run_now` (File 33 §19) or the `workflow.*` invocation surface (`workflow.invocation`, File 34) through the one capability path. The widget renders; File 33 fires and File 34 executes.
+A widget that surfaces background or scheduled output reads `automation.observability` (File 33 §17.3), including `AttentionRequired`, and the run-now and enable/disable controls. A placed widget may mirror active circuit attention, but File 37's mandatory dashboard/notification consumer does not depend on widget installation or placement. Widget actions resolve through `automation.run_now`, `automation.probe_circuit`, or `workflow.*` using the one capability path. The widget renders; File 33 owns automation and circuit truth and File 34 executes workflows.
 
 ### 2.9 With File 35 (Extension and Plugin System)
 

@@ -204,7 +204,7 @@ Anchor: `artifact.artifact-kind`
 
 ### 4.1 Closed Canonical Catalogue
 
-Every artifact declares its `artifact_kind` at creation. The canonical closed catalogue:
+Every artifact declares its `artifact_kind` at creation. Each kind — canonical or registered extension — declares an injective `settings_key_segment` matching `[a-z0-9]+(?:_[a-z0-9]+)*`, which is the `<kind>` or `<kind_name>` substituted into every settings family that indexes this catalogue (§19; `settings.setting-definition`, File 15 §3.2); `Document` contributes `document` and `ExerciseSet` contributes `exercise_set`. The canonical closed catalogue:
 
 **Textual and structured documents:**
 
@@ -715,7 +715,7 @@ An `EvidenceLink` is the typed metadata attached to a directed edge between a `C
 
 ### 11.3 `EvidenceRelation`
 
-`EvidenceRelation` is closed canonical with the standard `Custom { namespace, name }` extension:
+`EvidenceRelation` is closed canonical with the standard `Custom { namespace, name }` extension. Each relation — canonical or registered — declares an injective `settings_key_segment` matching `[a-z0-9]+(?:_[a-z0-9]+)*`, built-ins and registered extensions validated together, which is the `<relation>` substituted into `evidence.relation.<relation>.transitive` (§19.1; `settings.setting-definition`, File 15 §3.2); `Supports` contributes `supports`, `WeakSupports` contributes `weak_supports`, and `IllustratesByExample` contributes `illustrates_by_example`. The canonical relations:
 
 - `Supports` — the source block supports the target claim or artifact
 - `WeakSupports` — the source block weakly supports the target (suggestive but not conclusive)

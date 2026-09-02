@@ -461,7 +461,9 @@ Blocking presentation of a request is a service-layer assignment, never a per-re
 
 ### 12.4 Notifications, Toasts, and Badges
 
-Transient notifications, toasts, and badges render as projections over the event stream (§10): a badge on a region or surface reflects pending or unread activity, a toast surfaces a completed background task or a recoverable condition, and a notification may carry the provenance context needed for a context-aware follow-up (`omi-compressed.md` realized). Notification payloads are sensitivity-filtered summaries. External OS notifications, lock-screen notifications, and previews must not expose secret, restricted, or policy-hidden content. A notification with an action renders the action as a capability invocation through the rail and revalidates availability, policy, and current substrate state when invoked. Notification delivery to external channels and the desktop notification surface render the events the owning specs emit; this file owns the in-shell notification region (§4.2) and the rendering, not the dispatch.
+Transient notifications, toasts, and badges render as projections over the event stream (§10); durable owner projections may also require persistent presentation. A badge reflects pending or unread activity, a toast surfaces completed background work or a recoverable condition, and a notification may carry provenance for follow-up. File 33's current `AttentionRequired` items must be actively surfaced in the automation dashboard or in-shell notification region until their owning projection resolves; acknowledgement may change presentation state but not the circuit.
+
+Notification payloads are sensitivity-filtered summaries. External OS and lock-screen surfaces expose no secret, restricted, or policy-hidden content. Actions invoke capabilities through the rail and revalidate availability, policy, and substrate state. Owning specs own event/projection truth and external dispatch; this file owns in-shell rendering.
 
 ### 12.5 Boundary
 

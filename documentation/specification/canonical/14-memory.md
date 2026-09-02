@@ -418,6 +418,14 @@ Consolidation is not hidden deletion. It writes through the block, version, capa
 
 Consolidation may be triggered by user action, source events, thresholds, policy decisions, app lifecycle events, or scheduled background workers. Time-based schedules are convenience triggers, not correctness conditions. The system must remain correct if a scheduled consolidation never runs.
 
+Consolidation scope and disposition are orthogonal preset dimensions. The bounded single-conversation preset remains the default. A broad preset is opt-in and selects its scan scope from the closed vocabulary `Conversation { conversation_id } | Conversations { conversation_ids } | Workspace { workspace_id } | Global`; `Conversations` is non-empty and duplicate-free. A preset selecting multiple conversations, a workspace, or global memory has disposition `proposal_only`; no inherited or broader `auto_apply` setting may widen that disposition.
+
+A broad sweep creates one durable `MemoryConsolidationProposal` for each surviving candidate and groups the records by `sweep_id`. Each proposal carries `proposal_id`, `sweep_id`, the selected scope, a typed proposed consolidation operation, the target `memory_id` values with their expected revisions, a proposed replacement or delta reference, provenance, rationale, sensitivity, source-run and source-automation references when present, creation and resolution facts, and `status` from the closed vocabulary `Pending | Accepted | Rejected | Stale`. Acceptance revalidates every expected revision. Drift of any target revision transitions the proposal to `Stale` and commits no mutation against the changed target.
+
+A proposal is not memory truth before acceptance. `Pending`, `Rejected`, and `Stale` proposal records are excluded from ordinary memory recall, model-request assembly, and memory indexes; only the mutation produced by an accepted proposal enters those paths. Batch review groups proposals without coupling their outcomes.
+
+Broad-sweep production resolves finite candidate-count, page-size, and review-batch bounds through settings and deduplicates equivalent pending proposals within a sweep and across repeated sweeps. After producing one or more pending proposals, an automation parks `AwaitingUser` with a batch-review elicitation. The parked run is orchestration state, not the durable source of truth for any proposal.
+
 When consolidation rewrites, merges, supersedes, exports, broadly promotes, or removes user-visible memory, it follows File 06 policy and approval rules.
 
 ## 13. Natural Use and Inspectability

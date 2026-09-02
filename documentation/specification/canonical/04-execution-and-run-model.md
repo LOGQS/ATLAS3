@@ -933,6 +933,8 @@ Anchor: `run.retry`
 
 A retry creates a new run or execution branch linked to the prior attempt.
 
+This section defines the explicit run-level Retry action. It is distinct from §20.2.1 automatic execution-level retry: the same-unit execution retry shapes ordinarily remain inside the existing nonterminal run, while §20.2.1 `branch_retry` may create linked branch or child-run lineage without thereby becoming this §19.1 Retry action or emitting its `RetryAttempted` record.
+
 It must not mutate the historical ledger of the prior run.
 
 Retry may reuse:
@@ -1041,6 +1043,8 @@ A retry is allowed only when all of the following hold:
 - cancellation, pause, shutdown, or user intervention has not blocked the unit
 - the input, context, world-state, lease, resource-lock, and observation-currency facts needed by the retry are still valid, or the retry first re-observes, reassembles, and revalidates them
 
+The originating typed retryability is an upper bound. Execution may narrow a retryable failure because outcome safety, policy, budget, stuck detection, cancellation, pause, shutdown, user intervention, compaction, freshness, or a required-current-fact gate forbids another attempt; it never widens a typed non-retryable failure into a retryable one. A typed failure that reaches this policy is still evaluated and recorded when its effective maximum attempt count is `1` or its typed retryability already forbids retry: the resulting action is `stopped` unless a canonical recovery result is deliberately surfaced. Recording that decision means execution evaluated the retry policy; it does not assert that the failure was retry-eligible.
+
 Execution recognizes these retry shapes:
 
 - `same_input_retry` — retry the same normalized arguments; valid only for transient, pre-dispatch, read-only, or idempotent calls whose outcome is known safe
@@ -1057,7 +1061,11 @@ Unknown outcome is conservative. If a consequential non-idempotent attempt may h
 
 Retry pacing may use a typed retry strategy only as a killable safety and rate-governance guardrail with configurable bounds. Elapsed time is never proof of recovery; source recovery signals, successful revalidation, or explicit user action decide whether retry is semantically allowed. Provider-suggested retry timing stays in the provider layer; connector-suggested retry timing stays in the connector layer.
 
+After a decision selects `retried` and an execution-level delay is armed, cancellation, shutdown, pause, or user intervention interrupts that wait before another attempt starts; the next attempt ordinal is consumed only when that execution attempt actually begins. A cancellation follows §17.3's ordinary cancellation lifecycle, so a graceful shutdown may finish as `cancelled` when cancellation completes durably before process exit; if the process exits first, the next boot applies §17.3's `process_restart_orphan` rule instead, and no `stopped` retry decision is fabricated. If a pause or `awaiting_user` transition interrupts a pending retry, the durable run state retains the causal retry-decision reference and the next-attempt coordinate; resume revalidates every gate in this section and, when the prior retry remains permitted, re-arms the same recorded execution-level delay in full without a new draw — paused time is not proof that recovery occurred, and the delay is computed once per attempt (`provider.transport-level-retry-backoff`, File 17 §11.2.1). If the retry, run, or stuck budgets, outcome safety, freshness, policy, compaction, or another gate no longer permits the selected retry before its next attempt starts, execution records a successor retry decision for the same failed attempt with an incremented decision ordinal and the resulting `stopped` or `surfaced` action instead of starting that attempt. Provider- and connector-suggested delays are consumed only in their owning transport attempt sequence; when a transport sequence exhausts and its typed failure later reaches execution, any pacing this section applies is a separate subsequent guard and never a second application of the transport hint. Each interrupted pending retry retains its own causal decision reference, next-attempt coordinate, and recorded delay; resume independently folds every unresolved pending retry.
+
 Every retry decision is recorded in the execution ledger with the failed attempt reference, retry kind, retryability source, outcome-safety basis, normalized-argument reference, policy snapshot reference, and resulting action: retried, branched, surfaced, or stopped.
+
+The four actions are not interchangeable terminal labels. `retried` selects another automatic execution attempt, subject to the gates above remaining valid until that attempt begins; it does not directly terminalize the run. `branched` applies the linked branch or child-run recovery shape and does not by itself make the source run `failed`; any source-run supersession or later terminal failure follows ordinary branch and run semantics. `surfaced` returns the typed recovery result to the active model or user-facing surface and may leave the run running, move it to `awaiting_user`, or directly cause `failed` when the owning posture explicitly chooses failure. `stopped` selects no further automatic recovery and is the ordinary direct predecessor of an execution-caused terminal `failed`. `UnknownOutcomeRequiresReview` is a surfaced result, never rewritten to `stopped` to satisfy a downstream query. Whenever one of these decisions is the terminalizing retry decision for a `RunStatusChanged` transition, that transition references the exact decision through the `execution_retry_decision_entry_id` declared by File 10 §4.1.
 
 ### 20.3 Stuck Detection
 

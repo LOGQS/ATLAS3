@@ -100,7 +100,7 @@ A definition is not:
 
 Every `SettingDefinition` must carry:
 
-- `key` - dotted, namespaced, lowercase identifier: two or more non-empty dot-separated segments, each of lowercase ASCII letters, digits, `_`, and `-` (`^[a-z0-9_-]+(?:\.[a-z0-9_-]+)+$`). The registered spelling is preserved for display; lookup is case-insensitive. No normalization occurs at the durable boundary — a nonconforming key is rejected, never rewritten.
+- `key` - dotted, namespaced, lowercase identifier: two or more non-empty dot-separated segments, each of lowercase ASCII letters, digits, `_`, and `-` (`^[a-z0-9_-]+(?:\.[a-z0-9_-]+)+$`). The registered spelling is preserved for display; lookup is case-insensitive. No normalization occurs at the durable boundary — a nonconforming key is rejected, never rewritten. When a settings-key family is indexed by a member of another canonical catalogue whose canonical spelling does not conform to the key grammar, the owning catalogue declares an injective `settings_key_segment` matching `[a-z0-9]+(?:_[a-z0-9]+)*`; key construction inserts it verbatim and reverse lookup resolves it through that owning catalogue. Built-in and registered-extension members are validated together for presence and injectivity before activation. This is typed derivation before registration, not normalization at the durable boundary, and the member's canonical spelling is unchanged elsewhere. An identifier that is not a member of a canonical catalogue may key a setting only if its own declared grammar already conforms to this key grammar. When a registering member's declared `settings_key_segment` is already held by a registered member of the same catalogue, the later registration is rejected with a typed collision diagnostic naming the holder; the token is never rewritten and never silently reassigned.
 - `owner_subsystem_id` - registered owner of the setting.
 - `source` - `Core`, `Plugin { plugin_id }`, `UserExtension { extension_id }`, or `ImportedBundle { bundle_id }`.
 - `definition_version` - version of this definition contract.
@@ -183,6 +183,24 @@ Primitive type is storage shape; semantics describe meaning. The semantic set is
 `SecretRef` means the stored setting value is a reference to a secret, not the secret. The settings service never returns resolved secret material to the agent, logs, events, sync, export, TOML, or ordinary UI value display.
 
 `LanguageTag` carries the active locale, and one core setting declares it: `ui.language`, with `value_type` `String`, `value_semantics` `LanguageTag`, `default_policy` `PlatformDerived { source: locale }`, `allowed_scopes` `[Global]`, and `locality` `Syncable`; its remaining section 3.2 metadata is declared like any other core definition. It resolves through the ordinary source stack, so an explicit value or an active profile layer overrides the platform-derived default. The presentation layer reads the resolved locale from this setting rather than from a renderer-private store (`ui.i18n`, File 37 §15).
+
+#### 4.2.1 Automation Failure-Handling Definitions
+
+The automation subsystem registers these core `SettingDefinition`s. All have `source: Core`, `definition_version: 1`, `allowed_scopes: [Global, Workspace, Conversation]`, and `locality: Syncable`; their remaining §3.2 metadata is declared normally.
+
+| Key | `value_type` | `value_semantics` | `default_policy` | `constraint` | Declaration field consumed |
+|---|---|---|---|---|---|
+| `automation.failure_handling.default_circuit_threshold` | `Int` | `Plain` | `Literal(3)` | `MinValue(1)` | missing `CircuitBreaker.consecutive_failure_threshold` |
+| `automation.failure_handling.default_circuit_cooldown_ms` | `Int` | `Duration` | `Literal(0)` | `MinValue(0)` | missing `CircuitBreaker.cooldown_ms`; `0` stamps `None` |
+| `automation.failure_handling.default_half_open_allowed` | `Bool` | `Plain` | `Literal(false)` | empty | missing `CircuitBreaker.half_open_allowed` |
+| `automation.failure_handling.default_notify_user` | `Bool` | `Plain` | `Literal(true)` | empty | missing `FailureNotification.notify_user` |
+| `automation.failure_handling.default_emit_event` | `Bool` | `Plain` | `Literal(false)` | empty | missing `FailureNotification.emit_event` |
+| `automation.failure_handling.default_max_attempts` | `Int` | `Plain` | `Literal(1)` | `MinValue(1)` | missing `RetryPolicy.max_attempts` |
+| `automation.failure_handling.default_backoff` | `Json` | `Plain` | `Literal(ExponentialBackoff { initial_ms: 1000, multiplier: 2, cap_ms: 60000, jitter_milliunits: 200 })` | `JsonSchema` of the canonical `BackoffStrategy` (`provider.transport-level-retry-backoff`, File 17 §11) | missing `RetryPolicy.backoff` |
+
+An explicitly declared automation value wins. Assembly uses the resolved setting only to stamp a missing declaration field before the durable `FailureHandling` record is constructed; it does not create an `automation` settings scope, and no resolved setting mutates the retry policy of an already-admitted `Run`. Notification defaults never suppress File 33's mandatory circuit-attention projection.
+
+V1 defines no setting for recovery-trigger lists, an alternate probe body, probe retry count, half-open success quota, exponential probe escalation, cooldown-retry probing, or automatic re-enablement.
 
 ### 4.3 `DefaultPolicy`
 

@@ -62,6 +62,14 @@ cross-family eval baseline; (d) performance/resource budgets; (e) docs + release
 4. **Performance/resource budgets**: interaction responsiveness (37 §16.6), boot-to-usable, memory/
    disk accounting, model-cost projections — all tested settings with budgets, never constants;
    regressions gate.
+   For each host-mediation-sensitive operation class admitted to the 1.0 profile, pin its reference
+   responsiveness envelope, the applicable mechanism-specific crossing-count bound, host-resource-claim
+   bound, or explicit justified not-applicable or retained-boundary waiver, its resident
+   memory/processor/process-count budget, and the platform and profile matrix the budget is
+   calibrated on. Only a calibrated budget gates; a learned responsiveness baseline never decides pass
+   or fail. A reusable managed-service decision is judged on avoided cold-boundary latency and steady
+   resident cost together, so reducing spawn latency does not pass the budget gate by relocating the
+   cost into permanent resident load.
 5. **Docs + release**: user-facing docs complete; the canon↔implementation drift check clean (any
    divergence resolved by code fix or canonical spec revision per the invariants doc — never silent
    divergence); 1.0 ships through the full P22 pipeline; release provenance published.
@@ -89,6 +97,12 @@ This phase *is* test obligations. Closure items checked explicitly because they 
   graph — automated: imports, DB tables, and registries audited against the closed reuse list.
 - The full accessibility conformance pass over every surface, dialog, and state (37 §14.2).
 - The 3-OS platform-conditional behavior matrix: every typed platform gap recorded, none silent.
+- Host-boundary conformance: every anchor amended by the host-mediation set maps to its applicable
+  deterministic multiplicity or resource-claim check, fault-injection evidence, replay or structural
+  check, or calibrated budget. A seeded avoidable repeated crossing, or an unnecessarily long-lived or
+  contended host-mediated resource claim, fails its applicable check; a cost required for isolation,
+  confinement, categorical cancellation, durability, or security records the reason it is retained
+  rather than being optimized away — the gate is proven in both directions.
 - The superseded-vocabulary grep at full strength: every banned legacy name across the canon absent
   from code and schema.
 

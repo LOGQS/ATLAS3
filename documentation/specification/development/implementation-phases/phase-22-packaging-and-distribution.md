@@ -74,6 +74,13 @@ work branches behind one packaging contract.
    language runtimes, the elevated helper, grounding models) as inventory entries with content
    hashes + compatibility metadata; lazy strategies hash-verify before first load; superseded
    payloads cleaned by state, not age.
+   Exercise every non-`Eager` runtime payload as a delivery state rather than hidden execution
+   latency: selected `LazyDownload` prefetch under the resolved delivery policy (43 §15), ordinary
+   first-use `LazyDownload` acquisition, `InstallOnDemand`, and `SeparatelyPublished` absence. An
+   absent `LazyDownload` payload enters explicit acquisition before dependent execution;
+   `InstallOnDemand` stays first-user-invocation and, for the elevated helper, first privileged use;
+   ordinary ready-state execution never silently acquires a payload, and an agent or automation path
+   installs no absent executable payload.
 5. **Update pipeline**: channel subscription; check → manifest signature → version comparison
    (network downgrade rejected) → artifact download + dual verification → stage → signal the
    runtime; 42 §18 relaunch; pre-stable checks gate last-known-good; the rollback path; delta
@@ -110,6 +117,13 @@ work branches behind one packaging contract.
 - Sidecars: a partial/unverifiable download is discarded, never run or loaded; an
   incompatible/downgraded payload marked unavailable, never used opportunistically; a missing
   optional payload degrades typed, never crashes (§9.3–9.5).
+- **Platform gates, honestly scoped**: fresh-machine evidence records the platform gate, quarantine,
+  and launch outcomes Atlas can directly observe, including a seeded refused or blocked launch
+  landing in typed state, with no default security-exclusion prompt on any install path; the same
+  fresh-machine evidence covers every non-`Eager` runtime payload — selected prefetch, first-use
+  `LazyDownload`, `InstallOnDemand`, and `SeparatelyPublished` absence; the 3-OS matrix establishes
+  Atlas's own platform contract, never compatibility with any third-party security, management,
+  sync, or endpoint product, and no AV/EDR product matrix is added.
 - Native-messaging: only the published extension identity connects; stale manifests surfaced +
   repaired (§8.2). Crash capsule: never egresses without redaction + consent (§12.2).
 - **No silent delivery action**: every update applied/rolled back, recovery-check failure, payload

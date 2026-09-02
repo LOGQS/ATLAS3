@@ -85,7 +85,7 @@ A `ToolSurface` is not:
 
 ### 2.2 Invokers and Surface Kinds
 
-A `ToolSurface` is always typed with an `invoker_kind` and an `invocation_lens`. The canonical invoker kinds are:
+A `ToolSurface` is always typed with an `invoker_kind` and an `invocation_lens`. The invocation-lens set is the invoker-kind set — this file names each lens by its invoker kind throughout (§3.2, §3.3, §3.4) — so the `<lens>` segment of `surface.lens_visibility.<lens>.<capability_id>` (§18.1) is the invoker kind's. Each canonical invoker kind declares an injective `settings_key_segment` matching `[a-z0-9]+(?:_[a-z0-9]+)*` (`settings.setting-definition`, File 15 §3.2); `ModelAgent` contributes `model_agent` and `Palette` contributes `palette`. The canonical invoker kinds are:
 
 - `ModelAgent` — an executing model inside a `Run`; the surface renders into the model request as callable declarations and model-request text content
 - `ProgrammaticUnit` — a deterministic execution unit (per `run.programmatic-execution`, File 04 §14) that resolves capabilities by id; the surface enumerates ids the unit may invoke. Unlike the tag-filtered lenses, the `ProgrammaticUnit` surface applies no display-tag filter — it enumerates exactly the ids in the unit's enumerated allowed set, and File 06 policy still gates each resolved invocation (§9.1 step 12)
