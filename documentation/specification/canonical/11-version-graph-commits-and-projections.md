@@ -334,7 +334,7 @@ Anchor: `version.version-op-summary-commit-boundary-set`
 
 ### 5.1 Definition
 
-A commit boundary is the point at which `pending_ops` (§6) flushes into a new `ContextVersion`. Boundaries are not implicit — every commit fires from a typed trigger, every trigger produces a `VersionOpSummary` value identifying the kind, and every commit boundary corresponds to a `BlockCommitted` boundary in `block.commit-boundary-set` (File 08 §7.6) plus a `LedgerEntry` of kind `VersionCommitted` in `ledger.entry-kind-catalogue` (File 10 §4.1).
+A version commit boundary is a canonical block-commit boundary (`block.commit-boundary-set`, File 08 §7.6) that has an owning conversation, at which that conversation's `pending_ops` (§6) flushes into a new `ContextVersion`; within this file, "commit boundary" means a version commit boundary unless qualified. Boundaries are not implicit — every version commit fires from a typed trigger, every trigger produces a `VersionOpSummary` value identifying the kind, and every version commit records a `LedgerEntry` of kind `VersionCommitted` beside the boundary's `BlockCommitted` entries in `ledger.entry-kind-catalogue` (File 10 §4.1). A block-commit boundary with no owning conversation records its `BlockCommitted` entries under File 10 but fires no version commit: it creates no `ContextVersion` and produces no `VersionOpSummary`; the `Subsystem` and `Automation` kinds of §5.2 classify a subsystem or automation boundary only when a conversation owns it.
 
 ### 5.2 Closed Canonical Catalogue
 
@@ -905,7 +905,7 @@ Anchor: `version.sibling-block-versioning-over-block-pool`
 
 ### 12.1 Definition
 
-Sibling-block versioning is the canonical mechanism by which observable content changes produce new immutable blocks in the unified pool, linked to the prior by `supersedes` edges (per `block.canonical-edge-kinds`, File 08 §5.2), with the active reference in the materialized view updated to point at the new block. The version graph records the swap in the diff; the prior block stays in the pool, reachable through the version-tree-aware projection.
+Sibling-block versioning is the canonical mechanism by which observable content changes produce new immutable blocks in the unified pool, linked to the prior by `supersedes` edges (per `block.canonical-edge-kinds`, File 08 §5.2), with the active reference in the materialized view updated to point at the new block where a conversation's view holds it. The `supersedes` edge and the sibling chain are block-pool facts; when the superseded block is conversation-owned, that conversation's version graph records the swap in the diff of the version commit that contains it. The prior block stays in the pool, reachable through the `supersedes` chain and, where a conversation's view holds it, through the version-tree-aware projection.
 
 This mechanism is shared across:
 
@@ -957,7 +957,7 @@ Plugin-bundled knowledge entries that a user wants to customise can be forked by
 
 ### 12.5 Validator and Adapter Updates
 
-`Validator`-kind and `Adapter`-kind blocks (per `artifact.artifact-kind`, File 09 §4) follow the same sibling-versioning pattern. Updates to a validator's rules or an adapter's logic create new siblings; the canonical execution path reads the active sibling at the conversation's `current_version_id` (or at the broader-scope active version for workspace/global-scope validators).
+`Validator`-kind and `Adapter`-kind blocks (per `artifact.artifact-kind`, File 09 §4) follow the same sibling-versioning pattern. Updates to a validator's rules or an adapter's logic create new siblings; the canonical execution path reads the active sibling at the conversation's `current_version_id` (or, for a `workspace`/`global`-scope validator with no owning conversation, the head of its `supersedes` chain in the block pool, `block.canonical-edge-kinds`, File 08 §5.2).
 
 ### 12.6 Boundary
 

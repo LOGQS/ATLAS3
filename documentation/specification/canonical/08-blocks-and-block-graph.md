@@ -362,7 +362,7 @@ Anchor: `block.block-lifecycle-non-destructive-edits`
 
 ### 6.1 Definition
 
-`BlockLifecycle` names the runtime view-state of a block within a particular `ContextVersion`. A block NARROWER than conversation scope holds its lifecycle state in the version graph of the OWNING conversation — the conversation its run, task, or intent thread belongs to (a version graph exists at conversation scope and broader, File 11 §3); a `workspace`/`global` block committed with no conversation context participates in lifecycle only where a view addresses it. The states are:
+`BlockLifecycle` names the runtime view-state of a block within a particular `ContextVersion`. A block NARROWER than conversation scope holds its lifecycle state in the version graph of the OWNING conversation — the conversation its run, task, or intent thread belongs to (one `VersionGraph` per conversation, `version.chosen-model`, File 11 §1; every `ContextVersion` names its owning `conversation_id`, `version.context-version`, File 11 §3.1); a `workspace`/`global` block committed with no conversation context has no `ContextVersion` lifecycle at commit — its lifecycle becomes versioned within a conversation when that conversation's view addresses it, while its durable existence, its sibling version chain (§5.2, §6.2), and its commit provenance remain block-pool and ledger facts. The states are:
 
 - `Raw` — the block exists in the pool but has not been activated in any context view yet; transient state between commit and first inclusion. A `Raw` block that is never activated (a partial orphan, a held-back import) may be masked or dropped directly (§6.7) rather than passing through `Active`
 - `Active` — the block is part of the current view; rendered, included in context assembly, eligible for retrieval
@@ -537,11 +537,11 @@ The canonical block-commit boundaries are:
 - a user explicitly commits a draft (a manual block-commit affordance in the inspector)
 - a subsystem's internal commit (memory promotion, evidence-chain commit, or equivalent) hits its declared boundary
 
-Each boundary corresponds to a version-graph commit and to a ledger entry. Between boundaries, work is staged in the pending-operations buffer (`run.version-commits`, File 04 §23.4) as events, not as blocks. The buffer accumulates incremental work; the block commit is the atomic durable promotion.
+Each boundary records a `BlockCommitted` ledger entry for every block committed at it (`ledger.entry-kind-catalogue`, File 10 §4.1). When the boundary is conversation-owned, its blocks enter that conversation's `VersionGraph` at the version commit boundary that contains it (`version.version-op-summary-commit-boundary-set`, File 11 §5.1, §5.3), which records `VersionCommitted`; a block-commit boundary nested inside a turn is not a separate version commit (`run.version-commits`, File 04 §23.4). A `workspace`- or `global`-scoped boundary with no owning conversation synthesizes no conversation and creates no `ContextVersion`: the block's existence, its sibling version chain (§5.2, §6.2), and its commit provenance are block-pool and ledger facts. Between boundaries, conversation-owned work is staged in the pending-operations buffer (`run.version-commits`, File 04 §23.4) as events, not as blocks; substrate work with no owning conversation promotes atomically at its declared block-commit boundary. The buffer accumulates incremental work; the block commit is the atomic durable promotion.
 
 ### 7.7 Boundary
 
-Streaming is owned by File 04 and the event stream. This file owns the durability contract: where streaming becomes a block, what the block looks like at commit, and how cancellation interacts with the commit. The version graph spec owns the version-graph entry that records the commit.
+Streaming is owned by File 04 and the event stream. This file owns the durability contract: where streaming becomes a block, what the block looks like at commit, and how cancellation interacts with the commit. The version graph spec owns the version-graph entry that records a conversation-owned commit (§7.6).
 
 ## 8. Identity, Validation, and Hashing
 
