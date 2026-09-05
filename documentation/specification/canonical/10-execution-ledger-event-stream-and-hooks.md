@@ -44,7 +44,7 @@ This file does not define:
 - the model-strategy layer, provider-routing logic, fallback chains, rate-limit reconciliation, or provider-health tracking — Files 16 and 17 own those; this file specifies the per-call attribution and per-error-class retry classification the ledger records
 - retrieval, indexing, knowledge-base mechanics, retrieval-augmented generation mechanics, or hybrid-search algorithms — File 12 owns those; this file specifies that the ledger is the substrate over which forensic and replay queries operate
 - context-assembly, compaction algorithms, token-budget mechanics, or per-policy block selection — File 13 owns those; this file specifies the typed `ContextPressureObserved` boundary and the compaction-related events that flow through the bus
-- the UI shell, the rendering of live or durable events into UI components, modal layouts, or accessibility surface choices — File 37 and File 38 own those; this file specifies the typed envelope and event vocabulary the UI consumes
+- the UI shell, the rendering of live or durable events into presentation units, preemptive presentation, or accessibility surface choices — File 37 and File 38 own those; this file specifies the typed envelope and event vocabulary the UI consumes
 - specific provider transport mechanics (Tauri IPC, Server-Sent Events, WebSocket, Unix sockets, MCP transports) — the Runtime Infrastructure and Lifecycle spec (File 42) owns those; this file specifies the canonical wire-format contract the transport must preserve
 
 ## Source Resolution
@@ -131,7 +131,7 @@ File 05 owns the `CapabilityDeclaration`, the `RegisteredCapability`, and the `C
 
 `surface.visibility-composition-resolution-algorithm` (File 07 §9) owns the deterministic surface composition algorithm; this file specifies the `ToolSurfaceComposed` event that fires when a composition is consumed by an invoker, and the ledger entry that records the consumed snapshot for replay.
 
-`surface.surface-relevant-events` (File 07 §13) owns the surface-relevant event vocabulary (`ToolSurfaceComposed`, `CapabilityBorrowed`, `CapabilityBorrowReturned`, `CapabilityZoneChanged`, `CapabilityRegistered`, `CapabilityUnregistered`, `CapabilityEnabledChanged`, `CapabilityAvailabilityChanged`, `ToolSurfaceShrunk`, `ToolSurfaceOverflow`, `SubsystemSurfaceSpecUpdated`, `PrimarySurfaceChanged`, `SurfaceSettingsChanged`, `SourceConnected`, `SourceDisconnected`, `LensFilterChanged`, `ShortcutConflict`); this file specifies that those events flow through the canonical bus with the canonical envelope and that the consequential subset commits to the ledger.
+`surface.surface-relevant-events` (File 07 §13) owns the surface-relevant event vocabulary (`ToolSurfaceComposed`, `CapabilityBorrowed`, `CapabilityBorrowReturned`, `CapabilityZoneChanged`, `CapabilityRegistered`, `CapabilityUnregistered`, `CapabilityEnabledChanged`, `CapabilityAvailabilityChanged`, `ToolSurfaceShrunk`, `ToolSurfaceOverflow`, `SubsystemSurfaceSpecUpdated`, `PrimarySurfaceChanged`, `SurfaceSettingsChanged`, `SourceConnected`, `SourceDisconnected`, `LensFilterChanged`, `BindingConflict`); this file specifies that those events flow through the canonical bus with the canonical envelope and that the consequential subset commits to the ledger.
 
 ### 2.5 With File 08 (Blocks and Block Graph)
 
@@ -276,7 +276,7 @@ The following are not durable (computed from the durable substrate):
 
 - per-tokenizer token counts as scalars (the canonical `TokenUsageRecord` carries per-call counts; aggregate scalars are queries, not durable rows)
 - aggregate costs as scalars (computed from `TokenUsageRecord` × pricing tier on demand)
-- per-projection materialized views (debug-panel last-N-events, telemetry dashboards, evaluation reports)
+- per-projection materialized views (the debug event projection, telemetry dashboards, evaluation reports)
 - secondary indexes used for query acceleration (rebuildable from the durable substrate)
 
 Reconstruction across restart, retry, edit, reroute, branch, and child-run is deterministic from the durable substrate plus the registry snapshot, settings snapshot, world-model snapshot, and per-capability replay-class declaration (per `capability.replay-class`, File 05 §7.3). See §9 below.
@@ -470,7 +470,7 @@ Every ledger entry declares its `kind` at commit. Each kind — canonical or reg
 - `SurfaceSettingsChanged` — a surface-scoped setting changed (per `surface.surface-relevant-events`, File 07 §13)
 - `SourceConnected` / `SourceDisconnected` — plugin or MCP server source lifecycle
 - `SourceRegistrationApproved` / `SourceRegistrationDenied` / `SourceRegistrationDeferred` — source-approval flow outcome (per `policy.source-approval-flow`, File 06 §9)
-- `ShortcutConflict` — keyboard-shortcut collision detected
+- `BindingConflict` — binding collision detected (per `surface.surface-relevant-events`, File 07 §13)
 
 **Child run, parallel work, and merge:**
 
@@ -687,8 +687,8 @@ Every event is an `AppEvent` variant. The closed canonical catalogue is the same
 - `ContextAssembled` — context assembly produced a model request (per File 13); payload includes budget breakdown
 - `ContextBudgetWarning` — context approached a budget (per File 13)
 - `CompactionStarted` / `CompactionCompleted` — compaction pipeline events (per File 13)
-- `UiPanelRegistered` / `UiPanelUnregistered` / `UiPrimaryPanelChanged` / `UiSelectionChanged` / `UiModeChanged` / `UiAvailableCapabilitiesRecomputed` — UI state-awareness events (per File 18)
-- `UiThemeChanged` / `UiKeybindingChanged` / `UiLayoutChanged` — UI customization events
+- `UiUnitRegistered` / `UiUnitUnregistered` / `UiPrimaryUnitChanged` / `UiSelectionChanged` / `UiModeChanged` / `UiAvailableCapabilitiesRecomputed` — UI state-awareness events (per File 18)
+- `UiThemeChanged` / `UiBindingChanged` / `UiCompositionChanged` — UI customization events
 - `DebugLog` — structured log entry (sensitive by default; secret content always redacted)
 - `EventBufferOverflow` — a subscriber's bounded buffer overflowed; the subscriber transitions to `degraded` state
 - `Ping` / `Pong` — heartbeat events for cross-tab or remote subscribers
@@ -1148,7 +1148,7 @@ The runtime stamps sensitivity automatically when known patterns appear (a crede
 - `Sensitive` entries / events: persisted at default retention or settings-configured shorter retention; excluded from default exports; queryable but not surfaced in default search projections; not sent to external telemetry without opt-in
 - `Secret` entries / events: persisted with redaction; the entry's structural fields (envelope, kind, cross-references, producer, timestamp) persist, but the payload retains only a `safe_description` (a one-line summary that does not reveal the secret content). The raw payload is held only in transient memory or a credential/vault subsystem; references to it from in-flight handlers expire when handling completes. Future Secret-related queries return the safe description.
 
-The redaction happens at commit, not at query time. The runtime ensures that no path (ledger row, sync stream, export, telemetry, debug panel rendering, structured log output) ever sees raw `Secret` content. This is the ledger/event/sync/export/telemetry enforcement of the cross-cutting backend secret boundary (`secret.backend-boundary`, File 22 §4): raw `Secret` material never crosses out of the backend's transient buffers and vault substrate; only opaque references and safe descriptions persist or propagate.
+The redaction happens at commit, not at query time. The runtime ensures that no path (ledger row, sync stream, export, telemetry, the debug event projection, structured log output) ever sees raw `Secret` content. This is the ledger/event/sync/export/telemetry enforcement of the cross-cutting backend secret boundary (`secret.backend-boundary`, File 22 §4): raw `Secret` material never crosses out of the backend's transient buffers and vault substrate; only opaque references and safe descriptions persist or propagate.
 
 ### 10.4 Retention Policies
 
@@ -1468,7 +1468,7 @@ Every mechanism in this file is configurable through settings. The dimensions:
 - `events.aggregation.<event_kind>.suppress_threshold` — per-kind suppression (e.g., mouse moves below 50px)
 - `events.resumption_window` — bounded best-effort live replay window
 - `events.frontend_bridge_max_event_kinds` — max event kinds the frontend may subscribe to simultaneously
-- `events.debug_panel_ring_buffer_size`
+- `events.debug_stream_ring_buffer_size`
 - `events.delivery_class.<event_kind>` — delivery class override within canonical limits
 
 **Ledger configuration:**

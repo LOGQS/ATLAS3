@@ -60,7 +60,7 @@ A `Capability` exists in three layered views:
 The same declaration drives:
 
 - agent-tool exposure (the model sees the capability with its declared description and input schema)
-- user-invocation paths (command palette, keyboard shortcuts, voice, menu)
+- user-invocation paths (the control rails — discovery, binding, token command, direct affordance, conversation; `controlrail.control-rail`, File 26 §3)
 - automation triggers (scheduled tasks, watches, webhooks invoke capabilities by id)
 - MCP-server exposure (Atlas advertises selected capabilities to external MCP clients)
 - workflow and DAG node references (workflow steps reference capabilities by id)
@@ -71,7 +71,7 @@ There is no second registry, no per-subsystem bespoke capability list, and no `a
 
 `Capability` is the canonical noun. "Tool" is a synonym used informally where the agent-tool framing is dominant; the word does not denote a separate primitive. A capability may or may not be currently exposed as a tool surface item — surface zoning is a separate concern owned by File 07.
 
-The `Capability` declaration defined here supersedes the `Action` interface in `atlas3-core/CONSTRAINTS.md` section 5. `Action` was a simplified prototype of the same invariant: one registered operation, multiple invocation paths. `Capability` fulfills that invariant with full contract metadata. The old `Action` shape maps into the declaration: `id` to identity (§3.1), `label` to display (§3.2), `shortcut` to `default_shortcut` (§3.2), `when` to `availability_predicate` (§9.2), `execute` to the backend descriptor (§3.12). `Action` is not preserved as a parallel registry, adapter layer, or alias.
+The `Capability` declaration defined here supersedes the `Action` interface in `atlas3-core/CONSTRAINTS.md` section 5. `Action` was a simplified prototype of the same invariant: one registered operation, multiple invocation paths. `Capability` fulfills that invariant with full contract metadata. The old `Action` shape maps into the declaration: `id` to identity (§3.1), `label` to display (§3.2), `shortcut` to `default_binding` (§3.2), `when` to `availability_predicate` (§9.2), `execute` to the backend descriptor (§3.12). `Action` is not preserved as a parallel registry, adapter layer, or alias.
 
 Capabilities and policy compose: every declaration carries enough metadata for the policy layer to evaluate without re-inspecting the implementation. Capabilities and surfaces compose: every capability is identifiable by a stable id that the surface layer can load, hide, or borrow without changing the declaration.
 
@@ -91,7 +91,7 @@ A `Capability` is not:
 - a transient runtime concept (capabilities have durable identity and version)
 - a single function pointer (the contract is the declaration; the resolved handler binding is one field of the registered entry)
 
-A capability may or may not be currently exposed to an agent's tool surface, command palette, voice, or shortcut layer; presentation membership is owned by the surface layer (File 07) and does not change the underlying capability.
+A capability may or may not be currently exposed to an agent's tool surface, discovery lens, voice lens, or binding lens; presentation membership is owned by the surface layer (File 07) and does not change the underlying capability.
 
 ### 2.2 Required Properties (Declaration)
 
@@ -146,9 +146,9 @@ Display fields use a localizable descriptor: a literal default carries the canon
 - `i18n_key`: optional i18n key resolving to translated `name`/`description`/`short_description`
 - `translations`: optional translation map or source localization reference
 - `family`: capability family identifier (§13.2)
-- `tags`: optional list of typed tags (`agent-invokable`, `voice-invokable`, `palette-invokable`, `destructive`, `experimental`, plus user-extensible tags)
-- `icon_key`: optional icon identifier for surface presentation
-- `default_shortcut`: optional keyboard shortcut for direct user invocation; user-overridable through settings
+- `tags`: optional list of typed tags (`agent-invokable`, `voice-invokable`, `discovery-invokable`, `destructive`, `experimental`, plus user-extensible tags)
+- `icon_key`: optional symbol identifier for surface presentation; a medium resolves it to its own symbol form (a glyph, an icon, a spoken tag) or ignores it without loss of correctness
+- `default_binding`: optional default binding for direct user invocation, expressed in the gesture grammar of the rail that resolves it (`controlrail.registry`, File 26 §14.2); user-overridable through settings
 
 Display fields are declarative only. Surface presentation is owned by File 07, File 37, and File 38. Display fields must not be hardcoded into surface logic — surfaces read from the declaration.
 
@@ -652,7 +652,7 @@ The Capability Registry must support:
 - `lookup_alias(name) -> Option<RegisteredCapability>` — alias-aware lookup
 - `list(filter) -> Vec<RegisteredCapability>` — enumerate registered entries, optionally filtered by family, source, tag, platform, enable state, availability status, or availability predicate match
 - `available(world_state) -> Vec<RegisteredCapability>` — return entries whose `availability_predicate` matches the supplied world-model snapshot and whose `availability_status` is `Available` and whose `enabled` is true
-- `find_by_shortcut(shortcut)` — for keyboard-driven invocation
+- `find_by_binding(binding)` — for binding-driven invocation (`controlrail.keybinding-keymap`, File 26 §7)
 - `subscribe(events) -> Stream<RegistryEvent>` — registry mutation event stream
 - `resolve_for_invocation(id, args, world_state) -> Result<InvocationDescriptor, ResolutionError>` — resolve identity, version, alias, source-collision active winner, and prepare the invocation descriptor the executor consumes
 
@@ -677,7 +677,7 @@ Registration is declarative and idempotent. A subsystem, plugin, or runtime regi
 5. Computes registry state (registered_at, declared_trust_hint, source_instance reference, and `contributing_bundle` when a plugin bundle owns the contribution but the runtime source is another source instance)
 6. Inserts the registered entry into the live registry
 7. Emits `CapabilityRegistered`
-8. Updates derived projections (capability-discovery for the agent, command-palette index, voice-command map, automation trigger-target list)
+8. Updates derived projections (capability-discovery for the agent, discovery-lens index, voice-command map, automation trigger-target list)
 
 Registration may fail with typed errors: `IdentifierCollision`, `InvalidDeclaration`, `HandlerUnresolved`, `SchemaTooNew`, `SourceConflict`, `UnparseableResourceExpression`. Failed registrations leave the registry unchanged.
 
@@ -713,7 +713,7 @@ A capability declares one family. Family membership is for grouping; it does not
 
 A capability declaration may declare aliases — alternative ids it has been known as. Aliases support:
 
-- registry-level renames without breaking saved automations or user-pinned shortcuts
+- registry-level renames without breaking saved automations or user-pinned bindings
 - MCP tool name conventions where remote servers expose tools under different naming styles
 - backwards compatibility across `version` increments where the operation moved to a new family or operation name
 
@@ -789,7 +789,7 @@ The registry exposes lookup along several axes:
 - source enumeration
 - tag-filtered enumeration
 - availability-filtered enumeration (over a supplied world-model snapshot)
-- text search over `name`, `description`, and `tags` for command palette and natural-language matching
+- text search over `name`, `description`, and `tags` for the discovery lens and natural-language matching
 - semantic search over `description` (if an embedding index is configured) for richer matching at higher cost
 
 All lookup surfaces honor `availability_status` and `enabled` from the registered entry; surfaces may opt to reveal unavailable entries explicitly through advanced settings.
@@ -803,7 +803,7 @@ Anchor: `capability.availability-predicate`
 - `requires`: a typed declaration of state the capability needs (active surface, focused element class, selection presence, present capability prerequisites, present credentials, present provider with required model capability)
 - `blocked_by`: a typed declaration of state that prevents invocation (a destructive capability blocked while a prior destructive call is still committing; a publish-capability blocked while the workspace has unsaved changes)
 
-The state-awareness service evaluates predicates against the current world-model snapshot and produces the available-capability list (per `core.world-model`, File 01 §6.7 World Model). Surfaces consume that list — the command palette shows the available subset; the agent sees the available subset filtered further by surface-loading rules in File 07.
+The state-awareness service evaluates predicates against the current world-model snapshot and produces the available-capability list (per `core.world-model`, File 01 §6.7 World Model). Surfaces consume that list — the discovery lens shows the available subset; the agent sees the available subset filtered further by surface-loading rules in File 07.
 
 Predicates are declarative. A capability whose availability rule cannot be expressed as a typed declaration must extend the predicate vocabulary through registered availability checks (a named function that the registry evaluates). Ad-hoc procedural availability is rejected.
 
