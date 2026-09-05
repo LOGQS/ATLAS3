@@ -338,7 +338,7 @@ A single tier cannot satisfy the three constraints simultaneously: `version.snap
 
 ### 7.3 Tier Assignment Rules and Floors
 
-- A fact whose change is consequential for replay, audit, policy, or continuity is `Durable` or `Observed`, never `Ephemeral`.
+- A fact whose change is consequential for replay, audit, policy, or continuity is `Durable` or `Observed`, never `Ephemeral`. Presentation continuity satisfies that rule through the normalized restore and presentation-step records its owning contracts define (`ui.shell`, File 37 §4) and (`ui.events`, File 37 §21), not by promoting the live `SurfaceState` values they summarize.
 - A fact captured deliberately as evidence or as a mutation precondition is `Observed` (it becomes an `Observation` block).
 - A fact that changes faster than it is consumed and whose individual values are not replay-relevant is `Ephemeral`.
 - `Secret` facts are never `Durable` in raw form and never `Observed` in raw form; the durable or observed record carries a safe description (`ledger.sensitivity-aware-persistence-retention`, File 10 §10, `artifact.observation` (File 09 §13) sensitivity rules).

@@ -160,6 +160,8 @@ Some content lives at the boundary; for example, a tool-use proposal becomes a t
 
 ### 3.4 Message Submission Lifecycle
 
+Before submission there is the composition itself. An unsent composition is conversation-scoped user content under this file's own conversation-content contracts — not a separate durable record shape and not durable presentation state: the conversation layer owns it, persists it as it changes through the substrate's ordinary write scheduling, and commits it at declared semantic boundaries including submission, loss of its active editing context, conversation or client close, and shutdown; no timer is a correctness condition (`core.event-first-by-default`, File 01 §7.15). Losing it is data loss, not a rebuild, and `core.non-destructive-by-default` (File 01 §7.13) governs it as it governs any other user content: what has been committed survives an abrupt termination, and only the uncommitted tail since the last commit is lost. On submission the committed composition becomes the message atomically so its content is never in neither place, and the pending composition is released only after that transfer or the user's explicit clear. Its sensitivity and locality follow the conversation content it belongs to. The presentation layer may render its current value and self-register that live projection, but owns no durable form of it (`ui.persistence-locality`, File 37 §19.1).
+
 Between the user's submission of a message and the routing layer's production of a `RunIntent`, the system may perform pre-routing processing on the pending message.
 
 Allowed operations include:
