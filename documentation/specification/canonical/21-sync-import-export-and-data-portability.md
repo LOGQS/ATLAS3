@@ -198,7 +198,7 @@ Anchor: `portability.what-replicates`
 
 ### 5.1 Definition
 
-Replication eligibility is the determination, per substrate family and setting, of whether a record participates in cross-device sync. It consumes File 20's structural partition, File 15's locality, and File 10's sensitivity.
+Replication eligibility is the determination, per substrate family and setting, of whether a record participates in cross-device sync. It consumes File 20's structural partition, File 15's locality, and File 10's sensitivity. For the conversation head in §5.3, per-device ownership describes which device's value governs that device's view; it does not by itself change the version-graph family's replication eligibility.
 
 ### 5.2 Purpose
 
@@ -211,7 +211,7 @@ Replication eligibility is the determination, per substrate family and setting, 
 - **Registry and extension metadata.** Durable registry declarations, custom-kind schemas, capability declarations needed for inspection, source identities, approval records, and soft dependency references may replicate. Executable plugin code, binaries, scripts, connector runtimes, and installer payloads do not replicate as ordinary data.
 - **World state default.** World-model records default to device-local unless their owning producer or spec declares a syncable, user-portable fact class. Displays, windows, processes, foreground state, browser sessions, sandboxes, capture state, device-specific observations, and `WorldView` projections never sync. Stable workspace definitions, portable user preferences, and approved source registrations may sync only when their owning specs declare them syncable.
 - **Never replicates.** The device-local substrate, hash-chained audit overlay, per-device rate-limit state, TOML overlay, settings tagged `DeviceLocal` or `NeverSync`, per-device system-watch and scheduled-task execution state, machine-bound configuration, raw secret vault, projections, indexes, caches, provider-model cache, DAG node-output cache, and rebuildable derived views never replicate.
-- **Per-conversation head.** `current_version_id` and pending operations are per-device conversation state unless a future shared-pointer mode explicitly defines otherwise.
+- **Per-conversation head.** `current_version_id` and pending operations are per-device conversation state unless a future shared-pointer mode explicitly defines otherwise. Per-device is a semantic property, not a substrate placement: the head's durable records belong to the version-graph source-of-truth family (File 20 §3.3), live in the syncable substrate (File 20 §8.3), and are replication-eligible with that family under this section's locality and sensitivity rules. A replicated head record belonging to another device is inert locally — it is never selected as this device's head (File 11 §19.2, §19.4; §6.3).
 - **Settings locality.** `Syncable` replicates. `WorkspaceLocal` replicates only within the shared workspace semantics that own it. `DeviceLocal`, `NeverSync`, and raw secret material do not replicate. `ExportOptIn` moves only when the user opts in. `SecretReferenceOnly` may replicate references, never secret material.
 - **Sensitivity floor.** `Public` records replicate by default. `Sensitive` records replicate only when the user enables sensitive sync for the relevant scope. `Secret` payloads never replicate; only safe descriptions and opaque references may persist on each device.
 
