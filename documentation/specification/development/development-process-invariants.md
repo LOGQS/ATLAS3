@@ -898,7 +898,9 @@ Rules:
 
 Anchor: `devproc.spec-maintenance`
 
-When implementation reveals that a spec is wrong, ambiguous, incomplete, or contradictory:
+When implementation reveals that a spec is wrong, ambiguous, incomplete, or contradictory — or that a
+design overall better than the one the spec resolves exists, net of every cost including the churn of
+the revision itself:
 
 1. Stop the affected line of implementation.
 2. Identify the owning canonical file and all affected references.
@@ -907,6 +909,10 @@ When implementation reveals that a spec is wrong, ambiguous, incomplete, or cont
 5. Record the reason and blast radius in the appropriate decision record, review note, or changelog.
 6. Refresh generated docs, spec navigation, skills, or digests that agents depend on.
 7. Then implement against the revised rule.
+
+Until the revision lands, the current canonical text binds in full: a better design is argued through
+these steps and adopted by revising the spec, never built ahead of it. Step 3 is adjudicated
+independently under section 22's review discipline, not settled by the implementer's own preference.
 
 Additions to closed canonical sets are spec changes by definition. Declared `Custom` or extension
 registration paths are runtime registrations and do not require a canonical revision unless the
