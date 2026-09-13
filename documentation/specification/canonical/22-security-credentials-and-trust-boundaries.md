@@ -503,6 +503,8 @@ The local security posture is the set of structural protections at the process, 
 
 ### 13.2 The Process and IPC Trust Boundary
 
+Anchor: `security.process-ipc-trust-boundary`
+
 - The backend process is the only trust domain that holds raw secret material and reaches the vault (§3.3, §5.7). The renderer process is a lower-trust domain: it never receives raw secrets, never reaches the vault, and communicates with the backend only through typed, named IPC methods, not an open channel (`core.stack-commitments`, File 01 §9 Tauri model).
 - The IPC surface is an allowlist of typed commands; the renderer cannot invoke arbitrary backend functions. Business logic lives in the backend service layer, never in the IPC command wrappers (Service-Layer Ownership, File 01 §7.7), so the trust boundary is structural.
 - Secret-bearing values are never returned to the renderer after being saved: a stored credential is write-only from the renderer's perspective; the renderer holds a reference and a redacted descriptor, never the value.
@@ -662,4 +664,4 @@ Every later spec that touches credentials, secrets, trust, encryption, egress, o
 
 Anchor: `security.canonical-rule-anchors`
 
-Load-bearing rules defined by this file carry stable anchors: `security.chosen-model`, `security.boundaries-with-adjacent-layers`, `security.threat-model`, `secret.backend-boundary`, `security.secret-vault`, `security.credentials`, `security.secret-detection-redaction`, `security.encryption`, `security.trust-model`, `security.device-trust`, `security.egress-governance`, `security.untrusted-content`, `security.local-posture`, `security.audit-crypto`, `security.capability-surface`, `security.events`, and `security.settings`. Cross-references should prefer the anchor and may cite the section number secondarily. An anchor names exactly one canonical rule and is stable across spec revisions.
+Load-bearing rules defined by this file carry stable anchors: `security.chosen-model`, `security.boundaries-with-adjacent-layers`, `security.threat-model`, `secret.backend-boundary`, `security.secret-vault`, `security.credentials`, `security.secret-detection-redaction`, `security.encryption`, `security.trust-model`, `security.device-trust`, `security.egress-governance`, `security.untrusted-content`, `security.local-posture`, `security.process-ipc-trust-boundary`, `security.audit-crypto`, `security.capability-surface`, `security.events`, and `security.settings`. Cross-references should prefer the anchor and may cite the section number secondarily. An anchor names exactly one canonical rule and is stable across spec revisions.

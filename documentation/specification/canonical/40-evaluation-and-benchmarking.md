@@ -208,7 +208,7 @@ An evaluation decides whether a produced output is acceptable by comparing it ag
 
 ### 5.3 Cheap-Deterministic-First Ordering
 
-Where a comparison admits both a deterministic form and a model-mediated form, the deterministic form is preferred, mirroring the cheap-deterministic-first rule of `qc.validation-kind-taxonomy` (File 39 §5.4). The ordering is `ExactMatch` → `StructuralDiff` → `PropertyAssertion` → `SemanticEquivalence`: a suite uses the cheapest comparison sufficient to express its concern, and reserves the model-mediated `SemanticEquivalence` for the residue that no deterministic comparison captures. A `SemanticEquivalence` comparison records its replay key (`qc.persistence-replay`, File 39 §10.5) so that historical reconstruction reads the recorded verdict.
+Where a comparison admits both a deterministic form and a model-mediated form, the deterministic form is preferred, mirroring the cheap-deterministic-first rule of `qc.validation-kind-taxonomy` (File 39 §5.4). The ordering is `ExactMatch` → `StructuralDiff` → `PropertyAssertion` → `SemanticEquivalence`: a suite uses the cheapest comparison sufficient to express its concern, and reserves the model-mediated `SemanticEquivalence` for the residue that no deterministic comparison captures. A `SemanticEquivalence` comparison records its replay key (`qc.persistence-replay`, File 39 §10.5/§19) so that historical reconstruction reads the recorded verdict.
 
 ### 5.4 Golden Artifacts Are Pinned Artifact Versions
 
@@ -285,7 +285,7 @@ An `EvalRun` cannot record a case as `Passed` without the ledgered evidence its 
 
 - a scorer's `Validation` block does not exist or does not reference the actual produced output (the offline analog of the completion-forgery guard of `run.termination`, File 04 §22 and `ledger.forgery-guards`, File 10 §3.7, reusing the same rejection mechanism)
 - a golden comparison records a pass without referencing the actual produced artifact version and the golden version it compared against
-- a model-mediated scorer records a verdict without its replay key (`qc.persistence-replay`, File 39 §10.5)
+- a model-mediated scorer records a verdict without its replay key (`qc.persistence-replay`, File 39 §10.5/§19)
 - a `FullRerun` case records a pass with no execution evidence (no recorded capability executions, no committed outputs, no model-step outputs beyond plain text) when its scorers required produced action — mirroring the empty-trace, zero-blast-radius, no-recorded-outcome forgery patterns
 
 Every scorer declared on a case must produce a verdict or an explicit skipped diagnostic; coverage is required (§6.4). A run whose recorded passes are not backed by evidence is an integrity violation, surfaced and not silently accepted.
@@ -524,7 +524,7 @@ The canonical evaluation capabilities, each a built-in capability declared per `
 - `eval.queue.open(selector)` — open an `AnnotationQueue` over selected recorded runs (§12; `ReadOnly` to read, `WorkspaceWrite` to persist the queue)
 - `eval.optimize_judge(judge_id, dataset_ref, budget)` — start a `JudgeOptimization` run (§11; long-running, `UserApproval` with cost preview)
 
-Evaluation reuses `validation.run`/`validation.attach`/`validation.report` (File 09 §16; `qc.capability-surface`, File 39 §16) for the underlying scoring and the `replay.*` capabilities (`version.replay-semantics`, File 11 §15.6) for the replay; it does not redefine those signatures. Surface- and subsystem-specific evaluation capabilities expose family-namespaced adapter capabilities (a Coder `coder.eval.run`, a Web `web.eval.research`) over `eval.run`; the underlying record is always a canonical `EvalRun`.
+Evaluation reuses the `validation.run`/`validation.attach` capabilities (File 09 §16) and the `validation.report` capability (`qc.capability-surface`, File 39 §16) for the underlying scoring and the `replay.*` capabilities (`version.replay-semantics`, File 11 §15.6) for the replay; it does not redefine those signatures. Surface- and subsystem-specific evaluation capabilities expose family-namespaced adapter capabilities (a Coder `coder.eval.run`, a Web `web.eval.research`) over `eval.run`; the underlying record is always a canonical `EvalRun`.
 
 ### 15.3 Boundary
 
@@ -576,7 +576,7 @@ The `EvalScore`, the `EvalReport`, the leaderboards, the rankings, the regressio
 
 ### 18.3 Locality
 
-Suite, case, and annotation definitions follow the locality of the substrates that carry them: definitions sync per the block-sync eligibility rules (File 21); a recorded-run fixture references durable ledger scopes and snapshots and does not duplicate them; device-local evaluation state (a resolved run handle, a cached projection) is rebuildable per device and not synced. Recorded-run fixtures and the suites, baselines, and regression reports that reference them place retention holds on the referenced substrate until the user or policy explicitly releases those holds with preview. A model-mediated scorer or judge replays from its recorded replay key (`qc.persistence-replay`, File 39 §10.5), never from the live model endpoint (`provider.token-source`, File 17).
+Suite, case, and annotation definitions follow the locality of the substrates that carry them: definitions sync per the block-sync eligibility rules (File 21); a recorded-run fixture references durable ledger scopes and snapshots and does not duplicate them; device-local evaluation state (a resolved run handle, a cached projection) is rebuildable per device and not synced. Recorded-run fixtures and the suites, baselines, and regression reports that reference them place retention holds on the referenced substrate until the user or policy explicitly releases those holds with preview. A model-mediated scorer or judge replays from its recorded replay key (`qc.persistence-replay`, File 39 §10.5/§19), never from the live model endpoint (`provider.token-source`, File 17).
 
 ### 18.4 Replay and Test Obligations
 

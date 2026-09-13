@@ -12,7 +12,7 @@ This file defines:
 - the `Trigger` — the durable, typed firing-condition object the `Scheduler` and the world model detect, and whose firing flows into the system through the Trigger rail (`controlrail.trigger-rail`, File 26 §11)
 - the closed-canonical `TriggerKind` taxonomy (`Schedule`, `Event`, `WorldCondition`, `Webhook`, `Manual`) plus the `Custom { namespace, name }` extension, and its mapping to the routing `trigger_kind` discriminator (`routing.trigger-kinds-routing`, File 03 §2.1)
 - the `RecurrenceRule` contract and the **event-first timing rule**: a `Schedule` trigger computes its next-fire instant as a pure function and arms a single timer to that instant; it never busy-polls a clock, honoring `core.event-first-by-default` (File 01 §7.15) and `world.consequences-for-later-specs` (File 18) — current time is grounding, not a scheduler
-- watch evaluation: the `WatchPolicy` (edge-versus-level firing, reset condition, deduplication, debounce/coalescing, hysteresis), event-first over `world.watch` (File 18 §13.1) and perception change signals (File 19 §8), with a flagged polling fallback only where a source emits no change events
+- watch evaluation: the `WatchPolicy` (edge-versus-level firing, reset condition, deduplication, debounce/coalescing, hysteresis), event-first over the `world.watch` capability (File 18 §13.1) and perception change signals (File 19 §8), with a flagged polling fallback only where a source emits no change events
 - the one `Scheduler` substrate service — live arming, next-fire computation, atomic fire claim, and fired-run overlap arbitration — realized with canonical automation workers (`ledger.app-event-catalogue`, File 10 §5), owning detection and never execution; and `AutomationStartupCoordinator`, which establishes pre-worker reconciliation handoff without arming or detecting
 - the **automation run model**: a fired trigger resolves to a `RouteRequest` (`controlrail.input-resolution`, File 26 §4), routes through `routing.dispatch-pipeline` (File 03 §3), and executes as an ordinary `Run` (`run.run`, File 04 §2.3) — background execution is not a separate architecture; the intent-thread attachment for non-user-originated runs; the automation target conversation
 - eligibility and enablement: the deterministic live-fire gate chain, the world selector as availability evaluator (`world.state-aware-capability-availability`, File 18 §9), rate limiting, cooldown, shared cold-start coordination, and recursive-trigger cycle guarding
@@ -304,6 +304,8 @@ At fire time the pinned selection is re-resolved through model selection (`model
 
 ### 6.4 Identity, Versioning, and Source
 
+Anchor: `automation.identity-versioning-source`
+
 - An `Automation`'s durable definition is carried by an `AutomationVersion` over the registered `Custom { namespace: "automation", name: "definition" }` block/entity kind. Every version carries `automation_id`, `automation_definition_version_number`, its parent-version reference when present, and the complete definition. File 33 owns the entity semantics; File 08 owns custom-kind registration and validation; File 11 owns graph carriage and branch/current-version resolution.
 
   `automation_definition_version_number` is an unsigned integer assigned at commit, monotonically and uniquely per `automation_id`: the first committed version is `1`; each later version is the greatest previously allocated number plus one; a number is never reused after tombstoning or branch changes; exhaustion and duplication are typed integrity failures. The successful append is the allocation authority.
@@ -415,7 +417,7 @@ Anchor: `automation.scheduler`
 
 ### 9.1 Definition
 
-The `Scheduler` is the one substrate service that detects trigger firings and emits fired-trigger signals into the Trigger rail. It is realized as the canonical scheduler and watch-poller background workers (`ledger.app-event-catalogue`, File 10 §4.1's `BackgroundWorkerSpawned` set), spawned at startup within the application lifecycle and stopped gracefully at shutdown. It owns detection and arbitration; it never executes a run.
+The `Scheduler` is the one substrate service that detects trigger firings and emits fired-trigger signals into the Trigger rail. It is realized as the canonical scheduler and watch-poller background workers (`ledger.entry-kind-catalogue`, File 10 §4.1's `BackgroundWorkerSpawned` set), spawned at startup within the application lifecycle and stopped gracefully at shutdown. It owns detection and arbitration; it never executes a run.
 
 ### 9.2 Responsibilities
 
@@ -993,4 +995,4 @@ Anchor: `automation.consequences-for-later-specs`
 
 Anchor: `automation.canonical-rule-anchors`
 
-Load-bearing rules defined by this file carry stable anchors: `automation.chosen-model`, `automation.trigger`, `automation.schedule-trigger`, `automation.watch`, `automation.event-and-webhook-triggers`, `automation.automation-object`, `automation.manual`, `automation.eligibility`, `automation.scheduler`, `automation.run`, `automation.non-interactive-safety`, `automation.overlap`, `automation.failure-handling`, `automation.validation-and-output`, `automation.creation-and-graduation`, `automation.surface-aliasing`, `automation.observability`, `automation.persistence`, `automation.capability-surface`, `automation.events`, and `automation.settings`. Cross-references should prefer the anchor and may cite the section number secondarily. An anchor names exactly one canonical rule and is stable across spec revisions.
+Load-bearing rules defined by this file carry stable anchors: `automation.chosen-model`, `automation.trigger`, `automation.schedule-trigger`, `automation.watch`, `automation.event-and-webhook-triggers`, `automation.automation-object`, `automation.identity-versioning-source`, `automation.manual`, `automation.eligibility`, `automation.scheduler`, `automation.run`, `automation.non-interactive-safety`, `automation.overlap`, `automation.failure-handling`, `automation.validation-and-output`, `automation.creation-and-graduation`, `automation.surface-aliasing`, `automation.observability`, `automation.persistence`, `automation.capability-surface`, `automation.events`, and `automation.settings`. Cross-references should prefer the anchor and may cite the section number secondarily. An anchor names exactly one canonical rule and is stable across spec revisions.
