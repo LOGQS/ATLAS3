@@ -1381,8 +1381,8 @@ On graceful shutdown (per the Runtime Infrastructure and Lifecycle spec, File 42
 2. new work is rejected or queued according to policy.
 3. in-flight work receives cancellation / pause / fast-finish signals according to its capability declaration.
 4. critical ledger and audit-overlay records that were already acknowledged as successful are flushed synchronously.
-5. noncritical buffers and diagnostics are flushed best-effort without making shutdown correctness depend on elapsed time.
-6. final lifecycle state is committed when the process can do so safely, then the process exits.
+5. noncritical buffers are flushed best-effort without making shutdown correctness depend on elapsed time.
+6. final lifecycle state is committed when the process can do so safely; the device-local diagnostic stream is then drained best-effort, and shutdown completes under File 42 §12.3–§12.4 before the process exits.
 
 Atlas should be ready to close at any time. Graceful handling is best effort for active work; correctness comes from commit boundaries and restart reconciliation, not from waiting for a shutdown timer.
 
